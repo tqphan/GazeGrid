@@ -1,0 +1,357 @@
+#include <QtTest>
+#include <QTemporaryDir>
+#include <QFile>
+#include "Dwell.h"
+#include "KeyboardPack.h"
+#include "KeyboardLayout.h"
+#include "ActionRunner.h"
+#include "KeyNames.h"
+#include "ProfileStore.h"
+#include "PointerActions.h"
+#include "GazeClock.h"
+#include "MagnifierGeometry.h"
+#include "WordPrediction.h"
+#include "ShortcutMappings.h"
+#include "PortalPermissionStore.h"
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QDir>
+#include <QLineF>
+class CoreTests:public QObject{
+ Q_OBJECT
+static QVariantMap cmd(QString tag,QString text){return {{"tag",tag},{"text",text}};}
+private slots:
+ void inactiveNativeContextUsesPhysicalFallback(){
+  ActionRunner runner;QStringList events;runner.canCommitText=[] {return false;};runner.sendText=[](QString){return false;};
+  runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};QSignalSpy done(&runner,&ActionRunner::finished);
+  QVERIFY(runner.start({cmd("Text","a")}));QTRY_COMPARE(done.count(),1);QCOMPARE(events,QStringList({"A+","A-"}));
+  events.clear();QVERIFY(!runner.start({cmd("Text",QString::fromUtf8("é"))}));QVERIFY(events.isEmpty());
+ }
+ void nativeTextCommitsUnicodeAndPreservesControlKeyOrder(){
+  ActionRunner runner;QStringList events;
+  runner.sendText=[&](QString text){events<<"text:"+text;return true;};
+  runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+  QSignalSpy done(&runner,&ActionRunner::finished);
+  QVERIFY(runner.start({cmd("Text",QString::fromUtf8("é€😀\tß\n"))}));QTRY_COMPARE(done.count(),1);
+  QCOMPARE(events,QStringList({QString::fromUtf8("text:é€😀"),"TAB+","TAB-",QString::fromUtf8("text:ß"),"RETURN+","RETURN-"}));
+ }
+ void nativeTextDoesNotReplaceShortcutKeys(){
+  ActionRunner runner;QStringList events;
+  runner.sendText=[&](QString text){events<<"text:"+text;return true;};
+  runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+  QSignalSpy done(&runner,&ActionRunner::finished);
+  QVERIFY(runner.start({cmd("KeyDown","LCTRL"),cmd("Text","c"),cmd("KeyUp","LCTRL")}));QTRY_COMPARE(done.count(),1);
+  QCOMPARE(events,QStringList({"LCONTROL+","C+","C-","LCONTROL-"}));
+  events.clear();QVERIFY(!runner.start({cmd("Text","first"),cmd("KeyDown","LCTRL"),cmd("Text",QString::fromUtf8("é"))}));QVERIFY(events.isEmpty());
+ }
+ void nativePhysicalPreflightRejectsBeforeAnyText(){
+  ActionRunner runner;QStringList events;runner.sendText=[&](QString text){events<<text;return true;};runner.supportsPhysicalKey=[](QString){return false;};
+  QVERIFY(!runner.start({cmd("Text","first"),cmd("KeyDown","W")}));QVERIFY(events.isEmpty());
+  QVERIFY(!runner.start({cmd("Action","LeftShift")}));
+ }
+ void desktopPermissionTokensArePrivateAndSingleUse(){
+  QTemporaryDir dir;const auto path=dir.filePath("nested/permission.json");PortalPermissionStore store(path);QString error;
+  QVERIFY(store.save("private-test-token",error));QVERIFY(error.isEmpty());
+  const auto permissions=QFile::permissions(path);QVERIFY(!(permissions&(QFileDevice::ReadGroup|QFileDevice::WriteGroup|QFileDevice::ReadOther|QFileDevice::WriteOther)));
+  QCOMPARE(store.take(error),QString("private-test-token"));QVERIFY(error.isEmpty());QVERIFY(!QFile::exists(path));
+  QVERIFY(store.take(error).isEmpty());QVERIFY(error.isEmpty());
+  QVERIFY(store.save("replacement-token",error));QVERIFY(store.forget(error));QVERIFY(!QFile::exists(path));
+ }
+ void corruptPermissionTokenCannotBeReused(){
+  QTemporaryDir dir;const auto path=dir.filePath("permission.json");QFile file(path);QVERIFY(file.open(QIODevice::WriteOnly));file.write("{broken");file.close();
+  PortalPermissionStore store(path);QString error;QVERIFY(store.take(error).isEmpty());QVERIFY(!error.isEmpty());QVERIFY(!QFile::exists(path));
+  QVERIFY(!store.save("",error));QVERIFY(!error.isEmpty());
+ }
+ void mappedAndLiteralShortcutsPreserveOrderedRelease(){
+  const QVariantList original{cmd("KeyDown","LWIN"),cmd("Text","c"),cmd("KeyUp","LWIN")};
+  const QVariantList effective{cmd("KeyDown","LCONTROL"),cmd("Text","c"),cmd("KeyUp","LCONTROL")};
+  const QJsonObject rule{{"match",ActionRunner::signature(original)},{"description","Test copy override"},{"commands",QJsonArray::fromVariantList(effective)}};
+  QString error;const auto profile=ShortcutMappings::parse(QJsonDocument(QJsonObject{{"version",1},{"platform","linux"},{"overrides",QJsonArray{rule}}}).toJson(),error);
+  QVERIFY(error.isEmpty());
+  for(bool literal:{false,true}){
+   auto result=ShortcutMappings::resolve(original,profile,literal);QVERIFY(result.allowed);
+   QCOMPARE(result.commands,literal?original:effective);
+   if(!literal){QVERIFY(result.message.contains("original:"));QVERIFY(result.message.contains("effective:"));}
+   ActionRunner runner;QStringList events;runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};QSignalSpy done(&runner,&ActionRunner::finished);
+   QVERIFY(runner.start(result.commands));QTRY_COMPARE(done.count(),1);
+   const auto modifier=literal?QString("LWIN"):QString("LCONTROL");QCOMPARE(events,QStringList({modifier+"+","C+","C-",modifier+"-"}));QVERIFY(runner.heldKeys().isEmpty());
+  }
+ }
+ void mappingPresetIsExplicitAndUnknownShortcutsStayBlocked(){
+  QFile file(":/resources/linux-mappings.json");QVERIFY(file.open(QIODevice::ReadOnly));QString error;auto profile=ShortcutMappings::parse(file.readAll(),error);QVERIFY(error.isEmpty());
+  auto preset=profile["overrides"].toArray().first().toObject();auto commands=preset["commands"].toArray().toVariantList();
+  auto result=ShortcutMappings::resolve(commands,profile,false);QVERIFY(result.allowed);QVERIFY(result.message.contains("KDE:"));
+  const QVariantList unknown{cmd("KeyDown","LWIN"),cmd("Text","c"),cmd("KeyUp","LWIN")};
+  QVERIFY(!ShortcutMappings::resolve(unknown,profile,false).allowed);QVERIFY(ShortcutMappings::resolve(unknown,profile,true).allowed);
+  const QVariantList game{cmd("KeyToggle","W")};QCOMPARE(ShortcutMappings::resolve(game,profile,false).commands,game);
+ }
+ void invalidMappingProfilesAreRejected(){
+  QString error;
+  QVERIFY(ShortcutMappings::parse("{bad",error).isEmpty());QVERIFY(!error.isEmpty());
+  QVERIFY(ShortcutMappings::parse(R"({"version":1.5,"platform":"linux","overrides":[]})",error).isEmpty());
+  const QJsonObject rule{{"match","test"},{"description","Test"},{"commands",QJsonArray{QJsonObject{{"tag","Text"},{"text","a"}}}}};
+  auto json=QJsonDocument(QJsonObject{{"version",1},{"platform","linux"},{"overrides",QJsonArray{rule,rule}}}).toJson();
+  QVERIFY(ShortcutMappings::parse(json,error).isEmpty());QVERIFY(!error.isEmpty());
+ }
+ void predictionUnderstandsWhitespaceAndPunctuation(){
+  QCOMPARE(WordPrediction::prefix("one\ttw"),QString("tw"));
+  QCOMPARE(WordPrediction::prefix("one,tw"),QString("tw"));
+  QCOMPARE(WordPrediction::prefix("one\ntw"),QString("tw"));
+  QCOMPARE(WordPrediction::prefix("one "),QString());
+  QCOMPARE(WordPrediction::prefix("123abc"),QString());
+  QCOMPARE(WordPrediction::completedWord("Hello!"),QString("hello"));
+  QCOMPARE(WordPrediction::completedWord("don't"),QString("don't"));
+  QCOMPARE(WordPrediction::completedWord("123"),QString());
+  QCOMPARE(WordPrediction::completedWord("hello "),QString());
+  QCOMPARE(WordPrediction::completedWord("hello !"),QString());
+ }
+ void predictionRanksLearnedWordsAndMatchesTypedCase(){
+  const QStringList words{"Help","hello","HELLO","helmet","he","héllo"};
+  QCOMPARE(WordPrediction::suggest("he",words,{}),QStringList({"help","hello","helmet"}));
+  QCOMPARE(WordPrediction::suggest("he",words,{{"helmet",12}}).first(),QString("helmet"));
+  QCOMPARE(WordPrediction::suggest("HE",words,{}).first(),QString("HELP"));
+  QCOMPARE(WordPrediction::suggest("He",words,{}).first(),QString("Help"));
+  QCOMPARE(WordPrediction::suggest("he",words,{},1).size(),1);
+  QVERIFY(WordPrediction::suggest("he",words,{},0).isEmpty());
+ }
+ void magnifierCoordinatesStayInsideCapturedDesktop(){
+  const QSize image(1920,1080);
+  for(const auto &point:QList<QPointF>{{0,0},{1,1},{.5,.5},{.01,.99}}){
+   auto crop=MagnifierGeometry::crop(image,point);QVERIFY(QRect(QPoint(0,0),image).contains(crop));
+   QCOMPARE(crop.size(),QSize(480,270));
+   const auto top=MagnifierGeometry::map(crop,image,{0,0}),bottom=MagnifierGeometry::map(crop,image,{1,1});
+   QVERIFY(MagnifierGeometry::validPoint(top));QVERIFY(MagnifierGeometry::validPoint(bottom));
+   QCOMPARE(bottom.x()-top.x(),.25);QCOMPARE(bottom.y()-top.y(),.25);
+  }
+  QVERIFY(!MagnifierGeometry::crop(image,{qQNaN(),.5}).isValid());
+  QCOMPARE(MagnifierGeometry::map({},image,{.5,.5}),QPointF(-1,-1));
+ }
+ void queuedGazeMustRemainFreshAndOrdered(){
+  QVERIFY(GazeClock::fresh(1000000,1199999,999999));
+  QVERIFY(!GazeClock::fresh(1000000,1200001,999999));
+  QVERIFY(!GazeClock::fresh(1000000,999999,999998));
+  QVERIFY(!GazeClock::fresh(1000000,1100000,1000000));
+  QVERIFY(!GazeClock::fresh(999999,1100000,1000000));
+ }
+ void lookScrollDeadzoneDirectionAndTimeAreDeterministic(){
+  LookScroll scroll;scroll.start({500,500},0);
+  QCOMPARE(scroll.update({520,530},25,true),QPointF());
+  const auto delta=scroll.update({600,400},50,true);
+  QVERIFY(delta.x()>0);QVERIFY(delta.y()<0);QCOMPARE(delta.x(),-delta.y());
+  QCOMPARE(scroll.update({800,800},75,false),QPointF()); // Keyboard/controls never scroll.
+  QCOMPARE(scroll.update({800,800},400,true),QPointF());QVERIFY(!scroll.active());
+  scroll.start({500,500},500);QCOMPARE(scroll.update({800,800},499,true),QPointF());QVERIFY(!scroll.active());
+ }
+ void lookScrollSelectsAnchorAndTogglesOff(){
+  PointerActions p;p.setDisplaySize({1000,1000});QList<QPointF> moves,scrolls;
+  p.move=[&](double x,double y){moves<<QPointF(x,y);return true;};
+  p.scrollAxes=[&](double x,double y){scrolls<<QPointF(x,y);return true;};QSignalSpy done(&p,&PointerActions::completed);
+  QVERIFY(p.start("LookToScrollActive"));QVERIFY(p.targeting());p.select({.5,.5});
+  QTRY_COMPARE(done.count(),1);QVERIFY(p.lookScrolling());QCOMPARE(moves.last(),QPointF(.5,.5));
+  QTest::qWait(25);QVERIFY(p.follow({.8,.8},true));QCOMPARE(scrolls.size(),1);QVERIFY(scrolls[0].x()>0);QVERIFY(scrolls[0].y()>0);
+  QVERIFY(p.start("LookToScrollActive"));QVERIFY(!p.targeting());QTRY_COMPARE(done.count(),2);QVERIFY(!p.lookScrolling());
+ }
+ void magneticCursorTracksOnlyWhenEnabledAndIdle(){
+  PointerActions p;QList<QPointF> moves;p.move=[&](double x,double y){moves<<QPointF(x,y);return true;};
+  QVERIFY(!p.follow({.2,.3}));QSignalSpy done(&p,&PointerActions::completed);
+  QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),1);QVERIFY(p.magnetic());
+  QVERIFY(p.follow({.2,.3}));QCOMPARE(moves.last(),QPointF(.2,.3));
+  QVERIFY(p.start("MouseMoveTo"));QVERIFY(!p.follow({.8,.9}));QCOMPARE(moves.size(),1);p.cancel();
+  QVERIFY(!p.magnetic());QVERIFY(!p.follow({.4,.5}));
+  QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),2);
+  QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(!p.magnetic());QCOMPARE(moves.size(),1);
+ }
+ void actionCoverageListsMissingPackFeatures(){
+  auto report=KeyboardPack::audit(PACK_PATH);QCOMPARE(report["layouts"].toList().size(),22);
+  QVERIFY(report["unsupportedActions"].toStringList().isEmpty());
+  QVERIFY(!report["behavioralParityVerified"].toBool());
+ }
+ void unsupportedActionsAreRejectedBeforeOutput(){
+  ActionRunner runner;int output=0;runner.sendKey=[&](QString,bool){++output;return true;};
+  runner.supportsAction=[](QString){return false;};QSignalSpy errors(&runner,&ActionRunner::failed);
+  QVERIFY(!runner.start({cmd("KeyDown","LSHIFT"),cmd("Text","a"),cmd("Action","Missing")}));
+  QCOMPARE(output,0);QCOMPARE(errors.count(),1);QVERIFY(!runner.busy());
+ }
+ void arrowActionsTapInsteadOfLocking(){
+  ActionRunner runner;QStringList events;runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+  QSignalSpy done(&runner,&ActionRunner::finished);QVERIFY(runner.start({cmd("Action","Left"),cmd("Action","Right")}));
+  QTRY_COMPARE(done.count(),1);QCOMPARE(events,QStringList({"LEFT+","LEFT-","RIGHT+","RIGHT-"}));QVERIFY(runner.heldKeys().isEmpty());
+ }
+ void directionActionsMoveRelativeAndRepeat(){
+  PointerActions p;QList<QPointF> moves;p.moveRelative=[&](double x,double y){moves<<QPointF(x,y);return true;};
+  QSignalSpy done(&p,&PointerActions::completed);
+  const QStringList directions{"Top","Bottom","Left","Right"};int count=0;
+  for(const auto &direction:directions){QVERIFY(p.start("MouseMoveTo"+direction));++count;QTRY_COMPARE(done.count(),count);}
+  QVERIFY(p.start("RepeatLastMouseAction"));QTRY_COMPARE(done.count(),5);
+  QCOMPARE(moves,QList<QPointF>({{0,-25},{0,25},{-25,0},{25,0},{25,0}}));
+ }
+ void dragChoosesTwoPointsAndReleases(){
+  PointerActions p;QStringList events;QList<QPointF> moves;
+  p.move=[&](double x,double y){moves<<QPointF(x,y);events<<"move";return true;};
+  p.button=[&](int code,bool down){events<<QString::number(code)+(down?"+":"-");return true;};
+  QSignalSpy done(&p,&PointerActions::completed);
+  QVERIFY(p.start("MouseDrag"));p.select({.1,.2});QVERIFY(p.targeting());QVERIFY(events.isEmpty());
+  p.select({.8,.9});QVERIFY(!p.targeting());QTRY_COMPARE(done.count(),1);QVERIFY(done[0][0].toBool());
+  QCOMPARE(moves.first(),QPointF(.1,.2));QVERIFY(QLineF(moves.last(),QPointF(.8,.9)).length()<.00001);
+  QCOMPARE(events[1],QString("272+"));QCOMPARE(events.last(),QString("272-"));QVERIFY(p.heldButtons().isEmpty());
+  const int count=moves.size();QVERIFY(p.start("RepeatLastMouseAction"));QVERIFY(!p.targeting());QTRY_COMPARE(done.count(),2);
+  QCOMPARE(moves[count],QPointF(.1,.2));QVERIFY(QLineF(moves.last(),QPointF(.8,.9)).length()<.00001);
+ }
+ void cancellingDragStopsMovementAndReleases(){
+  PointerActions p;int moves=0,releases=0;bool held=false;
+  p.move=[&](double,double){++moves;return true;};p.button=[&](int,bool down){held=down;return true;};
+  p.releaseAll=[&]{held=false;++releases;};QSignalSpy done(&p,&PointerActions::completed);
+  QVERIFY(p.start("MouseDrag"));p.select({.1,.1});p.select({.9,.9});QTRY_VERIFY(held);
+  p.cancel();int count=moves;QTest::qWait(350);QCOMPARE(moves,count);QVERIFY(!held);QCOMPARE(releases,1);
+  QCOMPARE(done.count(),0);QVERIFY(!p.busy());QVERIFY(!p.start("RepeatLastMouseAction"));
+ }
+ void pointerFailureReleasesAndStops(){
+  PointerActions p;int moves=0,releases=0;
+  p.move=[&](double,double){return ++moves==1;};p.button=[](int,bool){return true;};p.releaseAll=[&]{++releases;};
+  QSignalSpy done(&p,&PointerActions::completed);QVERIFY(p.start("MouseDrag"));p.select({.2,.2});p.select({.8,.8});
+  QTRY_COMPARE(done.count(),1);QVERIFY(!done[0][0].toBool());QCOMPARE(releases,1);QVERIFY(p.heldButtons().isEmpty());
+ }
+ void repeatClickUsesCompletedTarget(){
+  PointerActions p;QList<QPointF> moves;int clicks=0;
+  p.move=[&](double x,double y){moves<<QPointF(x,y);return true;};p.button=[&](int,bool down){if(down)++clicks;return true;};
+  QSignalSpy done(&p,&PointerActions::completed);QVERIFY(p.start("MouseMoveAndLeftDoubleClick"));p.select({.3,.4});
+  QTRY_COMPARE(done.count(),1);QCOMPARE(clicks,2);QVERIFY(p.start("RepeatLastMouseAction"));QVERIFY(!p.targeting());
+  QTRY_COMPARE(done.count(),2);QCOMPARE(clicks,4);QCOMPARE(moves,QList<QPointF>({{.3,.4},{.3,.4}}));
+ }
+ void heldButtonCannotBeReleasedByClick(){
+  PointerActions p;QStringList events;p.button=[&](int,bool down){events<< (down?"down":"up");return true;};
+  QSignalSpy done(&p,&PointerActions::completed);QVERIFY(p.start("MouseLeftDownUp"));QTRY_COMPARE(done.count(),1);
+  QVERIFY(!p.start("MouseLeftClick"));QVERIFY(!p.start("MouseDrag"));QCOMPARE(events,QStringList({"down"}));
+  QVERIFY(p.start("MouseLeftDownUp"));QTRY_COMPARE(done.count(),2);QCOMPARE(events,QStringList({"down","up"}));
+ }
+ void invalidPointerTargetsDoNotExecute(){
+  PointerActions p;int moves=0;p.move=[&](double,double){++moves;return true;};
+  QVERIFY(p.start("MouseMoveTo"));p.select({-1,.5});p.select({qQNaN(),.5});p.select({.5,2});
+  QTest::qWait(130);QCOMPARE(moves,0);QVERIFY(p.targeting());p.cancel();
+ }
+ void preferencesPersistAndRecover(){
+  QTemporaryDir dir;QString path=dir.filePath("nested/profile.json"),error;ProfileStore store(path);
+  QCOMPARE(store.load().values,ProfileStore::defaults());QVERIFY(store.load().message.isEmpty());
+  auto first=ProfileStore::defaults();first["dwellMs"]=1200;first["learning"]=true;
+  QVERIFY2(store.save(first,error),qPrintable(error));QCOMPARE(ProfileStore(path).load().values,first);
+  auto second=first;second["literal"]=true;second["startLayout"]="main-14x1-bottom";
+  QVERIFY(store.save(second,error));QCOMPARE(store.load().values,second);
+  QFile file(path);QVERIFY(file.open(QIODevice::WriteOnly));file.write("{broken");file.close();
+  QCOMPARE(store.load().values,first);QVERIFY(!store.load().message.isEmpty());
+  // Saving after corruption preserves the known-good backup.
+  QVERIFY(store.save(second,error));QVERIFY(file.open(QIODevice::WriteOnly));file.write("null");file.close();
+  QCOMPARE(store.load().values,first);
+  QVERIFY(store.save(ProfileStore::defaults(),error,true));
+  QVERIFY(file.open(QIODevice::WriteOnly));file.write("broken again");file.close();
+  QCOMPARE(store.load().values,ProfileStore::defaults());
+ }
+ void invalidPreferencesAreRejected(){
+  QTemporaryDir dir;ProfileStore store(dir.filePath("profile.json"));QString error;
+  const auto defaults=ProfileStore::defaults();QVERIFY(store.save(defaults,error));
+  const QList<QPair<QString,QJsonValue>> invalid{{"version",2},{"dwellMs",249},{"dwellMs",3001},{"dwellMs",750.5},{"dwellMs","750"},{"literal",1},{"learning","false"},{"keyboardScale",49},{"keyboardScale",151},{"keyboardScale",100.5},{"highContrast","yes"},{"rememberDesktop","yes"},{"startLayout","../other"},{"startLayout",""}};
+  for(const auto &entry:invalid){auto values=defaults;values[entry.first]=entry.second;QVERIFY(!store.save(values,error));QVERIFY(!error.isEmpty());QCOMPARE(store.load().values,defaults);}
+ }
+ void newerPreferencesArePreservedUntilReset(){
+  QTemporaryDir dir;QString path=dir.filePath("profile.json"),error;ProfileStore store(path);
+  QVERIFY(store.save(ProfileStore::defaults(),error));
+  QFile file(path);QVERIFY(file.open(QIODevice::WriteOnly));const QByteArray future="{\"version\":2,\"future\":true}";file.write(future);file.close();
+  QVERIFY(!store.load().message.isEmpty());QVERIFY(!store.save(ProfileStore::defaults(),error));
+  QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),future);file.close();
+  QVERIFY(store.save(ProfileStore::defaults(),error,true));QCOMPARE(store.load().values,ProfileStore::defaults());
+ }
+ void corruptPreferencesFallBackAndWriteFailuresSurface(){
+  QTemporaryDir dir;QString path=dir.filePath("profile.json"),error;
+  for(const auto &name:{path,path+".bak"}){QFile file(name);QVERIFY(file.open(QIODevice::WriteOnly));file.write("[]");}
+  ProfileStore store(path);QCOMPARE(store.load().values,ProfileStore::defaults());QVERIFY(!store.load().message.isEmpty());
+  ProfileStore blocked(path+"/child.json");QVERIFY(!blocked.save(ProfileStore::defaults(),error));QVERIFY(!error.isEmpty());
+  QFile file(path);QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),QByteArray("[]"));
+ }
+ void heldShiftCommitsEffectivePunctuation(){
+  for(const QString shift:{QString("LSHIFT"),QString("RSHIFT")}){
+   ActionRunner runner;runner.sendKey=[](QString,bool){return true;};
+   QSignalSpy text(&runner,&ActionRunner::textCommitted),done(&runner,&ActionRunner::finished);
+   QVERIFY(runner.start({cmd("KeyToggle",shift),cmd("Text","a1234567890-=[];'`\\,./ !\t\n")}));
+   QTRY_COMPARE(done.count(),1);
+   QCOMPARE(text.count(),1);
+   QCOMPARE(text.at(0).at(0).toString(),QString("A!@#$%^&*()_+{}:\"~|<>? !\t\n"));
+   QVERIFY(runner.isHeld(shift));runner.cancel();
+  }
+ }
+ void shortcutBackspaceDoesNotCommitPlainDeletion(){
+  for(const QString modifier:{QString("LCONTROL"),QString("RCONTROL"),QString("LMENU"),QString("RMENU"),QString("LWIN"),QString("RWIN"),QString()}){
+   ActionRunner runner;QStringList events;
+   runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+   QSignalSpy text(&runner,&ActionRunner::textCommitted),done(&runner,&ActionRunner::finished);
+   QVariantList commands;if(!modifier.isEmpty())commands<<cmd("KeyDown",modifier);
+   commands<<cmd("Action","BackOne");QVERIFY(runner.start(commands));QTRY_COMPARE(done.count(),1);
+   QVERIFY(events.contains("BACK+"));QVERIFY(events.contains("BACK-"));
+   QCOMPARE(text.count(),modifier.isEmpty()?1:0);
+   if(modifier.isEmpty())QCOMPARE(text.at(0).at(0).toString(),QString("\b"));
+   QVERIFY(runner.heldKeys().isEmpty());
+  }
+ }
+ void allLayoutsCompile(){
+  for(const auto &file:QDir(PACK_PATH).entryList({"*.xml"})){
+   auto layout=KeyboardLayout::fromXml(KeyboardPack::load(QDir(PACK_PATH).filePath(file)));
+   QVERIFY2(!layout.contains("error"),qPrintable(file+": "+layout["error"].toString()));
+   for(auto v:layout["keys"].toList())QVERIFY2(ActionRunner::validate(v.toMap()["commands"].toList()).isEmpty(),qPrintable(file));
+  }
+ }
+ void timedMacroPreservesOrder(){
+  ActionRunner runner;QStringList events;QElapsedTimer clock;clock.start();qint64 aTime=-1;
+  runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");if(key=="A"&&down)aTime=clock.elapsed();return true;};
+  QSignalSpy done(&runner,&ActionRunner::finished);
+  QVERIFY(runner.start({cmd("KeyDown","LCTRL"),cmd("Wait","60"),cmd("Text","a"),cmd("KeyUp","LCONTROL")}));
+  QTRY_COMPARE(done.count(),1);QVERIFY(aTime>=50);QCOMPARE(events,QStringList({"LCONTROL+","A+","A-","LCONTROL-"}));
+ }
+ void cancellationReleasesAndStopsQueue(){
+  ActionRunner runner;QStringList events;runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+  runner.start({cmd("KeyDown","LSHIFT"),cmd("Wait","100"),cmd("Text","a")});
+  QTRY_VERIFY(runner.isHeld("LSHIFT"));runner.cancel();QTest::qWait(130);
+  QCOMPARE(events,QStringList({"LSHIFT+","LSHIFT-"}));QVERIFY(!runner.busy());
+ }
+ void heldKeysPersistUntilToggleOrCancel(){
+  ActionRunner runner;QStringList events;runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+  QSignalSpy done(&runner,&ActionRunner::finished);
+  runner.start({cmd("KeyToggle","a")});QTRY_COMPARE(done.count(),1);QVERIFY(runner.isHeld("A"));
+  runner.start({cmd("KeyToggle","A")});QTRY_COMPARE(done.count(),2);QVERIFY(!runner.isHeld("A"));
+  runner.start({cmd("KeyToggle","LSHIFT")});QTRY_COMPARE(done.count(),3);runner.cancel();
+  QCOMPARE(events,QStringList({"A+","A-","A+","A-"}).mid(0,2)+QStringList({"LSHIFT+","LSHIFT-"}));
+ }
+ void failureReleasesEarlierKeys(){
+  ActionRunner runner;QStringList events;runner.sendKey=[&](QString key,bool down){if(key=="A")return false;events<<key+(down?"+":"-");return true;};
+  QSignalSpy failed(&runner,&ActionRunner::failed);
+  runner.start({cmd("KeyDown","LSHIFT"),cmd("Text","a")});QTRY_VERIFY(failed.count()>0);
+  QCOMPARE(events,QStringList({"LSHIFT+","LSHIFT-"}));QVERIFY(runner.heldKeys().isEmpty());
+ }
+ void asyncActionWaitsForTarget(){
+  ActionRunner runner;QStringList events;runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+  runner.performAction=[&](QString){runner.suspend();return true;};
+  runner.start({cmd("Action","MouseMoveTo"),cmd("Text","a")});QTest::qWait(25);QVERIFY(events.isEmpty());QVERIFY(runner.busy());
+  runner.resume(true);QTRY_COMPARE(events.size(),2);QCOMPARE(events,QStringList({"A+","A-"}));
+ }
+ void invalidMacroEmitsNothing(){ActionRunner runner;int count=0;runner.sendKey=[&](QString,bool){++count;return true;};QVERIFY(!runner.start({cmd("KeyDown","LSHIFT"),cmd("KeyDown","UNKNOWN")}));QCOMPARE(count,0);}
+ void navigationPreservesBackFlag(){ActionRunner runner;QString target;bool back=true;runner.navigate=[&](QString name,bool b){target=name;back=b;};auto c=cmd("ChangeKeyboard","main-14x1-top");c["attributes"]=QVariantMap{{"backreturnshere","false"}};runner.start({c});QTRY_COMPARE(target,QString("main-14x1-top"));QVERIFY(!back);}
+ void shiftIsOwnedAndReleased(){ActionRunner runner;QStringList events;runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};QSignalSpy done(&runner,&ActionRunner::finished);runner.start({cmd("Text","A!")});QTRY_COMPARE(done.count(),1);QCOMPARE(events,QStringList({"LSHIFT+","A+","A-","LSHIFT-","LSHIFT+","1+","1-","LSHIFT-"}));}
+
+ void dwellRequiresContinuousPresence(){
+  Dwell d;QVERIFY(!d.update("a",0,500));
+  for(int t=100;t<500;t+=100)QVERIFY(!d.update("a",t,500));
+  QVERIFY(d.update("a",500,500));QVERIFY(!d.update("a",600,500));
+  d.update("",650,500);QVERIFY(!d.update("a",700,500));
+  QVERIFY(!d.update("a",1300,500)); // stale interval cancels accumulated dwell
+ }
+ void explicitActivationDoesNotFireAgain(){Dwell d;d.consume("Pause",0);for(int t=25;t<1500;t+=25)QVERIFY(!d.update("Pause",t,500));d.update("",1500,500);QVERIFY(!d.update("Pause",1550,500));}
+ void changingTargetCancels(){Dwell d;d.update("a",0,150);d.update("a",100,150);QVERIFY(!d.update("b",160,150));QVERIFY(!d.update("b",260,150));QVERIFY(d.update("b",310,150));}
+ void packLoadsAndLinksResolve(){auto r=KeyboardPack::audit(PACK_PATH);QCOMPARE(r["fileCount"].toInt(),22);QCOMPARE(r["keyCount"].toInt(),570);QVERIFY2(r["errors"].toStringList().isEmpty(),qPrintable(r["errors"].toStringList().join('\n')));}
+ void textPreservesWhitespaceAndOrder(){
+  QTemporaryDir dir;QFile f(dir.filePath("test.xml"));QVERIFY(f.open(QIODevice::WriteOnly));f.write("<Keyboard><DynamicKey row=\"2\"><KeyDown>LSHIFT</KeyDown><Text>&#9;</Text><Wait>50</Wait><KeyUp>LSHIFT</KeyUp></DynamicKey></Keyboard>");f.close();
+  auto r=KeyboardPack::load(f.fileName());auto key=r["children"].toList()[0].toMap();QCOMPARE(key["attributes"].toMap()["row"].toString(),QString("2"));
+  auto children=key["children"].toList();QCOMPARE(children[1].toMap()["text"].toString(),QString("\t"));QCOMPARE(children[2].toMap()["tag"].toString(),QString("Wait"));
+ }
+ void rejectsMalformedAndEntities(){
+  QTemporaryDir dir;QFile f(dir.filePath("bad.xml"));QVERIFY(f.open(QIODevice::WriteOnly));f.write("<!DOCTYPE Keyboard [<!ENTITY x 'value'>]><Keyboard>&x;</Keyboard>");f.close();QVERIFY(KeyboardPack::load(f.fileName()).contains("error"));
+ }
+};
+QTEST_GUILESS_MAIN(CoreTests)
+#include "CoreTests.moc"

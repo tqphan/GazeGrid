@@ -1,0 +1,89 @@
+<Keyboard>
+  <Name>SCK - Web 1 - Top</Name>
+  <Width>100%</Width>
+  <Height>11.50%</Height>
+  <SymbolMargin>12</SymbolMargin>
+  <BorderThickness>0,0,0,0</BorderThickness>
+  <DockSize>Full</DockSize>
+  <Position>Top</Position>
+  <HorizontalOffset>0</HorizontalOffset>
+  <VerticalOffset>0</VerticalOffset>
+  <BackgroundColor>#ffffff</BackgroundColor>
+  <BorderColor>#ffffff</BorderColor>
+  <WindowState>Floating</WindowState>
+  <HideFromKeyboardMenu>true</HideFromKeyboardMenu>
+  <PersistNewState>false</PersistNewState>
+  <Grid>
+    <Rows>1</Rows>
+    <Cols>14</Cols>
+  </Grid>
+  <KeyGroup 
+    BackgroundColor="#18230F" 
+    ForegroundColor="#ffffff" 
+    ForegroundOpacity="0.75"
+    Name="All" />
+  <Content>
+    <DynamicKey Row="0" Col="0">
+      <Symbol>DownArrowKeyIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">web-14x1-bottom</ChangeKeyboard>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="1">
+      <Symbol>ArrowsAllDirectionsIcon</Symbol>    
+      <Action>MouseMagneticCursor</Action>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="2">
+      <Symbol>LookToScrollActiveIcon</Symbol>
+      <Action>LookToScrollActive</Action>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="3">
+      <Symbol>MouseLeftButtonClickIcon</Symbol>
+      <Action>MouseMoveAndLeftClick</Action>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="4">
+      <Symbol>MouseLeftButtonDoubleClickIcon</Symbol>
+      <Action>MouseMoveAndLeftDoubleClick</Action>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="5">
+      <Symbol>MouseMoveToPoint</Symbol>
+      <Action>MouseMoveTo</Action>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="6">
+      <Symbol>KeyboardIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">keyboard-alphabet-14x4-top</ChangeKeyboard>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="7">
+      <Symbol>MouseNeutralIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">mouse-14x1-top</ChangeKeyboard>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="8">
+      <Symbol>MouseLeftClickDrag</Symbol>
+      <Action>MouseDrag</Action>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="9">
+      <Symbol>MouseRightButtonClickIcon</Symbol>
+      <Action>MouseMoveAndRightClick</Action>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="10">
+      <Symbol>BrowserBackIcon</Symbol>
+      <KeyDown>LMENU</KeyDown>
+      <KeyDown>LEFT</KeyDown>
+      <KeyUp>LEFT</KeyUp>
+      <KeyUp>LMENU</KeyUp>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="11">
+      <Symbol>BrowserForwardIcon</Symbol>
+      <KeyDown>LMENU</KeyDown>
+      <KeyDown>RIGHT</KeyDown>
+      <KeyUp>RIGHT</KeyUp>
+      <KeyUp>LMENU</KeyUp>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="12">
+      <Symbol>MoreIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">web-14x2-top</ChangeKeyboard>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="13">
+      <Symbol>MinimiseIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">minimized-off-screen-top</ChangeKeyboard>
+    </DynamicKey>
+  </Content>
+</Keyboard>

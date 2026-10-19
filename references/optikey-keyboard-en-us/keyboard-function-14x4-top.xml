@@ -1,0 +1,288 @@
+<Keyboard>
+  <Name>OptiKey-HorizontalBoard</Name>
+  <Height>46%</Height>
+  <SymbolMargin>12</SymbolMargin>
+  <BorderThickness>0,0,0,0</BorderThickness>
+  <DockSize>Full</DockSize>
+  <Position>Top</Position>
+  <Width>100%</Width>
+  <HorizontalOffset>0</HorizontalOffset>
+  <VerticalOffset>0</VerticalOffset>
+  <BackgroundColor>#ffffff</BackgroundColor>
+  <BorderColor>#ffffff</BorderColor>
+  <WindowState>Floating</WindowState>
+  <HideFromKeyboardMenu>true</HideFromKeyboardMenu>
+  <PersistNewState>false</PersistNewState>
+  <Grid>
+    <Rows>4</Rows>
+    <Cols>14</Cols>
+  </Grid>
+  <Content>
+    <!-- Row 0 -->
+    <DynamicKey Row="0" Col="0">
+      <Symbol>ShiftKeyIcon</Symbol>
+      <Action>LeftShift</Action>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="1">
+      <Label>F1</Label>
+      <Action>F1</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="2">
+      <Label>F2</Label>
+      <Action>F2</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="3">
+      <Label>F3</Label>
+      <Action>F3</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="4">
+      <Label>F4</Label>
+      <Action>F4</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="5">
+      <Label>F5</Label>
+      <Action>F5</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="6">
+      <Label>F6</Label>
+      <Action>F6</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="7">
+      <Label>F7</Label>
+      <Action>F7</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="8">
+      <Label>F8</Label>
+      <Action>F8</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="9">
+      <Label>F9</Label>
+      <Action>F9</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="10">
+      <Label>F10</Label>
+      <Action>F10</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="11">
+      <Label>F11</Label>
+      <Action>F11</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="12">
+      <Label>F12</Label>
+      <Action>F12</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="0" Col="13">
+      <Symbol>BackspaceKeyIcon</Symbol>
+      <Action>BackOne</Action>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <!-- Row 1 -->
+    <DynamicKey Row="1" Col="0">
+      <Symbol>WinKeyIcon</Symbol>
+      <Action>LeftWin</Action>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="1">
+      <Symbol>EscapeKeyIcon</Symbol>
+      <KeyDown>ESCAPE</KeyDown>
+      <KeyUp>ESCAPE</KeyUp>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="2">
+      <Symbol>CapsLockKeyIcon</Symbol>
+      <KeyDown>CAPITAL</KeyDown>
+      <KeyUp>CAPITAL</KeyUp>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="3">
+      <Symbol>HomeKeyIcon</Symbol>
+      <Action>Home</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="4">
+      <Symbol>PageUpKeyIcon</Symbol>
+      <Action>PgUp</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="5">
+      <Symbol>InsertKeyIcon</Symbol>
+      <Action>Insert</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="6">
+      <Symbol>UndoIcon</Symbol>
+      <KeyDown>LCONTROL</KeyDown>
+      <Text>z</Text>
+      <KeyUp>LCONTROL</KeyUp>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="7">
+      <Symbol>ToggleCommentIcon</Symbol>
+      <KeyDown>LCONTROL</KeyDown>
+      <Text>/</Text>
+      <KeyUp>LCONTROL</KeyUp>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="8">
+      <Symbol>RedoIcon</Symbol>
+      <KeyDown>LCONTROL</KeyDown>
+      <KeyDown>LSHIFT</KeyDown>
+      <Text>z</Text>
+      <KeyUp>LSHIFT</KeyUp>
+      <KeyUp>LCONTROL</KeyUp>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="9">
+      <Symbol>DeleteKeyIcon</Symbol>
+      <KeyDown>DELETE</KeyDown>
+      <KeyUp>DELETE</KeyUp>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="10">
+      <Label>⮝</Label>
+      <KeyDown>UP</KeyDown>
+      <KeyUp>UP</KeyUp>
+      <KeyGroup>Navigation</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="11">
+      <Symbol>WinKeyIcon</Symbol>
+      <Action>RightWin</Action>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="12">
+      <Symbol>ShiftKeyIcon</Symbol>
+      <Action>RightShift</Action>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="1" Col="13">
+      <Symbol>EnterIcon</Symbol>
+      <Text>&#13;</Text>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <!-- Row 2 -->
+    <DynamicKey Row="2" Col="0">
+      <Symbol>CtrlKeyIcon</Symbol>
+      <Action>LeftCtrl</Action>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="1">
+      <Symbol>AltKeyIcon</Symbol>
+      <KeyToggle>LMENU</KeyToggle>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="2">
+      <Label>␣</Label>
+      <Text>&#32;</Text>
+      <KeyGroup>Alphabet</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="3">
+      <Symbol>EndKeyIcon</Symbol>
+      <Action>End</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="4">
+      <Symbol>PageDnKeyIcon</Symbol>
+      <Action>PgDn</Action>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="5">
+      <Label>p|b</Label>
+      <KeyDown>PAUSE</KeyDown>
+      <KeyUp>PAUSE</KeyUp>
+      <KeyGroup>Function</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="6">
+      <Symbol>CopyIcon</Symbol>
+      <KeyDown>LCONTROL</KeyDown>
+      <Text>c</Text>
+      <KeyUp>LCONTROL</KeyUp>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="7">
+      <Symbol>CutIcon</Symbol>
+      <KeyDown>LCONTROL</KeyDown>
+      <Text>x</Text>
+      <KeyUp>LCONTROL</KeyUp>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="8">
+      <Symbol>PasteIcon</Symbol>
+      <KeyDown>LCONTROL</KeyDown>
+      <Text>v</Text>
+      <KeyUp>LCONTROL</KeyUp>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="9">
+      <Label>⮜</Label>
+      <KeyDown>LEFT</KeyDown>
+      <KeyUp>LEFT</KeyUp>
+      <KeyGroup>Navigation</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="10">
+      <Label>⮟</Label>
+      <KeyDown>DOWN</KeyDown>
+      <KeyUp>DOWN</KeyUp>
+      <KeyGroup>Navigation</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="11">
+      <Label>⮞</Label>
+      <KeyDown>RIGHT</KeyDown>
+      <KeyUp>RIGHT</KeyUp>
+      <KeyGroup>Navigation</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="12">
+      <Symbol>AltKeyIcon</Symbol>
+      <Action>RightAlt</Action>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="2" Col="13">
+      <Symbol>CtrlKeyIcon</Symbol>
+      <Action>RightCtrl</Action>
+      <KeyGroup>Modifier</KeyGroup>
+    </DynamicKey>
+    <!-- Row 3 -->
+    <DynamicKey Row="3" Col="0">
+      <Symbol>DownArrowKeyIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="false">keyboard-function-14x4-bottom</ChangeKeyboard>
+      <KeyGroup>Mirror</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="3" Col="1">
+      <Symbol>NumericAndSymbolsIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="false">keyboard-numeric-14x4-top</ChangeKeyboard>
+      <KeyGroup>Pagination</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="3" Col="2">
+      <Symbol>EraserIcon</Symbol>
+      <Action>ClearScratchpad</Action>
+      <KeyGroup>Exit</KeyGroup>
+    </DynamicKey>
+    <SuggestionRow Row="3" Col="3" Width="8">
+      <KeyGroup>Suggestion</KeyGroup>
+    </SuggestionRow>
+    <DynamicKey Row="3" Col="11">
+      <Symbol>ConversationIcon</Symbol>
+      <KeyDown>LWIN</KeyDown>
+      <Text>c</Text>
+      <KeyUp>LWIN</KeyUp>
+      <Action>ClearScratchpad</Action>
+      <KeyGroup>Exit</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="3" Col="12">
+      <Symbol>AlphaIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="false">keyboard-alphabet-14x4-top</ChangeKeyboard>
+      <KeyGroup>Pagination</KeyGroup>
+    </DynamicKey>
+    <DynamicKey Row="3" Col="13">
+      <Symbol>NoIcon</Symbol>
+      <Action>BackFromKeyboard</Action>
+      <KeyGroup>Exit</KeyGroup>
+    </DynamicKey>
+  </Content>
+</Keyboard>

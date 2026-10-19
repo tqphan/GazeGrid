@@ -1,0 +1,23 @@
+#pragma once
+#include <QObject>
+#include <memory>
+class QWindow;
+// KWin launches this backend on its privileged input-method Wayland connection.
+class PlasmaInputMethod:public QObject {
+ Q_OBJECT
+public:
+ explicit PlasmaInputMethod(QObject *parent=nullptr);
+ ~PlasmaInputMethod() override;
+ bool initialize();
+ bool attachPanel(QWindow *window);
+ bool commitText(const QString &text);
+ bool sendKey(const QString &name,bool down);
+ bool ready()const;
+ bool sensitive()const;
+signals:
+ void stateChanged();
+ void contextInvalidated();
+private:
+ struct Impl;
+ std::unique_ptr<Impl> d;
+};

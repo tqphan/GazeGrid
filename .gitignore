@@ -1,0 +1,8 @@
+/build/
+/.tools/
+/runtime/
+/.agents/
+/.codex/
+__pycache__/
+*.pyc
+*.user

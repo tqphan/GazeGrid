@@ -1,0 +1,10 @@
+{
+  "CtrlAltTab": "CtrlAltTabIcon",
+  "MouseLeftClick": "MouseLeftButtonClickIcon",
+  "MouseLeftClickDownUp": "MouseLeftButtonDownUpIcon",
+  "MouseLeftClickDrag": "MouseLeftButtonClickDragIcon",
+  "MouseMoveToPoint": "MouseMoveToPointIcon",
+  "MouseRightClick": "MouseRightButtonClickIcon",
+  "MouseRightClickDownUp": "MouseRightButtonDownUpIcon",
+  "Sleep": "SleepIcon"
+}

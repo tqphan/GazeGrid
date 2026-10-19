@@ -1,0 +1,8 @@
+#pragma once
+#include <QStringList>
+#include <QMap>
+namespace WordPrediction {
+QString prefix(const QString &text);
+QString completedWord(const QString &text);
+QStringList suggest(const QString &text,const QStringList &dictionary,const QMap<QString,int> &frequencies,int limit=8);
+}

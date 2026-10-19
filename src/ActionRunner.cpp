@@ -1,0 +1,107 @@
+#include "ActionRunner.h"
+#include "KeyNames.h"
+ActionRunner::ActionRunner(QObject *parent):QObject(parent){timer.setSingleShot(true);connect(&timer,&QTimer::timeout,this,&ActionRunner::step);}
+bool ActionRunner::isHeld(const QString &k)const{return held.contains(KeyNames::canonical(k));}
+bool ActionRunner::shifted()const{return isHeld("LSHIFT")||isHeld("RSHIFT");}
+bool ActionRunner::shortcutHeld()const{return isHeld("LCONTROL")||isHeld("RCONTROL")||isHeld("LMENU")||isHeld("RMENU")||isHeld("LWIN")||isHeld("RWIN");}
+QString ActionRunner::validate(const QVariantList &commands,bool unicodeText){
+    if(commands.size()>256)return "Too many commands";
+    for(const auto &v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString();
+        if(tag=="Text") {if(!value.isValidUtf16())return "Invalid Unicode text";for(auto ch:value)if((!unicodeText||ch.isNull()||ch.category()==QChar::Other_Control)&&KeyNames::usCharacter(ch).first.isEmpty())return "Text character is not supported by the output encoder";}
+        else if(tag=="KeyDown"||tag=="KeyUp"||tag=="KeyToggle"){if(KeyNames::linuxCode(value)<0)return "Unknown physical key: "+value;}
+        else if(tag=="Wait"){bool ok=false;int n=value.toInt(&ok);if(!ok||n<0||n>10000)return "Wait must be between 0 and 10000 ms";}
+        else if(tag=="ChangeKeyboard"){if(value.trimmed().isEmpty()||value.contains('/')||value.contains('\\')||value.contains(".."))return "Invalid keyboard link";}
+        else if(tag!="Action")return "Unsupported command: "+tag;
+    }
+    return {};
+}
+QString ActionRunner::signature(const QVariantList &commands){
+    QStringList result;for(auto v:commands){auto c=v.toMap();QString value=c["text"].toString(),tag=c["tag"].toString();if(tag.startsWith("Key"))value=KeyNames::canonical(value);else if(tag!="Text")value=value.trimmed();result<<tag+":"+value;}return result.join("|");
+}
+bool ActionRunner::start(const QVariantList &commands){
+    if(running){emit failed("An action is still running");return false;}
+    auto error=validate(commands,sendText&&(!canCommitText||canCommitText()));if(!error.isEmpty()){emit failed(error);return false;}
+    auto plannedHeld=held;
+    static const QSet<QString> modifiers{"LSHIFT","RSHIFT","LCONTROL","RCONTROL","LMENU","RMENU","LWIN","RWIN"};
+    for(const auto &v:commands){auto c=v.toMap();auto tag=c["tag"].toString();auto name=KeyNames::canonical(c["text"].toString());
+        bool toggle=tag=="KeyToggle"||(tag=="Action"&&modifiers.contains(KeyNames::functionKey(name)));
+        if(tag=="KeyDown"||tag=="KeyUp"||toggle){
+            if(supportsPhysicalKey&&!supportsPhysicalKey(name)){emit failed("Authorize desktop control for held keys and shortcuts");return false;}
+            if(tag=="KeyUp"||(toggle&&plannedHeld.contains(name)))plannedHeld.remove(name);else plannedHeld.insert(name);
+        }
+        if(tag=="Text"&&!plannedHeld.isEmpty())for(auto ch:c["text"].toString())if(KeyNames::usCharacter(ch).first.isEmpty()){emit failed("Release physical keys before committing Unicode text");return false;}
+    }
+    for(const auto &v:commands){auto c=v.toMap();const auto action=c["text"].toString().trimmed();
+        if(c["tag"]=="Action"&&KeyNames::functionKey(action).isEmpty()&&supportsAction&&!supportsAction(action)){
+            emit failed("Unsupported action: "+action);return false;
+        }
+    }
+    queue=commands;index=0;waiting=false;running=true;emit stateChanged();timer.start(0);return true;
+}
+void ActionRunner::cancel(){
+    timer.stop();running=false;waiting=false;queue.clear();index=0;
+    const auto copy=held;held.clear();transient.clear();
+    for(const auto &name:copy)if(sendKey)sendKey(name,false);
+    emit stateChanged();
+}
+void ActionRunner::fail(QString message){cancel();emit failed(message);}
+bool ActionRunner::key(QString name,bool down,bool persistent){
+    name=KeyNames::canonical(name);
+    if(held.contains(name)==down)return true;
+    if(!sendKey||!sendKey(name,down))return false;
+    if(down){held.insert(name);if(!persistent)transient.insert(name);}else{held.remove(name);transient.remove(name);}
+    emit stateChanged();return true;
+}
+bool ActionRunner::tap(QString name){
+    name=KeyNames::canonical(name);
+    if(isHeld(name)){emit failed("Release the held key before typing it again: "+name);return false;}
+    return key(name,true)&&key(name,false);
+}
+void ActionRunner::step(){
+    if(!running)return;
+    if(index>=queue.size()){
+        const auto copy=transient;for(auto k:copy)if(!key(k,false)){fail("Could not release key");return;}
+        running=false;queue.clear();emit stateChanged();emit finished();return;
+    }
+    auto command=queue[index++].toMap();auto tag=command["tag"].toString();QString value=command["text"].toString();bool ok=true;
+    if(tag=="Wait"){timer.start(value.toInt());return;}
+    if(tag=="KeyDown")ok=key(value,true);
+    else if(tag=="KeyUp")ok=key(value,false);
+    else if(tag=="KeyToggle")ok=key(value,!isHeld(value),true);
+    else if(tag=="Text"){
+        bool shortcut=shortcutHeld();
+        QString composed;
+        if(sendText&&(!canCommitText||canCommitText())&&held.isEmpty()){
+            QString pending;
+            auto flush=[&]{if(pending.isEmpty())return true;bool result=sendText(pending);if(result)composed+=pending;pending.clear();return result;};
+            for(auto ch:value){
+                if(ch.category()==QChar::Other_Control){if(!flush()||!tap(KeyNames::usCharacter(ch).first)){ok=false;break;}composed+=ch;}
+                else pending+=ch;
+            }
+            if(ok)ok=flush();
+        }else{
+        for(auto ch:value){auto [name,needsShift]=KeyNames::usCharacter(ch);bool ownShift=needsShift&&!shifted();
+            bool upper=shifted()||needsShift;
+            if(ownShift&&!key("LSHIFT",true)){ok=false;break;}
+            ok=tap(name);if(ownShift)ok=key("LSHIFT",false)&&ok;
+            if(!ok)break;composed+=KeyNames::usTypedCharacter(ch,upper);
+        }
+        }
+        if(ok&&!shortcut)emit textCommitted(composed);
+    }else if(tag=="ChangeKeyboard"){
+        bool back=command["attributes"].toMap().value("backreturnshere","true").toString().compare("false",Qt::CaseInsensitive)!=0;
+        if(navigate)navigate(value.trimmed(),back);else ok=false;
+    }else if(tag=="Action"){
+        value=value.trimmed();auto name=KeyNames::functionKey(value);
+        static const QSet<QString> modifiers{"LSHIFT","RSHIFT","LCONTROL","RCONTROL","LMENU","RMENU","LWIN","RWIN"};
+        if(modifiers.contains(name))ok=key(name,!isHeld(name),true);
+        else if(!name.isEmpty()){ok=tap(name);if(ok&&name=="BACK"&&!shortcutHeld())emit textCommitted("\b");}
+        else ok=performAction&&performAction(value);
+    }
+    if(!running)return; // A navigation/pause action may cancel the runner.
+    if(!ok){fail("Action could not complete: "+tag+" "+(tag=="Text"?QString("[text]"):value.trimmed()));return;}
+    if(!waiting)timer.start(0);
+}
+
+void ActionRunner::suspend(){if(running){timer.stop();waiting=true;}}
+void ActionRunner::resume(bool success){if(!running||!waiting)return;waiting=false;if(!success){fail("Pointer action failed");return;}timer.start(0);}

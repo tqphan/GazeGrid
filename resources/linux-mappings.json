@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "platform": "linux",
+  "overrides": [
+    {
+      "match": "KeyDown:LWIN|KeyDown:LSHIFT|KeyDown:LEFT|KeyUp:LEFT|KeyUp:LSHIFT|KeyUp:LWIN",
+      "description": "KDE: move active window to previous screen (Meta+Shift+Left)",
+      "commands": [
+        {
+          "tag": "KeyDown",
+          "text": "LWIN"
+        },
+        {
+          "tag": "KeyDown",
+          "text": "LSHIFT"
+        },
+        {
+          "tag": "KeyDown",
+          "text": "LEFT"
+        },
+        {
+          "tag": "KeyUp",
+          "text": "LEFT"
+        },
+        {
+          "tag": "KeyUp",
+          "text": "LSHIFT"
+        },
+        {
+          "tag": "KeyUp",
+          "text": "LWIN"
+        }
+      ]
+    }
+  ]
+}
