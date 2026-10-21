@@ -23,7 +23,7 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorKeyboardOnly",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreSize",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
+    return {{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreSize",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"highContrast",false},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
@@ -32,7 +32,6 @@ bool ProfileStore::valid(const QJsonObject &v){
         &&(!v.contains("gazeIndicatorSize")||(v["gazeIndicatorSize"].isDouble()&&v["gazeIndicatorSize"].toDouble()==v["gazeIndicatorSize"].toInt()&&v["gazeIndicatorSize"].toInt()>=4&&v["gazeIndicatorSize"].toInt()<=120))
         &&(!v.contains("gazeIndicatorOpacity")||(v["gazeIndicatorOpacity"].isDouble()&&v["gazeIndicatorOpacity"].toDouble()==v["gazeIndicatorOpacity"].toInt()&&v["gazeIndicatorOpacity"].toInt()>=5&&v["gazeIndicatorOpacity"].toInt()<=100))
         &&(!v.contains("hideKeyboardDuringMouseActions")||v["hideKeyboardDuringMouseActions"].isBool())
-        &&(!v.contains("gazeIndicatorKeyboardOnly")||v["gazeIndicatorKeyboardOnly"].isBool())
         &&(!v.contains("gazeIndicatorMorph")||v["gazeIndicatorMorph"].isBool())
         &&(!v.contains("gazeIndicatorColor")||(v["gazeIndicatorColor"].isString()&&QRegularExpression("^#[0-9a-fA-F]{6}$").match(v["gazeIndicatorColor"].toString()).hasMatch()))
         &&v["dwellMs"].isDouble()&&v["dwellMs"].toDouble()==v["dwellMs"].toInt()

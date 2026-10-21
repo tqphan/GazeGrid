@@ -51,7 +51,6 @@ Controller::Controller(){
  gazeIndicatorOpacity=profile.values["gazeIndicatorOpacity"].toInt(100);
  gazeIndicatorColor=profile.values["gazeIndicatorColor"].toString("#00bfff");
  hideKeyboardDuringMouseActions=profile.values["hideKeyboardDuringMouseActions"].toBool();
- gazeIndicatorKeyboardOnly=profile.values["gazeIndicatorKeyboardOnly"].toBool();
  gazeIndicatorMorph=profile.values["gazeIndicatorMorph"].toBool();
  smoothingLevel=profile.values["gazeSmoothingLevel"].toInt(1);smoothTargetChanges=profile.values["smoothWhenChangingGazeTarget"].toBool();
  layoutNames=QDir(QStringLiteral(DEFAULT_PACK_PATH)).entryList({"*.xml"},QDir::Files,QDir::Name);for(auto &name:layoutNames)name.chop(4);
@@ -78,7 +77,7 @@ Controller::Controller(){
  pointer.button=[this](int code,bool down){return portal.button(code,down);};
  pointer.scroll=[this](double amount){return portal.scroll(amount);};
  pointer.scrollAxes=[this](double x,double y){return portal.scrollAxes(x,y);};
- pointer.releaseAll=[this]{portal.releaseAll();};
+ pointer.releaseAll=[this]{portal.releaseButtons();};
  connect(&pointer,&PointerActions::changed,this,[this]{targeting=pointer.targeting();if(!targeting)clearCapture();emit changed();});
  connect(&screenshot,&ScreenshotPortal::failed,this,[this](QString error){
   clearCapture();runner.cancel();pointer.cancel();actionStatus=error;emit changed();
@@ -124,7 +123,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorKeyboardOnly",gazeIndicatorKeyboardOnly},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreSize",recoverySize},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreSize",recoverySize},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -135,7 +134,7 @@ void Controller::resetPreferences(){
  setMagnifierEnabled(false);
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;backStack.clear();
  hideKeyboardDuringMouseActions=false;
- gazeIndicatorSize=18;gazeIndicatorOpacity=100;gazeIndicatorColor="#00bfff";gazeIndicatorMorph=false;gazeIndicatorKeyboardOnly=false;
+ gazeIndicatorSize=18;gazeIndicatorOpacity=100;gazeIndicatorColor="#00bfff";gazeIndicatorMorph=false;
  setRestoreCorner(2);setRestoreSize(64);restoreOpacity=100;
  setKeyboardScale(100);highContrast=false;shortLabelScale=values["shortLabelScale"].toInt();longLabelScale=values["longLabelScale"].toInt();magnifierZoom=values["magnifierZoom"].toInt();progressiveZoom=false;zoomDurationMs=1500;targetDwellEnabled=true;targetStartDwellMs=750;targetConfirmDwellMs=1000;targetDwellRadius=40;rememberDesktop=false;
  setGazeSmoothingLevel(values["gazeSmoothingLevel"].toInt());setSmoothWhenChangingGazeTarget(false);gazeSmoothing.reset();
@@ -276,7 +275,7 @@ void Controller::openLayout(QString name,bool backReturnsHere){
   }
   compiled["keys"]=keys;
  }
- runner.cancel();portal.releaseAll();pointer.cancel();dwell.reset();
+ runner.cancel(true);pointer.cancel();dwell.reset();
  if(backReturnsHere&&!layoutName.isEmpty()&&layoutName!=name){backStack<<layoutName;if(backStack.size()>64)backStack.removeFirst();}
  layout=compiled;layoutName=name;emit layoutChanged();emit changed();
 }

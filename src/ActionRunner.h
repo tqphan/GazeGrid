@@ -17,7 +17,7 @@ public:
     std::function<bool(QString)> supportsAction;
     std::function<void(QString,bool)> navigate;
     bool start(const QVariantList &commands);
-    void cancel();
+    void cancel(bool preserveModifiers=false);
     void suspend();
     void resume(bool success);
     bool busy()const{return running;}

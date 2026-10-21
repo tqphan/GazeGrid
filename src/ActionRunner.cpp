@@ -60,10 +60,15 @@ bool ActionRunner::start(const QVariantList &commands){
     }
     queue=commands;index=0;waiting=false;running=true;emit stateChanged();timer.start(0);return true;
 }
-void ActionRunner::cancel(){
+void ActionRunner::cancel(bool preserveModifiers){
     timer.stop();running=false;waiting=false;queue.clear();index=0;
-    const auto copy=held;held.clear();transient.clear();latched.clear();
-    for(const auto &name:copy)if(sendKey)sendKey(name,false);
+    const auto copy=held;
+    for(const auto &name:copy){
+        if(preserveModifiers&&modifierKeys.contains(name)&&!transient.contains(name))continue;
+        held.remove(name);latched.remove(name);
+        if(sendKey)sendKey(name,false);
+    }
+    transient.clear();
     emit stateChanged();
 }
 void ActionRunner::fail(QString message){cancel();emit failed(message);}

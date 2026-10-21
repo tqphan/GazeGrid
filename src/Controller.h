@@ -25,7 +25,6 @@ class Controller:public QObject{
  Q_PROPERTY(int gazeIndicatorSize MEMBER gazeIndicatorSize NOTIFY changed)
  Q_PROPERTY(int gazeIndicatorOpacity MEMBER gazeIndicatorOpacity NOTIFY changed)
  Q_PROPERTY(QString gazeIndicatorColor MEMBER gazeIndicatorColor NOTIFY changed)
- Q_PROPERTY(bool gazeIndicatorKeyboardOnly MEMBER gazeIndicatorKeyboardOnly NOTIFY changed)
  Q_PROPERTY(bool gazeIndicatorMorph MEMBER gazeIndicatorMorph NOTIFY changed)
  Q_PROPERTY(int dwellMs MEMBER dwellMs NOTIFY changed)
  Q_PROPERTY(int restoreCorner READ restoreCorner WRITE setRestoreCorner NOTIFY geometryPreferencesChanged)
@@ -141,7 +140,7 @@ private:
  int gazeIndicatorSize=18,gazeIndicatorOpacity=100;
  QString gazeIndicatorColor="#00bfff";
  bool hideKeyboardDuringMouseActions=false;
- bool gazeIndicatorMorph=false,gazeIndicatorKeyboardOnly=false;
+ bool gazeIndicatorMorph=false;
  int smoothingLevel=1;
  bool smoothTargetChanges=false;
  PortalInput portal;TobiiInput tobii;Dwell dwell;ActionRunner runner;PointerActions pointer;QElapsedTimer clock,gazeAge;

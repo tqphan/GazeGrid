@@ -18,8 +18,8 @@ The default SDK is the exact user-supplied `stream_engine_linux_3.0.4.6031` dire
 
 - **Authorize** requests keyboard/pointer access through KDE's portal. The preferred backend is libei; unsupported EIS can use portal D-Bus methods in a separate session mode.
 - The imported XML keyboard opens directly. **Settings** honors XML menu visibility; enable **Include layouts hidden by the XML pack** to select any of the 22 layouts; navigation keys and **Home / recover** also change layouts. Geometry, symbols, key groups, ordered macros, modifier toggles, scratchpad text, dictionary suggestions and editable platform mappings have implementations. Full behavior and appearance parity remain unverified.
-- **Modifier keys** (Shift, Ctrl, Alt, and Win) cycle through off → latched → locked → off. A **Latched** badge means the modifier releases after the next text or function key; a filled highlight and **Locked** badge mean it stays held until selected again. Pause, cancellation, and layout changes clear both states. Explicit XML `KeyToggle` commands retain their held/released behavior.
-- **Tobii** connects through the selected SDK. **Gaze** also connects automatically and enables gaze selection on the primary display, with a click-through gaze marker across that display. Settings → Status reports whether valid on-screen gaze is arriving. The tracker is assumed calibrated to that display. Live streaming has been verified; calibration and dwell acceptance remain pending. Display changes pause input and require checking calibration before resuming.
+- **Modifier keys** (Shift, Ctrl, Alt, and Win) cycle through off → latched → locked → off. A **Latched** badge means the modifier releases after the next text or function key; a filled highlight and **Locked** badge mean it stays held until selected again. Latched and locked modifiers carry over between keyboard layouts. Pause and cancellation clear both states. Explicit XML `KeyToggle` commands retain their held/released behavior.
+- **Tobii** connects through the selected SDK. **Gaze** also connects automatically and enables gaze selection on the primary display, with a gaze marker drawn directly on the keyboard. Settings → Status reports whether valid on-screen gaze is arriving. The tracker is assumed calibrated to that display. Live streaming has been verified; calibration and dwell acceptance remain pending. Display changes pause input and require checking calibration before resuming.
 - **Pause** releases owned input and cancels pending actions. A keyboard key containing a single `<Action>Sleep</Action>` toggles pause/resume, including while paused or a macro is running. The Pause key uses the same active highlight as Magnifier; it is highlighted while paused. Click again to resume, or look away and dwell on the key again. Dwell can activate Pause and recovery controls during a waiting macro. Move away and back before dwelling on Resume.
 - Pointer actions support target selection, clicks, double-clicks, relative movement, scrolling and held buttons. **Drag** chooses a source and destination, then performs a cancellable sequence. Repeat reuses the completed target for targeted clicks and drags. Direction keys move by the original default of 25 pixels. A plain left click acts at the current desktop pointer; use gaze selection when that must remain independent of the panel.
 - **Magnetic cursor** follows valid gaze while Gaze is enabled. **Look to scroll** selects an anchor, then scrolls in either axis beyond a 50-pixel deadzone, with the original default medium-speed calculation. Looking over the keyboard or opening Settings suppresses scrolling. Both modes stop on cancellation, tracking loss, or pause. Advanced look-to-scroll bounds/settings and its overlay remain pending.
@@ -139,10 +139,9 @@ on acceleration. It returns to a circle at rest and resets after tracking loss.
 These visual effects do not change gaze targeting. Use **Save preferences and
 startup keyboard** to retain changes.
 
-**Show indicator** selects **Full screen** (default) or **Keyboard only**.
-Keyboard-only mode hides the indicator outside the visible keyboard and clips
-it at the keyboard edges, including the minimized restore button. Save preferences
-to retain this choice.
+The gaze indicator is drawn directly on the keyboard and clipped at its edges,
+including the minimized restore button. It hides when looking outside the keyboard
+or when the keyboard is hidden. Size, opacity, color, and morphing remain configurable.
 
 **Settings → Keyboard → Temporarily hide keyboard during mouse actions** hides
 the panel from the start of a mouse action through target selection and execution.

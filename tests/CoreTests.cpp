@@ -422,6 +422,26 @@ private slots:
    QVERIFY(runner.modifierStates().isEmpty());QVERIFY(runner.heldKeys().isEmpty());
   }
  }
+ void navigationPreservesModifiersAndReleasesOtherKeys(){
+  for(const QString action:{"LeftShift","RightShift","LeftCtrl","RightCtrl","LeftAlt","RightAlt","LeftWin","RightWin"}){
+   for(bool locked:{false,true}){
+    ActionRunner runner;QStringList events;
+    runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+    runner.navigate=[&](QString,bool){runner.cancel(true);};
+    QSignalSpy done(&runner,&ActionRunner::finished);
+    const QVariantList modifier{cmd("Action",action)};
+    QVERIFY(runner.start(modifier));QTRY_COMPARE(done.count(),1);
+    if(locked){QVERIFY(runner.start(modifier));QTRY_COMPARE(done.count(),2);}
+    const auto states=runner.modifierStates();events.clear();
+    QVERIFY(runner.start({cmd("KeyDown","A"),cmd("ChangeKeyboard","another"),cmd("Text","z")}));
+    QTRY_VERIFY(!runner.busy());QCOMPARE(runner.modifierStates(),states);
+    QCOMPARE(events,QStringList({"A+","A-"}));
+    QVERIFY(runner.start({cmd("Text","b")}));QTRY_VERIFY(!runner.busy());
+    QCOMPARE(runner.modifierStates().isEmpty(),!locked);
+    runner.cancel();QVERIFY(runner.heldKeys().isEmpty());QVERIFY(runner.modifierStates().isEmpty());
+   }
+  }
+ }
  void latchedModifiersReleaseOnActionCancelAndFailure(){
   ActionRunner runner;runner.sendKey=[](QString,bool){return true;};
   QSignalSpy done(&runner,&ActionRunner::finished),failed(&runner,&ActionRunner::failed);
@@ -459,6 +479,18 @@ private slots:
   QVERIFY(d.update("a",500,500));QVERIFY(!d.update("a",600,500));
   d.update("",650,500);QVERIFY(!d.update("a",700,500));
   QVERIFY(!d.update("a",1300,500)); // stale interval cancels accumulated dwell
+ }
+ void consumedDwellDoesNotRefill(){
+  Dwell d;QVERIFY(!d.update("key",0,500));
+  for(int t=100;t<500;t+=100){QVERIFY(!d.update("key",t,500));QCOMPARE(d.progress(t,500),t/500.0);}
+  QVERIFY(d.update("key",500,500));QCOMPARE(d.progress(500,500),0.0);
+  d.consume("key",500);
+  for(int t=525;t<2000;t+=25){QVERIFY(!d.update("key",t,500));QCOMPARE(d.progress(t,500),0.0);}
+  d.update("",2000,500);QVERIFY(!d.update("key",2025,500));
+  QVERIFY(!d.update("key",2125,500));QCOMPARE(d.progress(2125,500),0.2);
+  d.consume("clicked",2200);
+  for(int t=2225;t<3000;t+=25){QVERIFY(!d.update("clicked",t,500));QCOMPARE(d.progress(t,500),0.0);}
+  QVERIFY(!d.update("other",3000,500));QVERIFY(!d.update("other",3100,500));QCOMPARE(d.progress(3100,500),0.2);
  }
  void explicitActivationDoesNotFireAgain(){Dwell d;d.consume("Pause",0);for(int t=25;t<1500;t+=25)QVERIFY(!d.update("Pause",t,500));d.update("",1500,500);QVERIFY(!d.update("Pause",1550,500));}
  void changingTargetCancels(){Dwell d;d.update("a",0,150);d.update("a",100,150);QVERIFY(!d.update("b",160,150));QVERIFY(!d.update("b",260,150));QVERIFY(d.update("b",310,150));}

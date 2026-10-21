@@ -4,6 +4,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
+#include <QQuickItem>
 #include <QScreen>
 #include <QJsonDocument>
 #include <QTextStream>
@@ -184,11 +185,12 @@ int main(int argc,char **argv){
  auto window=qobject_cast<QQuickWindow*>(engine.rootObjects().front());if(!window)return 1;
  nativeCheckWindow=window;
  if(app.arguments().contains("--gaze-indicator-ui-check")){
-  auto overlay=window->findChild<QQuickWindow*>("gazeOverlay");
+  auto overlay=window->findChild<QQuickItem*>("keyboardGazeIndicator");
   if(!overlay)return 1;
-  window->setProperty("gazeEnabled",true);controller.setProperty("gazeIndicatorMorph",true);overlay->setVisible(true);
+  window->setProperty("gazeEnabled",true);controller.setProperty("gazeIndicatorMorph",true);window->show();
   auto sample=[overlay](double x,double y){return QMetaObject::invokeMethod(overlay,"updateMotion",Q_ARG(QVariant,x),Q_ARG(QVariant,y),Q_ARG(QVariant,true));};
-  if(!sample(.1,.1))return 1;
+  QTimer::singleShot(100,&app,[&,overlay,sample]{
+  sample(.1,.1);
   QTimer::singleShot(30,&app,[&,overlay,sample]{
    sample(.11,.1);
    QTimer::singleShot(30,&app,[&,overlay,sample]{
@@ -197,8 +199,18 @@ int main(int argc,char **argv){
     const bool horizontal=qAbs(overlay->property("heading").toDouble())<.001;
     fprintf(stderr,"indicator stretch=%f heading=%f visible=%d\n",overlay->property("stretch").toDouble(),overlay->property("heading").toDouble(),overlay->isVisible());
     QMetaObject::invokeMethod(overlay,"updateMotion",Q_ARG(QVariant,0.0),Q_ARG(QVariant,0.0),Q_ARG(QVariant,false));
-    app.exit(stretched&&horizontal&&overlay->property("stretch").toDouble()==0?0:1);
+    const bool reset=overlay->property("stretch").toDouble()==0;
+    auto marker=window->findChild<QQuickItem*>("gazeMarker");
+    window->setProperty("gazeValid",true);
+    window->setProperty("gaze",QPointF(.5,.8));
+    const bool inside=marker&&marker->isVisible()&&marker->parentItem()==overlay&&overlay->clip();
+    window->setProperty("gaze",QPointF(.5,.1));
+    const bool outside=marker&&!marker->isVisible();
+    window->setProperty("gaze",QPointF(.5,.8));window->hide();
+    const bool hidden=marker&&!marker->isVisible();
+    app.exit(stretched&&horizontal&&reset&&inside&&outside&&hidden?0:1);
    });
+  });
   });
   return app.exec();
  }
@@ -220,10 +232,8 @@ int main(int argc,char **argv){
  });
  tray.show();
  auto target=window->findChild<QQuickWindow*>("targetWindow");
- auto gazeOverlay=window->findChild<QQuickWindow*>("gazeOverlay");
  // Target selection and cancellation must remain available while the panel is hidden.
  if(target)target->setTransientParent(nullptr);
- if(gazeOverlay)gazeOverlay->setTransientParent(nullptr);
  bool hiddenForMouseAction=false,restoreAfterMouseAction=false;
  QObject::connect(&controller,&Controller::changed,&app,[&]{
   const bool hide=controller.keyboardTemporarilyHidden();
@@ -257,7 +267,6 @@ int main(int argc,char **argv){
   }
   window->setScreen(screen);window->resize(width,height);
   window->setProperty("screenWidth",size.width());window->setProperty("screenHeight",size.height());window->setProperty("logicalX",x);window->setProperty("logicalY",y);
-  if(gazeOverlay){gazeOverlay->setScreen(screen);gazeOverlay->resize(size);}
 #ifdef OPTIKEY_LINUX
   if(QGuiApplication::platformName().startsWith("wayland")){
    if(inputMethod&&!inputMethod->attachPanel(window,top)){QTextStream(stderr)<<"Unable to assign keyboard surface role\n";app.exit(2);return;}
@@ -271,10 +280,9 @@ int main(int argc,char **argv){
     layer->setMargins(QMargins(x,y,0,0));
    }}
    if(target){target->setScreen(screen);target->resize(size);auto overlay=LayerShellQt::Window::get(target);overlay->setScope("optikey-pro-target");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setExclusiveZone(-1);}
-   if(gazeOverlay){auto overlay=LayerShellQt::Window::get(gazeOverlay);overlay->setScope("optikey-pro-gaze");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setActivateOnShow(false);overlay->setExclusiveZone(-1);}
   }else
 #endif
-  {window->setPosition(screen->geometry().topLeft()+QPoint(x,y));if(gazeOverlay)gazeOverlay->setPosition(screen->geometry().topLeft());}
+  {window->setPosition(screen->geometry().topLeft()+QPoint(x,y));}
  };
  QObject::connect(&controller,&Controller::layoutChanged,&app,applyGeometry);
  QObject::connect(&controller,&Controller::geometryPreferencesChanged,&app,applyGeometry);
@@ -289,6 +297,36 @@ int main(int argc,char **argv){
  QObject::connect(&app,&QGuiApplication::screenRemoved,&app,displayChanged);
  QObject::connect(&app,&QGuiApplication::primaryScreenChanged,&app,displayChanged);
  applyGeometry();window->show();
+ if(app.arguments().contains("--prediction-hover-ui-check")){
+  window->setProperty("gazeEnabled",false);
+  controller.openLayout("keyboard-alphabet-14x4-bottom",false);
+  std::function<QQuickItem*(QQuickItem*,const QString&)> findItem=[&](QQuickItem *item,const QString &name)->QQuickItem*{
+   if(item->objectName()==name)return item;
+   for(auto child:item->childItems())if(auto found=findItem(child,name))return found;
+   return nullptr;
+  };
+  auto prediction=findItem(window->contentItem(),"predictionMouseArea:0");
+  QObject *keyArea=nullptr;QString command;
+  const auto keys=controller.property("layout").toMap()["keys"].toList();
+  for(int i=0;i<keys.size();++i){
+   if(keys[i].toMap()["kind"]=="SuggestionRow")continue;
+   keyArea=findItem(window->contentItem(),"keyMouseArea:"+QString::number(i));
+   if(keyArea){command="key:"+QString::number(i);break;}
+  }
+  if(!prediction||!keyArea){QTextStream(stderr)<<"Missing hover areas: prediction="<<(prediction!=nullptr)<<" key="<<(keyArea!=nullptr)<<Qt::endl;return 2;}
+  // Qt can deliver the new key's enter before the old prediction's exit.
+  QMetaObject::invokeMethod(prediction,"entered");
+  QMetaObject::invokeMethod(keyArea,"entered");
+  QMetaObject::invokeMethod(prediction,"exited");
+  if(window->property("hovered").toString()!=command){QTextStream(stderr)<<"Unexpected hover: "<<window->property("hovered").toString()<<Qt::endl;return 2;}
+  QTimer::singleShot(150,&app,[&,keyArea,command]{
+   const bool dwelling=window->property("hovered").toString()==command&&window->property("progress").toDouble()>0;
+   QMetaObject::invokeMethod(keyArea,"exited");
+   app.exit(dwelling&&window->property("hovered").toString().isEmpty()?0:2);
+  });
+  return app.exec();
+ }
+
  if(app.arguments().contains("--hide-keyboard-mouse-ui-check")){
   controller.configureInputMethod([](QString){return true;},[](QString,bool){return true;});
   controller.inputContextChanged(true,false);

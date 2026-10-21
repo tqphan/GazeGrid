@@ -177,7 +177,8 @@ bool PortalInput::scrollAxes(double x,double y){
  if(!available)return false;if(!eisMode)return notify("NotifyPointerAxis",{x,y});
  auto d=device(EI_DEVICE_CAP_SCROLL);if(!d)return false;ei_device_scroll_delta(d,x,y);ei_device_frame(d,ei_now(context));ei_device_scroll_stop(d,x!=0,y!=0);ei_device_frame(d,ei_now(context));return true;
 }
-void PortalInput::releaseAll(){auto copy=held;for(int code:copy)key(code,false);held.clear();auto buttons=heldButtons;for(int code:buttons)button(code,false);heldButtons.clear();}
+void PortalInput::releaseButtons(){auto buttons=heldButtons;for(int code:buttons)button(code,false);heldButtons.clear();}
+void PortalInput::releaseAll(){auto copy=held;for(int code:copy)key(code,false);held.clear();releaseButtons();}
 void PortalInput::sessionClosed(){if(calledFromDBus()&&message().path()!=session)return;emit status("Desktop permission ended — reconnect to continue");close();}
 void PortalInput::close(){
  ++generation;

@@ -26,6 +26,7 @@ public:
  bool scrollAxes(double dx,double dy);
  bool ready()const{return available;}
  void releaseAll();
+ void releaseButtons();
 signals:
  void status(QString message);
  void readyChanged();
