@@ -50,6 +50,7 @@ Controller::Controller(){
  gazeIndicatorSize=profile.values["gazeIndicatorSize"].toInt(18);
  gazeIndicatorOpacity=profile.values["gazeIndicatorOpacity"].toInt(100);
  gazeIndicatorColor=profile.values["gazeIndicatorColor"].toString("#00bfff");
+ hideKeyboardDuringMouseActions=profile.values["hideKeyboardDuringMouseActions"].toBool();
  gazeIndicatorKeyboardOnly=profile.values["gazeIndicatorKeyboardOnly"].toBool();
  gazeIndicatorMorph=profile.values["gazeIndicatorMorph"].toBool();
  smoothingLevel=profile.values["gazeSmoothingLevel"].toInt(1);smoothTargetChanges=profile.values["smoothWhenChangingGazeTarget"].toBool();
@@ -123,7 +124,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"gazeIndicatorKeyboardOnly",gazeIndicatorKeyboardOnly},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreSize",recoverySize},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorKeyboardOnly",gazeIndicatorKeyboardOnly},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreSize",recoverySize},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -133,6 +134,7 @@ void Controller::resetPreferences(){
  if(!paused)togglePause();
  setMagnifierEnabled(false);
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;backStack.clear();
+ hideKeyboardDuringMouseActions=false;
  gazeIndicatorSize=18;gazeIndicatorOpacity=100;gazeIndicatorColor="#00bfff";gazeIndicatorMorph=false;gazeIndicatorKeyboardOnly=false;
  setRestoreCorner(2);setRestoreSize(64);restoreOpacity=100;
  setKeyboardScale(100);highContrast=false;shortLabelScale=values["shortLabelScale"].toInt();longLabelScale=values["longLabelScale"].toInt();magnifierZoom=values["magnifierZoom"].toInt();progressiveZoom=false;zoomDurationMs=1500;targetDwellEnabled=true;targetStartDwellMs=750;targetConfirmDwellMs=1000;targetDwellRadius=40;rememberDesktop=false;
@@ -292,7 +294,7 @@ bool Controller::performAction(QString action){
    actionStatus="Pointer targeting requires one mapped EIS display region";emit changed();return false;
   }
   runner.suspend();
-  if(!pointer.start(action)){actionStatus="Pointer action unavailable: release held buttons or complete an action before repeating";emit changed();return false;}
+  if(!pointer.start(action,hideKeyboardDuringMouseActions?100:0)){actionStatus="Pointer action unavailable: release held buttons or complete an action before repeating";emit changed();return false;}
   return true;
  }
  actionStatus="Not implemented yet: "+action;emit changed();return false;

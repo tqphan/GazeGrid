@@ -44,19 +44,19 @@ Window {
   function onSettingsRequested(){settings.showNormal();settings.raise();settings.requestActivate()}
   function onLayoutChanged(){root.hovered="";root.progress=0}
   function onGazePoint(x,y,valid){gazeOverlay.updateMotion(x,y,valid);root.gazeValid=valid;root.gaze=Qt.point(x,y)}
-  function onChanged(){if(!controller.targeting){root.targetProgress=0;root.targetPointValid=false}}
+  function onChanged(){if(controller.keyboardTemporarilyHidden){root.hovered="";root.progress=0}if(!controller.targeting){root.targetProgress=0;root.targetPointValid=false}}
  }
  Timer {
   interval:25;running:!root.gazeCheck;repeat:true
   onTriggered:{
-   let target=root.hovered
+   let target=controller.keyboardTemporarilyHidden?"":root.hovered
    if(root.gazeEnabled){
     target=""
     if(root.gazeValid){
      let px=root.gaze.x*root.screenWidth,py=root.gaze.y*root.screenHeight
-     let overPanel=px>=root.logicalX&&px<root.logicalX+root.width&&py>=root.logicalY&&py<root.logicalY+root.height
+     let overPanel=root.visible&&px>=root.logicalX&&px<root.logicalX+root.width&&py>=root.logicalY&&py<root.logicalY+root.height
      controller.trackGaze(root.gaze.x,root.gaze.y,!overPanel&&!settings.visible)
-     if(!controller.targeting)target=root.keyAt(px-root.logicalX,py-root.logicalY)
+     if(!controller.targeting&&root.visible)target=root.keyAt(px-root.logicalX,py-root.logicalY)
     }
    }
    if(controller.targeting){
@@ -314,6 +314,8 @@ Window {
        RowLayout {Desktop.Label {text:"Short key label size: "+controller.shortLabelScale+"%"} Desktop.Slider {from:50;to:200;stepSize:5;value:controller.shortLabelScale;Layout.fillWidth:true;onMoved:controller.shortLabelScale=value}}
        RowLayout {Desktop.Label {text:"Long key label size: "+controller.longLabelScale+"%"} Desktop.Slider {from:50;to:200;stepSize:5;value:controller.longLabelScale;Layout.fillWidth:true;onMoved:controller.longLabelScale=value}}
        Desktop.Label {text:"Short labels have 3 characters or fewer. Text shrinks to fit each key.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Desktop.CheckBox {text:"Temporarily hide keyboard during mouse actions";checked:controller.hideKeyboardDuringMouseActions;onToggled:controller.hideKeyboardDuringMouseActions=checked}
+       Desktop.Label {text:"Restores the keyboard after the action finishes or is canceled. Target selection and Cancel remain available.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Kirigami.Heading {text:"Restore button";level:3;Layout.topMargin:12}
        RowLayout {
         Desktop.Label {text:"Restore square corner"}

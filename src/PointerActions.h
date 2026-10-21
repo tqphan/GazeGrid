@@ -18,7 +18,7 @@ public:
     std::function<bool(double)> scroll;
     std::function<bool(double,double)> scrollAxes;
     std::function<void()> releaseAll;
-    bool start(const QString &action);
+    bool start(const QString &action,int initialDelayMs=0);
     void select(QPointF point);
     void cancel();
     bool follow(QPointF point,bool overDesktop=true);

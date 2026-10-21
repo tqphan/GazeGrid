@@ -143,3 +143,10 @@ startup keyboard** to retain changes.
 Keyboard-only mode hides the indicator outside the visible keyboard and clips
 it at the keyboard edges, including the minimized restore button. Save preferences
 to retain this choice.
+
+**Settings → Keyboard → Temporarily hide keyboard during mouse actions** hides
+the panel from the start of a mouse action through target selection and execution.
+The keyboard returns on completion, failure, or cancellation. Target selection
+and its Cancel button remain available. Continuous magnetic cursor and look-to-scroll
+modes restore the keyboard after activation so their controls remain accessible.
+The option defaults off and is retained with Save preferences.

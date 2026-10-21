@@ -15,6 +15,18 @@
 class ControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void hideKeyboardMouseActionLifecycle(){
+  Controller c;c.configureInputMethod([](QString){return true;},[](QString,bool){return true;});c.inputContextChanged(true,false);
+  c.setProperty("hideKeyboardDuringMouseActions",true);QVERIFY(c.savePreferences());
+  {Controller restored;QVERIFY(restored.property("hideKeyboardDuringMouseActions").toBool());}
+  const QVariantList action{QVariantMap{{"tag","Action"},{"text","MouseMoveToLeft"}}};
+  QVERIFY(c.executeCommands(action));QTRY_VERIFY(c.keyboardTemporarilyHidden());
+  c.clickCommand("CancelTarget");QVERIFY(!c.keyboardTemporarilyHidden());
+  QVERIFY(c.executeCommands(action));QTRY_VERIFY(c.keyboardTemporarilyHidden());
+  QTRY_VERIFY(!c.keyboardTemporarilyHidden()); // Unavailable portal fails safely and restores the keyboard.
+  c.resetPreferences();QVERIFY(!c.property("hideKeyboardDuringMouseActions").toBool());
+ }
+
  void gazeIndicatorPreferences(){
   {Controller c;c.setProperty("gazeIndicatorSize",42);c.setProperty("gazeIndicatorOpacity",65);c.setProperty("gazeIndicatorColor","#ff1234");c.setProperty("gazeIndicatorMorph",true);c.setProperty("gazeIndicatorKeyboardOnly",true);QVERIFY(c.savePreferences());}
   {Controller c;QCOMPARE(c.property("gazeIndicatorSize").toInt(),42);QCOMPARE(c.property("gazeIndicatorOpacity").toInt(),65);QCOMPARE(c.property("gazeIndicatorColor").toString(),QString("#ff1234"));QVERIFY(c.property("gazeIndicatorMorph").toBool());QVERIFY(c.property("gazeIndicatorKeyboardOnly").toBool());c.resetPreferences();QVERIFY(!c.property("gazeIndicatorKeyboardOnly").toBool());QCOMPARE(c.property("gazeIndicatorSize").toInt(),18);QCOMPARE(c.property("gazeIndicatorOpacity").toInt(),100);QCOMPARE(c.property("gazeIndicatorColor").toString(),QString("#00bfff"));QVERIFY(!c.property("gazeIndicatorMorph").toBool());}

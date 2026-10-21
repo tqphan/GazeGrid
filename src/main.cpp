@@ -221,6 +221,18 @@ int main(int argc,char **argv){
  tray.show();
  auto target=window->findChild<QQuickWindow*>("targetWindow");
  auto gazeOverlay=window->findChild<QQuickWindow*>("gazeOverlay");
+ // Target selection and cancellation must remain available while the panel is hidden.
+ if(target)target->setTransientParent(nullptr);
+ if(gazeOverlay)gazeOverlay->setTransientParent(nullptr);
+ bool hiddenForMouseAction=false,restoreAfterMouseAction=false;
+ QObject::connect(&controller,&Controller::changed,&app,[&]{
+  const bool hide=controller.keyboardTemporarilyHidden();
+  if(hide==hiddenForMouseAction)return;
+  hiddenForMouseAction=hide;
+  if(hide){restoreAfterMouseAction=window->isVisible();window->hide();}
+  else if(restoreAfterMouseAction){window->show();restoreAfterMouseAction=false;}
+ });
+
 
  auto applyGeometry=[&]{
   auto screen=QGuiApplication::primaryScreen();
@@ -277,6 +289,27 @@ int main(int argc,char **argv){
  QObject::connect(&app,&QGuiApplication::screenRemoved,&app,displayChanged);
  QObject::connect(&app,&QGuiApplication::primaryScreenChanged,&app,displayChanged);
  applyGeometry();window->show();
+ if(app.arguments().contains("--hide-keyboard-mouse-ui-check")){
+  controller.configureInputMethod([](QString){return true;},[](QString,bool){return true;});
+  controller.inputContextChanged(true,false);
+  controller.setProperty("hideKeyboardDuringMouseActions",true);
+  QObject::connect(&controller,&Controller::changed,&app,[&]{
+   if(!controller.keyboardTemporarilyHidden())return;
+   QTimer::singleShot(0,&app,[&]{
+    const bool hidden=!window->isVisible();
+    controller.setProperty("targeting",true);
+    const bool cancelAvailable=target&&target->isVisible();
+    controller.clickCommand("CancelTarget");
+    const bool restored=window->isVisible()&&!controller.keyboardTemporarilyHidden();
+    QTextStream(stdout)<<"hidden="<<hidden<<" cancelAvailable="<<cancelAvailable<<" restored="<<restored<<Qt::endl;
+    app.exit(hidden&&cancelAvailable&&restored?0:2);
+   });
+  });
+  controller.executeCommands({QVariantMap{{"tag","Action"},{"text","MouseMoveToLeft"}}});
+  QTimer::singleShot(2000,&app,[&]{app.exit(2);});
+  return app.exec();
+ }
+
  if(app.arguments().contains("--target-dwell-ui-check")||app.arguments().contains("--pointer-dwell-ui-check")){
   // Synthetic gaze/pointer motion and screenshot, without mouse-button events.
   const bool gazeInput=app.arguments().contains("--target-dwell-ui-check");

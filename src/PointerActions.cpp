@@ -18,7 +18,7 @@ bool PointerActions::needsAbsolute(const QString &a){
 QStringList PointerActions::heldButtons()const{
     QStringList result;for(int code:{272,273,274})if(held.contains(code))result<< (code==272?"Left":code==273?"Right":"Middle");return result;
 }
-bool PointerActions::start(const QString &a){
+bool PointerActions::start(const QString &a,int initialDelayMs){
     if(active||!supports(a))return false;
     if(a=="LookToScrollActive"&&!displaySize.isValid())return false;
     if(a=="RepeatLastMouseAction"&&last.action.isEmpty())return false;
@@ -31,7 +31,7 @@ bool PointerActions::start(const QString &a){
     instruction=a=="MouseDrag"?"Choose the drag source":"Choose a desktop target";
     if(a=="LookToScrollActive")instruction="Choose the centre of the scroll area";
     emit changed();
-    if(!choosing)timer.start(0);
+    if(!choosing)timer.start(qMax(0,initialDelayMs));
     return true;
 }
 void PointerActions::select(QPointF p){

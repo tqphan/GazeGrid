@@ -48,6 +48,8 @@ class Controller:public QObject{
  Q_PROPERTY(QString scratchpad MEMBER scratchpad NOTIFY changed)
  Q_PROPERTY(QStringList suggestions MEMBER suggestions NOTIFY changed)
  Q_PROPERTY(bool learning MEMBER learning NOTIFY changed)
+ Q_PROPERTY(bool hideKeyboardDuringMouseActions MEMBER hideKeyboardDuringMouseActions NOTIFY changed)
+ Q_PROPERTY(bool keyboardTemporarilyHidden READ keyboardTemporarilyHidden NOTIFY changed)
  Q_PROPERTY(bool targeting MEMBER targeting NOTIFY changed)
  Q_PROPERTY(QString targetPrompt READ targetPrompt NOTIFY changed)
  Q_PROPERTY(QStringList heldPointerButtons READ heldPointerButtons NOTIFY changed)
@@ -88,6 +90,7 @@ public:
  QString targetPrompt()const{return zoomAnimating?"Zooming in…":magnifierReady?"Choose the precise target in the magnified image":pointer.prompt();}
  QImage magnifierImage()const{return magnifiedImage;}
  QStringList heldPointerButtons()const{return pointer.heldButtons();}
+ bool keyboardTemporarilyHidden()const{return hideKeyboardDuringMouseActions&&pointer.busy();}
  bool magneticCursor()const{return pointer.magnetic();}
  bool lookScrolling()const{return pointer.lookScrolling();}
  Q_INVOKABLE void setGazeEnabled(bool enabled);
@@ -137,6 +140,7 @@ private:
  QSizeF gazeDisplaySize{1,1};
  int gazeIndicatorSize=18,gazeIndicatorOpacity=100;
  QString gazeIndicatorColor="#00bfff";
+ bool hideKeyboardDuringMouseActions=false;
  bool gazeIndicatorMorph=false,gazeIndicatorKeyboardOnly=false;
  int smoothingLevel=1;
  bool smoothTargetChanges=false;
