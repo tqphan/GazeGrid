@@ -15,6 +15,15 @@
 class ControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void emptyPredictionsDoNotDwell(){
+  Controller c;c.setProperty("suggestions",QStringList{"word",""," "});
+  QCOMPARE(c.hover("suggest:0"),0.0);QTest::qWait(50);QVERIFY(c.hover("suggest:0")>0);
+  for(const auto &key:{"suggest:1","suggest:2","suggest:3","suggest:-1"}){
+   QCOMPARE(c.hover(key),0.0);QTest::qWait(50);QCOMPARE(c.hover(key),0.0);
+  }
+  c.setProperty("suggestions",QStringList{});QCOMPARE(c.hover("suggest:0"),0.0);
+ }
+
  void hideKeyboardMouseActionLifecycle(){
   Controller c;c.configureInputMethod([](QString){return true;},[](QString,bool){return true;});c.inputContextChanged(true,false);
   c.setProperty("hideKeyboardDuringMouseActions",true);QVERIFY(c.savePreferences());

@@ -32,7 +32,7 @@ Window {
   for(let i=0;i<keys.count;++i){let item=keys.itemAt(i);if(!item)continue
    if(px>=item.x&&py>=item.y&&px<item.x+item.width&&py<item.y+item.height){
     if(item.modelData.kind==="SuggestionRow") {
-     let n=Math.floor((px-item.x)/item.predictionWidth);return n<item.predictionCount&&n<controller.suggestions.length?"suggest:"+n:""
+     let n=Math.floor((px-item.x)/item.predictionWidth);return n<item.predictionCount&&n<controller.suggestions.length&&controller.suggestions[n].trim().length>0?"suggest:"+n:""
     }
     return "key:"+i
    }
@@ -162,11 +162,15 @@ Window {
     Repeater {
      model:key.modelData.kind==="SuggestionRow"?key.predictionCount:0
      Rectangle {
+      id:predictionSlot
       required property int index
+      property string predictionText:index<controller.suggestions.length?controller.suggestions[index]:""
+      property bool hasPrediction:predictionText.trim().length>0
+      onHasPredictionChanged:if(!hasPrediction&&root.hovered==="suggest:"+index)root.hovered=""
       width:key.predictionWidth;height:key.height;color:"transparent";border.color:Kirigami.Theme.disabledTextColor
-      Text {anchors.fill:parent;anchors.margins:4;text:index<controller.suggestions.length?controller.suggestions[index]:"";color:key.foreground;font.pixelSize:Math.min(24,key.height*.28)*(text.length<=3?controller.shortLabelScale:controller.longLabelScale)/100;fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
-      MouseArea {objectName:"predictionMouseArea:"+index;anchors.fill:parent;hoverEnabled:true;onEntered:root.hovered="suggest:"+index;onExited:if(root.hovered==="suggest:"+index)root.hovered="";onClicked:controller.clickCommand("suggest:"+index)}
-      Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(root.hovered==="suggest:"+index?root.progress:0);color:root.dwellColor}
+      Text {anchors.fill:parent;anchors.margins:4;text:predictionSlot.predictionText;color:key.foreground;font.pixelSize:Math.min(24,key.height*.28)*(text.length<=3?controller.shortLabelScale:controller.longLabelScale)/100;fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
+      MouseArea {objectName:"predictionMouseArea:"+index;anchors.fill:parent;hoverEnabled:true;enabled:predictionSlot.hasPrediction;onEntered:root.hovered="suggest:"+index;onExited:if(root.hovered==="suggest:"+index)root.hovered="";onClicked:controller.clickCommand("suggest:"+index)}
+      Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(predictionSlot.hasPrediction&&root.hovered==="suggest:"+index?root.progress:0);color:root.dwellColor}
      }
     }
    }

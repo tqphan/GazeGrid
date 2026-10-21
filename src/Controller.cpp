@@ -216,6 +216,10 @@ bool Controller::isSleepKey(const QString &key) const{
  return action["tag"]=="Action"&&action["text"].toString().trimmed()=="Sleep";
 }
 double Controller::hover(QString key){
+ if(key.startsWith("suggest:")){
+  bool valid=false;const int i=key.mid(8).toInt(&valid);
+  if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()){dwell.reset();return 0;}
+ }
  const bool recovery=key=="Pause"||key=="Recover"||key=="CancelTarget"||key=="Connect"||key=="Tobii"||key=="Settings"||key=="Speak"||key=="StopSpeech"||isSleepKey(key);
  if(!recovery&&(paused||runner.busy())){dwell.reset();return 0;}
  int duration=dwellMs;
@@ -235,7 +239,7 @@ void Controller::activate(QString key){
  if(key=="CancelTarget"){targeting=false;runner.cancel();portal.releaseAll();pointer.cancel();emit changed();return;}
  if(paused)return;
  if(key.startsWith("suggest:")){
-  bool valid=false;int i=key.mid(8).toInt(&valid);if(!valid||i<0||i>=suggestions.size()||!ready())return;
+  bool valid=false;int i=key.mid(8).toInt(&valid);if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()||!ready())return;
   if(!runner.heldKeys().isEmpty()){actionStatus="Release held keys before accepting a suggestion";emit changed();return;}
   QString prefix=WordPrediction::prefix(scratchpad);auto word=suggestions[i];
   runner.start({command("Text",word.mid(prefix.size())+" ")});return;
