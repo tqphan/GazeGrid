@@ -27,6 +27,7 @@ class Controller:public QObject{
  Q_PROPERTY(QString gazeIndicatorColor MEMBER gazeIndicatorColor NOTIFY changed)
  Q_PROPERTY(bool gazeIndicatorMorph MEMBER gazeIndicatorMorph NOTIFY changed)
  Q_PROPERTY(int repeatIntervalMs MEMBER repeatIntervalMs NOTIFY changed)
+ Q_PROPERTY(bool repeatPunctuationOnHover MEMBER repeatPunctuationOnHover NOTIFY changed)
  Q_PROPERTY(bool repeatLettersOnHover MEMBER repeatLettersOnHover NOTIFY changed)
  Q_PROPERTY(bool repeatBackspaceOnHover MEMBER repeatBackspaceOnHover NOTIFY changed)
  Q_PROPERTY(bool repeatArrowsOnHover MEMBER repeatArrowsOnHover NOTIFY changed)
@@ -148,6 +149,7 @@ private:
  int gazeIndicatorSize=18,gazeIndicatorOpacity=100;
  QString gazeIndicatorColor="#00bfff";
  int repeatIntervalMs=750;
+ bool repeatPunctuationOnHover=false;
  bool repeatLettersOnHover=false;
  bool repeatBackspaceOnHover=false;
  bool repeatArrowsOnHover=false;

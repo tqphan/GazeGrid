@@ -23,7 +23,7 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"repeatIntervalMs",750},{"repeatLettersOnHover",false},{"repeatBackspaceOnHover",false},{"repeatArrowsOnHover",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
+    return {{"repeatPunctuationOnHover",false},{"repeatIntervalMs",750},{"repeatLettersOnHover",false},{"repeatBackspaceOnHover",false},{"repeatArrowsOnHover",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"highContrast",false},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
@@ -32,6 +32,7 @@ bool ProfileStore::valid(const QJsonObject &v){
         &&(!v.contains("gazeIndicatorSize")||(v["gazeIndicatorSize"].isDouble()&&v["gazeIndicatorSize"].toDouble()==v["gazeIndicatorSize"].toInt()&&v["gazeIndicatorSize"].toInt()>=4&&v["gazeIndicatorSize"].toInt()<=120))
         &&(!v.contains("gazeIndicatorOpacity")||(v["gazeIndicatorOpacity"].isDouble()&&v["gazeIndicatorOpacity"].toDouble()==v["gazeIndicatorOpacity"].toInt()&&v["gazeIndicatorOpacity"].toInt()>=5&&v["gazeIndicatorOpacity"].toInt()<=100))
         &&(!v.contains("repeatIntervalMs")||(v["repeatIntervalMs"].isDouble()&&v["repeatIntervalMs"].toDouble()==v["repeatIntervalMs"].toInt()&&v["repeatIntervalMs"].toInt()>=100&&v["repeatIntervalMs"].toInt()<=2000))
+        &&(!v.contains("repeatPunctuationOnHover")||v["repeatPunctuationOnHover"].isBool())
         &&(!v.contains("repeatLettersOnHover")||v["repeatLettersOnHover"].isBool())
         &&(!v.contains("repeatBackspaceOnHover")||v["repeatBackspaceOnHover"].isBool())
         &&(!v.contains("repeatArrowsOnHover")||v["repeatArrowsOnHover"].isBool())

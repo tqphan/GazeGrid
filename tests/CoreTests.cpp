@@ -480,6 +480,12 @@ private slots:
   d.update("",650,500);QVERIFY(!d.update("a",700,500));
   QVERIFY(!d.update("a",1300,500)); // stale interval cancels accumulated dwell
  }
+ void punctuationRepeatPreferenceValidation(){
+  auto v=ProfileStore::defaults();QVERIFY(!v["repeatPunctuationOnHover"].toBool());
+  v.remove("repeatPunctuationOnHover");QVERIFY(ProfileStore::valid(v));
+  v["repeatPunctuationOnHover"]=true;QVERIFY(ProfileStore::valid(v));
+  v["repeatPunctuationOnHover"]=1;QVERIFY(!ProfileStore::valid(v));
+ }
  void repeatRateDoesNotChangeInitialDwell(){
   Dwell d;QVERIFY(!d.update("a",0,500,true,100));
   for(int t=100;t<500;t+=100)QVERIFY(!d.update("a",t,500,true,100));

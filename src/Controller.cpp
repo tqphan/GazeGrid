@@ -53,6 +53,7 @@ Controller::Controller(){
  gazeIndicatorOpacity=profile.values["gazeIndicatorOpacity"].toInt(100);
  gazeIndicatorColor=profile.values["gazeIndicatorColor"].toString("#00bfff");
  repeatIntervalMs=profile.values["repeatIntervalMs"].toInt(750);
+ repeatPunctuationOnHover=profile.values["repeatPunctuationOnHover"].toBool();
  repeatLettersOnHover=profile.values["repeatLettersOnHover"].toBool();
  repeatBackspaceOnHover=profile.values["repeatBackspaceOnHover"].toBool();
  repeatArrowsOnHover=profile.values["repeatArrowsOnHover"].toBool();
@@ -130,7 +131,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"repeatIntervalMs",repeatIntervalMs},{"repeatLettersOnHover",repeatLettersOnHover},{"repeatBackspaceOnHover",repeatBackspaceOnHover},{"repeatArrowsOnHover",repeatArrowsOnHover},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"repeatPunctuationOnHover",repeatPunctuationOnHover},{"repeatIntervalMs",repeatIntervalMs},{"repeatLettersOnHover",repeatLettersOnHover},{"repeatBackspaceOnHover",repeatBackspaceOnHover},{"repeatArrowsOnHover",repeatArrowsOnHover},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -141,6 +142,7 @@ void Controller::resetPreferences(){
  setMagnifierEnabled(false);
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;backStack.clear();
  repeatIntervalMs=750;
+ repeatPunctuationOnHover=false;
  repeatLettersOnHover=false;
  repeatBackspaceOnHover=false;
  repeatArrowsOnHover=false;
@@ -248,8 +250,10 @@ double Controller::hover(QString key){
     const auto command=commands.front().toMap();const auto tag=command["tag"].toString();const auto text=command["text"].toString();
     const auto code=tag=="Action"?KeyNames::functionKey(text):QString();
     const bool letter=tag=="Text"&&text.size()==1&&text.front().isLetter();
+    const bool punctuation=tag=="Text"&&text.size()==1&&(text.front().isPunct()||text.front().isSymbol());
     repeatKey=(cycleModifiersOnHover&&!ActionRunner::modifierName(commands).isEmpty())
      ||(repeatLettersOnHover&&letter)
+     ||(repeatPunctuationOnHover&&punctuation)
      ||(repeatBackspaceOnHover&&code=="BACK")
      ||(repeatArrowsOnHover&&(code=="LEFT"||code=="RIGHT"||code=="UP"||code=="DOWN"));
    }

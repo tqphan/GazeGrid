@@ -169,3 +169,9 @@ Keyboard dwell. Each repeat waits for the previous action to finish.
 
 Existing restore-button size preferences initialize both width and height to the
 previous square size. New width and height values save independently.
+
+**Repeat punctuation while hovering** independently enables repetition for
+single-character punctuation and symbol keys, such as `.`, `,`, `!`, `?`, `+`,
+and `$`. It defaults off and uses the shared repeat rate. Digits, spaces,
+predictions, and multi-character text keys are excluded. Save preferences to
+retain the option.

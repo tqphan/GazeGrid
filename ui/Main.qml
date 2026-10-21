@@ -357,12 +357,13 @@ Window {
        Desktop.CheckBox {text:"Cycle modifiers while hovering";checked:controller.cycleModifiersOnHover;onToggled:controller.cycleModifiersOnHover=checked}
        Desktop.Label {text:"Keep hovering over Shift, Ctrl, Alt, or Win to cycle through latched, locked, and off at the repeat rate.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Desktop.CheckBox {text:"Repeat letters while hovering";checked:controller.repeatLettersOnHover;onToggled:controller.repeatLettersOnHover=checked}
+       Desktop.CheckBox {text:"Repeat punctuation while hovering";checked:controller.repeatPunctuationOnHover;onToggled:controller.repeatPunctuationOnHover=checked}
        Desktop.CheckBox {text:"Repeat Backspace while hovering";checked:controller.repeatBackspaceOnHover;onToggled:controller.repeatBackspaceOnHover=checked}
        Desktop.CheckBox {text:"Repeat arrow keys while hovering";checked:controller.repeatArrowsOnHover;onToggled:controller.repeatArrowsOnHover=checked}
        Desktop.Label {text:"The first activation uses keyboard dwell. Further activations use the repeat rate. Move away to stop.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        RowLayout {
         Desktop.Label {text:"Repeat rate: "+(1000/controller.repeatIntervalMs).toFixed(1)+" / sec ("+controller.repeatIntervalMs+" ms)"}
-        Desktop.Slider {from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;Layout.fillWidth:true;enabled:controller.cycleModifiersOnHover||controller.repeatLettersOnHover||controller.repeatBackspaceOnHover||controller.repeatArrowsOnHover;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
+        Desktop.Slider {from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;Layout.fillWidth:true;enabled:controller.repeatPunctuationOnHover||controller.cycleModifiersOnHover||controller.repeatLettersOnHover||controller.repeatBackspaceOnHover||controller.repeatArrowsOnHover;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
        }
        RowLayout {Desktop.Label {text:"Keyboard dwell: "+controller.dwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.dwellMs;Layout.fillWidth:true;onMoved:controller.dwellMs=value}}
 

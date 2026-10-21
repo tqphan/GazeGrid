@@ -21,26 +21,26 @@ private slots:
  }
 
  void repeatPreferencesAreIndependent(){
-  const char *names[]={"repeatLettersOnHover","repeatBackspaceOnHover","repeatArrowsOnHover"};
-  for(int selected=0;selected<3;++selected){
+  const char *names[]={"repeatLettersOnHover","repeatBackspaceOnHover","repeatArrowsOnHover","repeatPunctuationOnHover"};
+  for(int selected=0;selected<4;++selected){
    {Controller c;c.resetPreferences();c.setProperty(names[selected],true);QVERIFY(c.savePreferences());}
-   {Controller c;for(int i=0;i<3;++i)QCOMPARE(c.property(names[i]).toBool(),i==selected);c.resetPreferences();for(auto n:names)QVERIFY(!c.property(n).toBool());}
+   {Controller c;for(int i=0;i<4;++i)QCOMPARE(c.property(names[i]).toBool(),i==selected);c.resetPreferences();for(auto n:names)QVERIFY(!c.property(n).toBool());}
   }
  }
  void repeatKeyCategories(){
-  const char *options[]={"repeatLettersOnHover","repeatBackspaceOnHover","repeatArrowsOnHover"};
-  const QStringList values{"a","BackOne","Left","Right","Up","Down","1"," ","Return"};
-  for(int selected=0;selected<3;++selected){
+  const char *options[]={"repeatLettersOnHover","repeatBackspaceOnHover","repeatArrowsOnHover","repeatPunctuationOnHover"};
+  const QStringList values{"a","BackOne","Left","Right","Up","Down","1"," ","Return",".",",","!","?",";",":","-","+","$","..."};
+  for(int selected=0;selected<4;++selected){
    for(int k=0;k<values.size();++k){
     Controller c;c.configureInputMethod([](QString){return true;},[](QString,bool){return true;});c.inputContextChanged(true,false);
     c.setProperty(options[selected],true);
-    const bool text=k==0||k==6||k==7;
+    const bool text=k==0||k==6||k==7||k>=9;
     const QVariantList commands{QVariantMap{{"tag",text?"Text":"Action"},{"text",values[k]}}};
     const QVariantList keys{QVariantMap{{"commands",commands}}};
     c.setProperty("layout",QVariantMap{{"keys",keys}});
     c.clickCommand("key:0");QTRY_VERIFY(!c.executingCommands());
     QCOMPARE(c.hover("key:0"),0.0);QTest::qWait(30);
-    const bool expected=(selected==0&&k==0)||(selected==1&&k==1)||(selected==2&&k>=2&&k<=5);
+    const bool expected=(selected==0&&k==0)||(selected==1&&k==1)||(selected==2&&k>=2&&k<=5)||(selected==3&&k>=9&&k<values.size()-1);
     QCOMPARE(c.hover("key:0")>0,expected);
    }
   }
