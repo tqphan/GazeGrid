@@ -15,6 +15,54 @@
 class ControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void repeatRatePersistsAndResets(){
+  {Controller c;c.setProperty("repeatIntervalMs",150);QVERIFY(c.savePreferences());}
+  {Controller c;QCOMPARE(c.property("repeatIntervalMs").toInt(),150);c.resetPreferences();QCOMPARE(c.property("repeatIntervalMs").toInt(),750);}
+ }
+
+ void repeatPreferencesAreIndependent(){
+  const char *names[]={"repeatLettersOnHover","repeatBackspaceOnHover","repeatArrowsOnHover"};
+  for(int selected=0;selected<3;++selected){
+   {Controller c;c.resetPreferences();c.setProperty(names[selected],true);QVERIFY(c.savePreferences());}
+   {Controller c;for(int i=0;i<3;++i)QCOMPARE(c.property(names[i]).toBool(),i==selected);c.resetPreferences();for(auto n:names)QVERIFY(!c.property(n).toBool());}
+  }
+ }
+ void repeatKeyCategories(){
+  const char *options[]={"repeatLettersOnHover","repeatBackspaceOnHover","repeatArrowsOnHover"};
+  const QStringList values{"a","BackOne","Left","Right","Up","Down","1"," ","Return"};
+  for(int selected=0;selected<3;++selected){
+   for(int k=0;k<values.size();++k){
+    Controller c;c.configureInputMethod([](QString){return true;},[](QString,bool){return true;});c.inputContextChanged(true,false);
+    c.setProperty(options[selected],true);
+    const bool text=k==0||k==6||k==7;
+    const QVariantList commands{QVariantMap{{"tag",text?"Text":"Action"},{"text",values[k]}}};
+    const QVariantList keys{QVariantMap{{"commands",commands}}};
+    c.setProperty("layout",QVariantMap{{"keys",keys}});
+    c.clickCommand("key:0");QTRY_VERIFY(!c.executingCommands());
+    QCOMPARE(c.hover("key:0"),0.0);QTest::qWait(30);
+    const bool expected=(selected==0&&k==0)||(selected==1&&k==1)||(selected==2&&k>=2&&k<=5);
+    QCOMPARE(c.hover("key:0")>0,expected);
+   }
+  }
+ }
+
+ void modifierCyclingPreference(){
+  {Controller c;QVERIFY(!c.property("cycleModifiersOnHover").toBool());c.setProperty("cycleModifiersOnHover",true);QVERIFY(c.savePreferences());}
+  {Controller c;QVERIFY(c.property("cycleModifiersOnHover").toBool());c.resetPreferences();QVERIFY(!c.property("cycleModifiersOnHover").toBool());}
+ }
+
+ void busyActionDoesNotRearmHoveredKey(){
+  Controller c;c.configureInputMethod([](QString){return true;},[](QString,bool){return true;});c.inputContextChanged(true,false);
+  c.setProperty("dwellMs",250);c.setProperty("cycleModifiersOnHover",true);
+  // Keep the runner busy across multiple hover ticks without external input.
+  const QVariantList commands{QVariantMap{{"tag","Wait"},{"text","150"}}};
+  c.setProperty("layout",QVariantMap{{"keys",QVariantList{QVariantMap{{"commands",commands}}}}});
+  c.clickCommand("key:0");QVERIFY(c.executingCommands());
+  for(int i=0;i<24;++i){QCOMPARE(c.hover("key:0"),0.0);QTest::qWait(25);}
+  QVERIFY(!c.executingCommands());
+  c.hover("");QCOMPARE(c.hover("key:0"),0.0);QTest::qWait(50);QVERIFY(c.hover("key:0")>0);
+ }
+
  void emptyPredictionsDoNotDwell(){
   Controller c;c.setProperty("suggestions",QStringList{"word",""," "});
   QCOMPARE(c.hover("suggest:0"),0.0);QTest::qWait(50);QVERIFY(c.hover("suggest:0")>0);
@@ -41,12 +89,15 @@ private slots:
   {Controller c;QCOMPARE(c.property("gazeIndicatorSize").toInt(),42);QCOMPARE(c.property("gazeIndicatorOpacity").toInt(),65);QCOMPARE(c.property("gazeIndicatorColor").toString(),QString("#ff1234"));QVERIFY(c.property("gazeIndicatorMorph").toBool());c.resetPreferences();QCOMPARE(c.property("gazeIndicatorSize").toInt(),18);QCOMPARE(c.property("gazeIndicatorOpacity").toInt(),100);QCOMPARE(c.property("gazeIndicatorColor").toString(),QString("#00bfff"));QVERIFY(!c.property("gazeIndicatorMorph").toBool());}
  }
 
- void restoreSquarePreferences(){
-  {Controller controller;controller.setRestoreCorner(1);controller.setRestoreSize(96);QVERIFY(controller.savePreferences());}
-  {Controller controller;QCOMPARE(controller.restoreCorner(),1);QCOMPARE(controller.restoreSize(),96);
-   controller.setRestoreCorner(9);QCOMPARE(controller.restoreCorner(),3);
-   controller.setRestoreSize(1);QCOMPARE(controller.restoreSize(),40);
-   controller.resetPreferences();QCOMPARE(controller.restoreCorner(),2);QCOMPARE(controller.restoreSize(),64);}
+ void restoreDimensionsPersistAndMigrate(){
+  {Controller c;c.setRestoreCorner(1);c.setRestoreWidth(96);c.setRestoreHeight(48);QVERIFY(c.savePreferences());}
+  {Controller c;QCOMPARE(c.restoreCorner(),1);QCOMPARE(c.restoreWidth(),96);QCOMPARE(c.restoreHeight(),48);
+   c.setRestoreWidth(1);QCOMPARE(c.restoreWidth(),40);QCOMPARE(c.restoreHeight(),48);
+   c.setRestoreHeight(999);QCOMPARE(c.restoreHeight(),128);QCOMPARE(c.restoreWidth(),40);
+   c.resetPreferences();QCOMPARE(c.restoreWidth(),64);QCOMPARE(c.restoreHeight(),64);}
+  auto legacy=ProfileStore::defaults();legacy.remove("restoreWidth");legacy.remove("restoreHeight");legacy["restoreSize"]=96;
+  QString error;QVERIFY(ProfileStore(QDir(appConfigDirectory()).filePath("profile.json")).save(legacy,error));
+  {Controller c;QCOMPARE(c.restoreWidth(),96);QCOMPARE(c.restoreHeight(),96);c.resetPreferences();}
  }
 
  void restoreOpacityPersistsAndResets(){

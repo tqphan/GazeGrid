@@ -29,7 +29,7 @@ Standalone portal output uses US physical keycodes. Experimental KWin input-meth
 
 ## Diagnostics and tests
 
-Preferences now use a versioned `profile.json` under the application configuration directory (`runtime/config/OptiKey/OptiKey-Pro/` with `run.sh`). In Settings, choose **Save preferences and startup keyboard** to persist dwell time, keyboard height, high contrast, literal-key mode, local-learning preference, and the currently selected keyboard. The interface and keyboard follow the system light/dark theme; high contrast is an explicit override. The XML is unchanged, and minimized recovery layouts use a borderless restore square flush with the selected screen corner. Its size and opacity (10–100%) are configurable under Settings → Keyboard → Restore button. Changes take effect immediately; saving is explicit. **Reset preferences** restores defaults and leaves input paused. Reset does not delete learned words or shortcut mappings; learned words have their own reset control.
+Preferences now use a versioned `profile.json` under the application configuration directory (`runtime/config/OptiKey/OptiKey-Pro/` with `run.sh`). In Settings, choose **Save preferences and startup keyboard** to persist dwell time, keyboard height, high contrast, literal-key mode, local-learning preference, and the currently selected keyboard. The interface and keyboard follow the system light/dark theme; high contrast is an explicit override. The XML is unchanged, and minimized recovery layouts use a borderless restore button flush with the selected screen corner. Its width, height, and opacity (10–100%) are configurable under Settings → Keyboard → Restore button. Changes take effect immediately; saving is explicit. **Reset preferences** restores defaults and leaves input paused. Reset does not delete learned words or shortcut mappings; learned words have their own reset control.
 
 Writes are atomic and retain a validated `.bak` recovery copy. If the main profile is corrupt, startup uses that copy or defaults and reports recovery in Settings. Profiles from newer versions are preserved and cannot be overwritten without an explicit reset. This fresh format does not import the prototype's QSettings file or legacy OptiKey settings.
 
@@ -123,10 +123,10 @@ first valid point seeds the estimate and history. Invalid/stale tracking, displa
 changes, and smoothing setting changes reset the filter. Tracking validity and
 freshness checks still run before smoothing.
 
-When minimized in standalone mode, look at the **↗ restore square** for 750 ms
-to bring the keyboard back. Settings offers **Restore square corner** and
-**Restore square size** (40–128 logical pixels). The default is 64 pixels at
-the bottom left, inset 12 pixels from the edges. Changes apply immediately;
+When minimized in standalone mode, look at the **↗ restore button** for 750 ms
+to bring the keyboard back. Settings offers **Restore button corner** and
+**Restore button width** and **Restore button height** (40–128 logical pixels each). The default is 64 × 64 pixels at
+the bottom left, flush with the screen edges. Changes apply immediately;
 use Save preferences to retain them. The square stays fully on-screen and
 ignores reserved panel space so its displayed position matches gaze detection.
 Imported XML files are unchanged.
@@ -149,3 +149,23 @@ The keyboard returns on completion, failure, or cancellation. Target selection
 and its Cancel button remain available. Continuous magnetic cursor and look-to-scroll
 modes restore the keyboard after activation so their controls remain accessible.
 The option defaults off and is retained with Save preferences.
+
+Enable **Settings → Gaze & dwell → Cycle modifiers while hovering** to advance
+Shift, Ctrl, Alt, and Win at the configured repeat rate without looking away. The option
+defaults off, applies to modifier keys only, and is retained with Save preferences.
+Explicit KeyToggle modifier keys retain their two-state toggle behavior.
+
+**Settings → Gaze & dwell** also has independent **Repeat letters**, **Repeat
+Backspace**, and **Repeat arrow keys while hovering** options. All default off.
+Enabled keys repeat at the configured repeat rate; moving away stops repetition.
+The arrow option covers Left, Right, Up, and Down. Letter repetition applies to
+single-letter text keys, not predictions, digits, punctuation, or macros. Save
+preferences to retain these choices.
+
+**Repeat rate** sets the interval between repeat activations from 100–2000 ms
+(10–0.5 repeats per second), default 750 ms. It applies to enabled letter,
+Backspace, arrow, and modifier repetition. The initial activation still uses
+Keyboard dwell. Each repeat waits for the previous action to finish.
+
+Existing restore-button size preferences initialize both width and height to the
+previous square size. New width and height values save independently.

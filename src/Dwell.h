@@ -3,12 +3,13 @@
 // Monotonic caller-supplied time keeps dwell behavior deterministic in tests.
 class Dwell {
 public:
-    bool update(const QString &target, qint64 now, int duration);
+    bool update(const QString &target, qint64 now, int duration, bool repeat=false, int repeatDuration=-1);
     void reset();
+    void inhibit(const QString &target, qint64 now);
     void consume(const QString &target, qint64 now);
-    double progress(qint64 now, int duration) const;
+    double progress(qint64 now, int duration, int repeatDuration=-1) const;
 private:
     QString current;
     qint64 started = 0, last = -1;
-    bool fired = false;
+    bool fired = false, repeating = false;
 };

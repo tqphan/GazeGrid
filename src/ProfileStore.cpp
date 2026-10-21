@@ -23,7 +23,7 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreSize",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
+    return {{"repeatIntervalMs",750},{"repeatLettersOnHover",false},{"repeatBackspaceOnHover",false},{"repeatArrowsOnHover",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"highContrast",false},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
@@ -31,6 +31,11 @@ bool ProfileStore::valid(const QJsonObject &v){
     return v["version"].isDouble()&&v["version"].toDouble()==1
         &&(!v.contains("gazeIndicatorSize")||(v["gazeIndicatorSize"].isDouble()&&v["gazeIndicatorSize"].toDouble()==v["gazeIndicatorSize"].toInt()&&v["gazeIndicatorSize"].toInt()>=4&&v["gazeIndicatorSize"].toInt()<=120))
         &&(!v.contains("gazeIndicatorOpacity")||(v["gazeIndicatorOpacity"].isDouble()&&v["gazeIndicatorOpacity"].toDouble()==v["gazeIndicatorOpacity"].toInt()&&v["gazeIndicatorOpacity"].toInt()>=5&&v["gazeIndicatorOpacity"].toInt()<=100))
+        &&(!v.contains("repeatIntervalMs")||(v["repeatIntervalMs"].isDouble()&&v["repeatIntervalMs"].toDouble()==v["repeatIntervalMs"].toInt()&&v["repeatIntervalMs"].toInt()>=100&&v["repeatIntervalMs"].toInt()<=2000))
+        &&(!v.contains("repeatLettersOnHover")||v["repeatLettersOnHover"].isBool())
+        &&(!v.contains("repeatBackspaceOnHover")||v["repeatBackspaceOnHover"].isBool())
+        &&(!v.contains("repeatArrowsOnHover")||v["repeatArrowsOnHover"].isBool())
+        &&(!v.contains("cycleModifiersOnHover")||v["cycleModifiersOnHover"].isBool())
         &&(!v.contains("hideKeyboardDuringMouseActions")||v["hideKeyboardDuringMouseActions"].isBool())
         &&(!v.contains("gazeIndicatorMorph")||v["gazeIndicatorMorph"].isBool())
         &&(!v.contains("gazeIndicatorColor")||(v["gazeIndicatorColor"].isString()&&QRegularExpression("^#[0-9a-fA-F]{6}$").match(v["gazeIndicatorColor"].toString()).hasMatch()))
@@ -40,6 +45,8 @@ bool ProfileStore::valid(const QJsonObject &v){
         &&(!v.contains("smoothWhenChangingGazeTarget")||v["smoothWhenChangingGazeTarget"].isBool())
         &&(!v.contains("restoreCorner")||(v["restoreCorner"].isDouble()&&v["restoreCorner"].toDouble()==v["restoreCorner"].toInt()&&v["restoreCorner"].toInt()>=0&&v["restoreCorner"].toInt()<=3))
         &&(!v.contains("restoreOpacity")||(v["restoreOpacity"].isDouble()&&v["restoreOpacity"].toDouble()==v["restoreOpacity"].toInt()&&v["restoreOpacity"].toInt()>=10&&v["restoreOpacity"].toInt()<=100))
+        &&(!v.contains("restoreWidth")||(v["restoreWidth"].isDouble()&&v["restoreWidth"].toDouble()==v["restoreWidth"].toInt()&&v["restoreWidth"].toInt()>=40&&v["restoreWidth"].toInt()<=128))
+        &&(!v.contains("restoreHeight")||(v["restoreHeight"].isDouble()&&v["restoreHeight"].toDouble()==v["restoreHeight"].toInt()&&v["restoreHeight"].toInt()>=40&&v["restoreHeight"].toInt()<=128))
         &&(!v.contains("restoreSize")||(v["restoreSize"].isDouble()&&v["restoreSize"].toDouble()==v["restoreSize"].toInt()&&v["restoreSize"].toInt()>=40&&v["restoreSize"].toInt()<=128))
         &&v["literal"].isBool()&&v["learning"].isBool()
         &&(!v.contains("keyboardScale")||(v["keyboardScale"].isDouble()&&v["keyboardScale"].toDouble()==v["keyboardScale"].toInt()&&v["keyboardScale"].toInt()>=50&&v["keyboardScale"].toInt()<=150))

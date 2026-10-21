@@ -45,11 +45,18 @@ Controller::Controller(){
  targetConfirmDwellMs=profile.values.value("targetConfirmDwellMs").toInt(1000);
  targetDwellRadius=profile.values.value("targetDwellRadius").toInt(40);
  restoreOpacity=profile.values.value("restoreOpacity").toInt(100);
- recoveryCorner=profile.values["restoreCorner"].toInt(2);recoverySize=profile.values["restoreSize"].toInt(64);
+ recoveryCorner=profile.values["restoreCorner"].toInt(2);
+ recoveryWidth=profile.values.value("restoreWidth").toInt(profile.values.value("restoreSize").toInt(64));
+ recoveryHeight=profile.values.value("restoreHeight").toInt(profile.values.value("restoreSize").toInt(64));
  rememberDesktop=profile.values["rememberDesktop"].toBool();
  gazeIndicatorSize=profile.values["gazeIndicatorSize"].toInt(18);
  gazeIndicatorOpacity=profile.values["gazeIndicatorOpacity"].toInt(100);
  gazeIndicatorColor=profile.values["gazeIndicatorColor"].toString("#00bfff");
+ repeatIntervalMs=profile.values["repeatIntervalMs"].toInt(750);
+ repeatLettersOnHover=profile.values["repeatLettersOnHover"].toBool();
+ repeatBackspaceOnHover=profile.values["repeatBackspaceOnHover"].toBool();
+ repeatArrowsOnHover=profile.values["repeatArrowsOnHover"].toBool();
+ cycleModifiersOnHover=profile.values["cycleModifiersOnHover"].toBool();
  hideKeyboardDuringMouseActions=profile.values["hideKeyboardDuringMouseActions"].toBool();
  gazeIndicatorMorph=profile.values["gazeIndicatorMorph"].toBool();
  smoothingLevel=profile.values["gazeSmoothingLevel"].toInt(1);smoothTargetChanges=profile.values["smoothWhenChangingGazeTarget"].toBool();
@@ -123,7 +130,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreSize",recoverySize},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"repeatIntervalMs",repeatIntervalMs},{"repeatLettersOnHover",repeatLettersOnHover},{"repeatBackspaceOnHover",repeatBackspaceOnHover},{"repeatArrowsOnHover",repeatArrowsOnHover},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -133,9 +140,14 @@ void Controller::resetPreferences(){
  if(!paused)togglePause();
  setMagnifierEnabled(false);
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;backStack.clear();
+ repeatIntervalMs=750;
+ repeatLettersOnHover=false;
+ repeatBackspaceOnHover=false;
+ repeatArrowsOnHover=false;
+ cycleModifiersOnHover=false;
  hideKeyboardDuringMouseActions=false;
  gazeIndicatorSize=18;gazeIndicatorOpacity=100;gazeIndicatorColor="#00bfff";gazeIndicatorMorph=false;
- setRestoreCorner(2);setRestoreSize(64);restoreOpacity=100;
+ setRestoreCorner(2);setRestoreWidth(64);setRestoreHeight(64);restoreOpacity=100;
  setKeyboardScale(100);highContrast=false;shortLabelScale=values["shortLabelScale"].toInt();longLabelScale=values["longLabelScale"].toInt();magnifierZoom=values["magnifierZoom"].toInt();progressiveZoom=false;zoomDurationMs=1500;targetDwellEnabled=true;targetStartDwellMs=750;targetConfirmDwellMs=1000;targetDwellRadius=40;rememberDesktop=false;
  setGazeSmoothingLevel(values["gazeSmoothingLevel"].toInt());setSmoothWhenChangingGazeTarget(false);gazeSmoothing.reset();
  openLayout(values["startLayout"].toString(),false);
@@ -145,9 +157,13 @@ void Controller::setRestoreCorner(int corner){
  corner=qBound(0,corner,3);if(corner==recoveryCorner)return;
  recoveryCorner=corner;dwell.reset();emit geometryPreferencesChanged();
 }
-void Controller::setRestoreSize(int size){
- size=qBound(40,size,128);if(size==recoverySize)return;
- recoverySize=size;dwell.reset();emit geometryPreferencesChanged();
+void Controller::setRestoreWidth(int width){
+ width=qBound(40,width,128);if(width==recoveryWidth)return;
+ recoveryWidth=width;dwell.reset();emit geometryPreferencesChanged();
+}
+void Controller::setRestoreHeight(int height){
+ height=qBound(40,height,128);if(height==recoveryHeight)return;
+ recoveryHeight=height;dwell.reset();emit geometryPreferencesChanged();
 }
 void Controller::setKeyboardScale(int scale){
  scale=qBound(50,scale,150);if(scale==scalePercent)return;
@@ -221,11 +237,26 @@ double Controller::hover(QString key){
   if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()){dwell.reset();return 0;}
  }
  const bool recovery=key=="Pause"||key=="Recover"||key=="CancelTarget"||key=="Connect"||key=="Tobii"||key=="Settings"||key=="Speak"||key=="StopSpeech"||isSleepKey(key);
- if(!recovery&&(paused||runner.busy())){dwell.reset();return 0;}
- int duration=dwellMs;
- if(key.startsWith("key:")){int i=key.mid(4).toInt();auto keys=layout["keys"].toList();if(i>=0&&i<keys.size()){int custom=keys[i].toMap()["dwell"].toInt();if(custom>0)duration=custom;}}
- if(dwell.update(key,clock.elapsed(),duration)){activate(key);dwell.consume(key,clock.elapsed());}
- return dwell.progress(clock.elapsed(),duration);
+ if(!recovery&&(paused||runner.busy())){dwell.inhibit(key,clock.elapsed());return 0;}
+ int duration=dwellMs;bool repeatKey=false;
+ if(key.startsWith("key:")){
+  bool valid=false;const int i=key.mid(4).toInt(&valid);const auto keys=layout["keys"].toList();
+  if(valid&&i>=0&&i<keys.size()){
+   const auto entry=keys[i].toMap();const int custom=entry["dwell"].toInt();if(custom>0)duration=custom;
+   const auto commands=entry["commands"].toList();
+   if(ready()&&entry["unavailableReason"].toString().isEmpty()&&commands.size()==1){
+    const auto command=commands.front().toMap();const auto tag=command["tag"].toString();const auto text=command["text"].toString();
+    const auto code=tag=="Action"?KeyNames::functionKey(text):QString();
+    const bool letter=tag=="Text"&&text.size()==1&&text.front().isLetter();
+    repeatKey=(cycleModifiersOnHover&&!ActionRunner::modifierName(commands).isEmpty())
+     ||(repeatLettersOnHover&&letter)
+     ||(repeatBackspaceOnHover&&code=="BACK")
+     ||(repeatArrowsOnHover&&(code=="LEFT"||code=="RIGHT"||code=="UP"||code=="DOWN"));
+   }
+  }
+ }
+ if(dwell.update(key,clock.elapsed(),duration,repeatKey,repeatIntervalMs)){activate(key);dwell.consume(key,clock.elapsed());}
+ return dwell.progress(clock.elapsed(),duration,repeatIntervalMs);
 }
 void Controller::clickCommand(QString key){activate(key);dwell.consume(key,clock.elapsed());}
 void Controller::activate(QString key){

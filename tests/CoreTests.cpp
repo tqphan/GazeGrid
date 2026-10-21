@@ -480,6 +480,40 @@ private slots:
   d.update("",650,500);QVERIFY(!d.update("a",700,500));
   QVERIFY(!d.update("a",1300,500)); // stale interval cancels accumulated dwell
  }
+ void repeatRateDoesNotChangeInitialDwell(){
+  Dwell d;QVERIFY(!d.update("a",0,500,true,100));
+  for(int t=100;t<500;t+=100)QVERIFY(!d.update("a",t,500,true,100));
+  QCOMPARE(d.progress(400,500,100),0.8);QVERIFY(d.update("a",500,500,true,100));d.consume("a",500);
+  QVERIFY(!d.update("a",525,500,true,100));QVERIFY(!d.update("a",575,500,true,100));QCOMPARE(d.progress(575,500,100),0.5);
+  QVERIFY(d.update("a",625,500,true,100));d.consume("a",625);
+  QVERIFY(!d.update("b",650,500,true,100));QVERIFY(!d.update("b",750,500,true,100));QCOMPARE(d.progress(750,500,100),0.2);
+  auto v=ProfileStore::defaults();v.remove("repeatIntervalMs");QVERIFY(ProfileStore::valid(v));
+  for(double invalid:{99.0,2001.0,750.5}){v["repeatIntervalMs"]=invalid;QVERIFY(!ProfileStore::valid(v));}
+ }
+ void repeatingDwellStartsFreshIntervals(){
+  Dwell d;d.consume("modifier",0);d.inhibit("modifier",25);
+  QVERIFY(!d.update("modifier",50,250,true));QCOMPARE(d.progress(50,250),0.0);
+  QVERIFY(!d.update("modifier",150,250,true));QCOMPARE(d.progress(150,250),0.4);
+  QVERIFY(d.update("modifier",300,250,true));d.consume("modifier",300);
+  QVERIFY(!d.update("modifier",325,250,true));QCOMPARE(d.progress(325,250),0.0);
+  QVERIFY(!d.update("modifier",425,250,true));QVERIFY(d.update("modifier",575,250,true));
+  d.consume("modifier",575);QVERIFY(!d.update("modifier",600,250,true));
+  QVERIFY(!d.update("modifier",700,250,true));QVERIFY(d.progress(700,250)>0);
+  QVERIFY(!d.update("modifier",725,250,false));QCOMPARE(d.progress(725,250),0.0);
+  QVERIFY(!d.update("modifier",1000,250,false));
+ }
+ void busyDwellKeepsConsumedTarget(){
+  Dwell d;d.consume("modifier",0);
+  for(int t=25;t<500;t+=25)d.inhibit("modifier",t);
+  QVERIFY(!d.update("modifier",500,250));QCOMPARE(d.progress(500,250),0.0);
+  QVERIFY(!d.update("modifier",1000,250)); // A delayed UI tick is not a new hover.
+  d.inhibit("other",1025);d.inhibit("other",1200);
+  QVERIFY(!d.update("other",1300,250));QCOMPARE(d.progress(1300,250),0.0);
+  QVERIFY(!d.update("other",1400,250));QCOMPARE(d.progress(1400,250),0.4);
+  d.consume("modifier",1500);d.inhibit("",1525);
+  QVERIFY(!d.update("modifier",1550,250));
+  QVERIFY(!d.update("modifier",1650,250));QCOMPARE(d.progress(1650,250),0.4);
+ }
  void consumedDwellDoesNotRefill(){
   Dwell d;QVERIFY(!d.update("key",0,500));
   for(int t=100;t<500;t+=100){QVERIFY(!d.update("key",t,500));QCOMPARE(d.progress(t,500),t/500.0);}

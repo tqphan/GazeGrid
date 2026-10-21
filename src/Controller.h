@@ -26,10 +26,16 @@ class Controller:public QObject{
  Q_PROPERTY(int gazeIndicatorOpacity MEMBER gazeIndicatorOpacity NOTIFY changed)
  Q_PROPERTY(QString gazeIndicatorColor MEMBER gazeIndicatorColor NOTIFY changed)
  Q_PROPERTY(bool gazeIndicatorMorph MEMBER gazeIndicatorMorph NOTIFY changed)
+ Q_PROPERTY(int repeatIntervalMs MEMBER repeatIntervalMs NOTIFY changed)
+ Q_PROPERTY(bool repeatLettersOnHover MEMBER repeatLettersOnHover NOTIFY changed)
+ Q_PROPERTY(bool repeatBackspaceOnHover MEMBER repeatBackspaceOnHover NOTIFY changed)
+ Q_PROPERTY(bool repeatArrowsOnHover MEMBER repeatArrowsOnHover NOTIFY changed)
+ Q_PROPERTY(bool cycleModifiersOnHover MEMBER cycleModifiersOnHover NOTIFY changed)
  Q_PROPERTY(int dwellMs MEMBER dwellMs NOTIFY changed)
  Q_PROPERTY(int restoreCorner READ restoreCorner WRITE setRestoreCorner NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(int restoreOpacity MEMBER restoreOpacity NOTIFY changed)
- Q_PROPERTY(int restoreSize READ restoreSize WRITE setRestoreSize NOTIFY geometryPreferencesChanged)
+ Q_PROPERTY(int restoreWidth READ restoreWidth WRITE setRestoreWidth NOTIFY geometryPreferencesChanged)
+ Q_PROPERTY(int restoreHeight READ restoreHeight WRITE setRestoreHeight NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(int keyboardScale READ keyboardScale WRITE setKeyboardScale NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(bool highContrast MEMBER highContrast NOTIFY changed)
  Q_PROPERTY(int shortLabelScale MEMBER shortLabelScale NOTIFY changed)
@@ -78,9 +84,11 @@ public:
  int keyboardScale()const{return scalePercent;}
  void setKeyboardScale(int scale);
  int restoreCorner()const{return recoveryCorner;}
- int restoreSize()const{return recoverySize;}
+ int restoreWidth()const{return recoveryWidth;}
+ int restoreHeight()const{return recoveryHeight;}
  void setRestoreCorner(int corner);
- void setRestoreSize(int size);
+ void setRestoreWidth(int width);
+ void setRestoreHeight(int height);
  bool shifted()const{return runner.shifted();}
  QStringList heldKeys()const{return runner.heldKeys();}
  QVariantMap modifierStates()const{return runner.modifierStates();}
@@ -139,6 +147,11 @@ private:
  QSizeF gazeDisplaySize{1,1};
  int gazeIndicatorSize=18,gazeIndicatorOpacity=100;
  QString gazeIndicatorColor="#00bfff";
+ int repeatIntervalMs=750;
+ bool repeatLettersOnHover=false;
+ bool repeatBackspaceOnHover=false;
+ bool repeatArrowsOnHover=false;
+ bool cycleModifiersOnHover=false;
  bool hideKeyboardDuringMouseActions=false;
  bool gazeIndicatorMorph=false;
  int smoothingLevel=1;
@@ -171,7 +184,7 @@ private:
  int dwellMs=750;
  int scalePercent=100;
  int restoreOpacity=100;
- int recoveryCorner=2,recoverySize=64;
+ int recoveryCorner=2,recoveryWidth=64,recoveryHeight=64;
  bool highContrast=false;
  int shortLabelScale=150;
  int longLabelScale=100;

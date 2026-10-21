@@ -8,7 +8,8 @@ Window {
  objectName: "keyboardWindow"
  width: 1100; height: 370; visible: false
  title: "OptiKey Pro"
- color: minimizedRecovery?"transparent":controller.highContrast?"black":Kirigami.Theme.backgroundColor
+ // Keep the native surface translucent for its entire lifetime.
+ color:"transparent"
  flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
  property string hovered: ""
  property real progress: 0
@@ -73,6 +74,7 @@ Window {
    root.progress=controller.hover(target)
   }
  }
+ Rectangle {anchors.fill:parent;visible:!root.minimizedRecovery;color:controller.highContrast?"black":Kirigami.Theme.backgroundColor}
  Repeater {
   id:keys
   model:controller.layout.keys || []
@@ -97,7 +99,7 @@ Window {
    property bool resumeKey:controller.paused&&sleepKey
    enabled:!controller.paused||sleepKey
    property string unavailableReason:modelData.unavailableReason || ""
-   property string label:root.minimizedRecovery?"↗":controller.shifted&&modelData.shiftLabel?modelData.shiftLabel:modelData.label
+   property string label:root.minimizedRecovery?["↘","↙","↗","↖"][controller.restoreCorner]:controller.shifted&&modelData.shiftLabel?modelData.shiftLabel:modelData.label
    property real symbolMargin:controller.layout.symbolmargin!==undefined?Math.max(0,Number(controller.layout.symbolmargin)):12
    property color foreground:controller.highContrast?"white":Kirigami.Theme.textColor
    x:modelData.col*root.width/controller.layout.cols
@@ -105,6 +107,8 @@ Window {
    width:modelData.width*root.width/controller.layout.cols
    height:modelData.height*root.height/controller.layout.rows
    color:controller.highContrast?"black":Kirigami.Theme.backgroundColor
+   // Flatten the restore button before applying opacity to its overlapping visuals.
+   layer.enabled:root.minimizedRecovery
    opacity:(enabled?1:0.35)*(root.minimizedRecovery?controller.restoreOpacity/100:1)
    Kirigami.Theme.colorSet:Kirigami.Theme.Button
    Kirigami.Theme.inherit:false
@@ -312,14 +316,18 @@ Window {
        Desktop.Label {text:"Restores the keyboard after the action finishes or is canceled. Target selection and Cancel remain available.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Kirigami.Heading {text:"Restore button";level:3;Layout.topMargin:12}
        RowLayout {
-        Desktop.Label {text:"Restore square corner"}
+        Desktop.Label {text:"Restore button corner"}
         Desktop.ComboBox {model:["Top left","Top right","Bottom left","Bottom right"];currentIndex:controller.restoreCorner;onActivated:controller.restoreCorner=currentIndex}
        }
        RowLayout {
-        Desktop.Label {text:"Restore square size: "+controller.restoreSize+" px"}
-        Desktop.Slider {from:40;to:128;stepSize:8;value:controller.restoreSize;Layout.fillWidth:true;onMoved:controller.restoreSize=value}
+        Desktop.Label {text:"Restore button width: "+controller.restoreWidth+" px"}
+        Desktop.Slider {from:40;to:128;stepSize:8;value:controller.restoreWidth;Layout.fillWidth:true;onMoved:controller.restoreWidth=value}
        }
-       RowLayout {Desktop.Label {text:"Restore square opacity: "+controller.restoreOpacity+"%"} Desktop.Slider {from:10;to:100;stepSize:5;value:controller.restoreOpacity;Layout.fillWidth:true;onMoved:controller.restoreOpacity=value}}
+       RowLayout {
+        Desktop.Label {text:"Restore button height: "+controller.restoreHeight+" px"}
+        Desktop.Slider {from:40;to:128;stepSize:8;value:controller.restoreHeight;Layout.fillWidth:true;onMoved:controller.restoreHeight=value}
+       }
+       RowLayout {Desktop.Label {text:"Restore button opacity: "+controller.restoreOpacity+"%"} Desktop.Slider {from:10;to:100;stepSize:5;value:controller.restoreOpacity;Layout.fillWidth:true;onMoved:controller.restoreOpacity=value}}
       }
      }
      Desktop.GroupBox {
@@ -346,6 +354,16 @@ Window {
        Desktop.CheckBox {text:"Morph with gaze acceleration and direction";checked:controller.gazeIndicatorMorph;onToggled:controller.gazeIndicatorMorph=checked}
        Desktop.Label {text:"Stretches along gaze movement as acceleration increases, then returns to a solid circle.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Kirigami.Heading {text:"Keyboard selection";level:3;Layout.topMargin:12}
+       Desktop.CheckBox {text:"Cycle modifiers while hovering";checked:controller.cycleModifiersOnHover;onToggled:controller.cycleModifiersOnHover=checked}
+       Desktop.Label {text:"Keep hovering over Shift, Ctrl, Alt, or Win to cycle through latched, locked, and off at the repeat rate.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Desktop.CheckBox {text:"Repeat letters while hovering";checked:controller.repeatLettersOnHover;onToggled:controller.repeatLettersOnHover=checked}
+       Desktop.CheckBox {text:"Repeat Backspace while hovering";checked:controller.repeatBackspaceOnHover;onToggled:controller.repeatBackspaceOnHover=checked}
+       Desktop.CheckBox {text:"Repeat arrow keys while hovering";checked:controller.repeatArrowsOnHover;onToggled:controller.repeatArrowsOnHover=checked}
+       Desktop.Label {text:"The first activation uses keyboard dwell. Further activations use the repeat rate. Move away to stop.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       RowLayout {
+        Desktop.Label {text:"Repeat rate: "+(1000/controller.repeatIntervalMs).toFixed(1)+" / sec ("+controller.repeatIntervalMs+" ms)"}
+        Desktop.Slider {from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;Layout.fillWidth:true;enabled:controller.cycleModifiersOnHover||controller.repeatLettersOnHover||controller.repeatBackspaceOnHover||controller.repeatArrowsOnHover;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
+       }
        RowLayout {Desktop.Label {text:"Keyboard dwell: "+controller.dwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.dwellMs;Layout.fillWidth:true;onMoved:controller.dwellMs=value}}
 
       }

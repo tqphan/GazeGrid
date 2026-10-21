@@ -64,6 +64,7 @@ int main(int argc,char **argv){
  bool diagnose=false,audit=false,smoke=false,portalCheck=false,inputCheck=false,inputTarget=false,pointerCheck=false,pointerTarget=false;
  for(int i=1;i<argc;++i){QString arg=argv[i];diagnose|=arg=="--diagnose";audit|=arg=="--validate-keyboards";smoke|=arg=="--smoke";portalCheck|=arg=="--portal-check";inputCheck|=arg=="--input-check";inputTarget|=arg=="--input-target";pointerCheck|=arg=="--pointer-check";pointerTarget|=arg=="--pointer-target";}
  if(diagnose||audit)qputenv("QT_QPA_PLATFORM","offscreen");
+ QQuickWindow::setDefaultAlphaBuffer(true);
  QApplication app(argc,argv);app.setOrganizationName("OptiKey");app.setApplicationName("OptiKey-Pro");app.setDesktopFileName("org.optikey.Pro");
  const bool magnifierCheck=app.arguments().contains("--magnifier-check");pointerCheck|=magnifierCheck;
  if(app.arguments().contains("--input-method-check")&&qgetenv("OPTIKEY_ISOLATED_IM_TEST")!="1"){
@@ -260,7 +261,8 @@ int main(int argc,char **argv){
   int x=(size.width()-width)/2+int(dimension(layout.value("horizontaloffset","0").toString(),size.width()));
   int y=(top?0:size.height()-height)+offset;
   if(minimized){
-   width=height=qMin(controller.restoreSize(),qMin(size.width(),size.height()));
+   width=qMin(controller.restoreWidth(),size.width());
+   height=qMin(controller.restoreHeight(),size.height());
    const int corner=controller.restoreCorner();
    x=corner%2?size.width()-width:0;
    y=corner>=2?size.height()-height:0;
@@ -270,15 +272,11 @@ int main(int argc,char **argv){
 #ifdef OPTIKEY_LINUX
   if(QGuiApplication::platformName().startsWith("wayland")){
    if(inputMethod&&!inputMethod->attachPanel(window,top)){QTextStream(stderr)<<"Unable to assign keyboard surface role\n";app.exit(2);return;}
-   if(!inputMethod||top){auto layer=LayerShellQt::Window::get(window);layer->setScope("optikey-pro-keyboard");layer->setScreen(screen);layer->setLayer(LayerShellQt::Window::LayerTop);
-   layer->setAnchors(top?LayerShellQt::Window::AnchorTop:LayerShellQt::Window::AnchorBottom);
-   layer->setMargins(top?QMargins(0,offset,0,0):QMargins(0,0,0,-offset));layer->setDesiredSize(QSize(width,height));
+   if(!inputMethod||top){auto layer=LayerShellQt::Window::get(window);layer->setScope("optikey-pro-keyboard");layer->setScreen(screen);layer->setLayer(minimized?LayerShellQt::Window::LayerOverlay:LayerShellQt::Window::LayerTop);
+   layer->setAnchors(minimized?LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft:LayerShellQt::Window::Anchors(top?LayerShellQt::Window::AnchorTop:LayerShellQt::Window::AnchorBottom));
+   layer->setMargins(minimized?QMargins(x,y,0,0):top?QMargins(0,offset,0,0):QMargins(0,0,0,-offset));layer->setDesiredSize(QSize(width,height));
    layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);layer->setActivateOnShow(false);layer->setExclusiveZone(inputMethod||minimized?-1:0);
-   if(minimized){
-    layer->setLayer(LayerShellQt::Window::LayerOverlay);
-    layer->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);
-    layer->setMargins(QMargins(x,y,0,0));
-   }}
+   }
    if(target){target->setScreen(screen);target->resize(size);auto overlay=LayerShellQt::Window::get(target);overlay->setScope("optikey-pro-target");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setExclusiveZone(-1);}
   }else
 #endif
@@ -297,6 +295,26 @@ int main(int argc,char **argv){
  QObject::connect(&app,&QGuiApplication::screenRemoved,&app,displayChanged);
  QObject::connect(&app,&QGuiApplication::primaryScreenChanged,&app,displayChanged);
  applyGeometry();window->show();
+ if(app.arguments().contains("--restore-opacity-ui-check")){
+  window->setProperty("gazeCheck",true);window->setProperty("gazeEnabled",false);
+  controller.setProperty("paused",false);controller.setRestoreWidth(64);controller.setRestoreHeight(64);
+  controller.openLayout("minimized-off-screen-bottom",false);
+  auto poll=new QTimer(&app);poll->setInterval(60);
+  QObject::connect(poll,&QTimer::timeout,&app,[&,stage=0]()mutable{
+   if(stage>0){
+    const auto image=window->grabWindow();const int opacity=(stage-1)/4==0?25:(stage-1)/4==1?50:100;
+    if(image.isNull()||qAbs(image.pixelColor(2,2).alpha()-qRound(255*opacity/100.0))>2){
+     QTextStream(stderr)<<"FAIL: unstable restore-button alpha at frame "<<stage<<Qt::endl;app.exit(2);return;
+    }
+   }
+   if(stage==12){app.quit();return;}
+   controller.setProperty("restoreOpacity",stage/4==0?25:stage/4==1?50:100);
+   window->setProperty("hovered",stage%2?"key:0":"");window->setProperty("progress",stage%2?.5:0.0);
+   window->update();++stage;
+  });
+  poll->start();return app.exec();
+ }
+
  if(app.arguments().contains("--prediction-hover-ui-check")){
   window->setProperty("gazeEnabled",false);
   controller.openLayout("keyboard-alphabet-14x4-bottom",false);
@@ -431,7 +449,7 @@ int main(int argc,char **argv){
   poll->start();QTimer::singleShot(4000,&app,[&]{QTextStream(stderr)<<"FAIL: startup dwell timed out"<<Qt::endl;app.exit(2);});
  }
  if(app.arguments().contains("--dwell-minimize-check")){
-  controller.setRestoreCorner(0);controller.setRestoreSize(40);
+  controller.setRestoreCorner(0);controller.setRestoreWidth(40);controller.setRestoreHeight(128);
   controller.setProperty("paused",false);controller.setProperty("dwellMs",250);
   controller.openLayout("main-14x1-bottom",false);window->setProperty("gazeEnabled",true);
   auto poll=new QTimer(&app);poll->setInterval(25);
@@ -441,13 +459,13 @@ int main(int argc,char **argv){
     const int expectedX=corner%2?window->property("screenWidth").toInt()-window->width():0;
     const int expectedY=corner>=2?window->property("screenHeight").toInt()-window->height():0;
     if(window->property("logicalX").toInt()!=expectedX||window->property("logicalY").toInt()!=expectedY){
-     QTextStream(stderr)<<"FAIL: restore square is not flush with its screen corner"<<Qt::endl;app.exit(2);return;
+     QTextStream(stderr)<<"FAIL: restore button is not flush with its screen corner"<<Qt::endl;app.exit(2);return;
     }
    }
    if(controller.property("layoutName").toString()==expected[stage]){
     if(++stage==4){
      if(++corner==4){QTextStream(stdout)<<"PASS: gaze minimizes and restores both keyboard edges in all four corners"<<Qt::endl;app.quit();return;}
-     stage=0;controller.setRestoreCorner(corner);controller.setRestoreSize(corner%2?128:40);controller.openLayout("main-14x1-bottom",false);
+     stage=0;controller.setRestoreCorner(corner);controller.setRestoreWidth(corner%2?128:40);controller.setRestoreHeight(corner%2?40:128);controller.openLayout("main-14x1-bottom",false);
     }
     if(stage==2)controller.openLayout("main-14x1-top",false);
    }
