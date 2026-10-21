@@ -183,6 +183,25 @@ int main(int argc,char **argv){
  engine.load(QUrl("qrc:/ui/Main.qml"));if(engine.rootObjects().isEmpty())return 1;
  auto window=qobject_cast<QQuickWindow*>(engine.rootObjects().front());if(!window)return 1;
  nativeCheckWindow=window;
+ if(app.arguments().contains("--gaze-indicator-ui-check")){
+  auto overlay=window->findChild<QQuickWindow*>("gazeOverlay");
+  if(!overlay)return 1;
+  window->setProperty("gazeEnabled",true);controller.setProperty("gazeIndicatorMorph",true);overlay->setVisible(true);
+  auto sample=[overlay](double x,double y){return QMetaObject::invokeMethod(overlay,"updateMotion",Q_ARG(QVariant,x),Q_ARG(QVariant,y),Q_ARG(QVariant,true));};
+  if(!sample(.1,.1))return 1;
+  QTimer::singleShot(30,&app,[&,overlay,sample]{
+   sample(.11,.1);
+   QTimer::singleShot(30,&app,[&,overlay,sample]{
+    sample(.2,.1);
+    const bool stretched=overlay->property("stretch").toDouble()>0&&overlay->property("stretch").toDouble()<=1;
+    const bool horizontal=qAbs(overlay->property("heading").toDouble())<.001;
+    fprintf(stderr,"indicator stretch=%f heading=%f visible=%d\n",overlay->property("stretch").toDouble(),overlay->property("heading").toDouble(),overlay->isVisible());
+    QMetaObject::invokeMethod(overlay,"updateMotion",Q_ARG(QVariant,0.0),Q_ARG(QVariant,0.0),Q_ARG(QVariant,false));
+    app.exit(stretched&&horizontal&&overlay->property("stretch").toDouble()==0?0:1);
+   });
+  });
+  return app.exec();
+ }
  auto settings=window->findChild<QQuickWindow*>("settingsWindow");
  if(!settings)return 1;
  settings->setTransientParent(nullptr);
@@ -220,10 +239,9 @@ int main(int argc,char **argv){
   int y=(top?0:size.height()-height)+offset;
   if(minimized){
    width=height=qMin(controller.restoreSize(),qMin(size.width(),size.height()));
-   const int inset=qMax(0,qMin(12,qMin((size.width()-width)/2,(size.height()-height)/2)));
    const int corner=controller.restoreCorner();
-   x=corner%2?size.width()-width-inset:inset;
-   y=corner>=2?size.height()-height-inset:inset;
+   x=corner%2?size.width()-width:0;
+   y=corner>=2?size.height()-height:0;
   }
   window->setScreen(screen);window->resize(width,height);
   window->setProperty("screenWidth",size.width());window->setProperty("screenHeight",size.height());window->setProperty("logicalX",x);window->setProperty("logicalY",y);
@@ -342,6 +360,13 @@ int main(int argc,char **argv){
   auto poll=new QTimer(&app);poll->setInterval(25);
   QObject::connect(poll,&QTimer::timeout,&app,[&,stage=0,corner=0]()mutable{
    const QStringList expected{"minimized-off-screen-bottom","main-14x1-bottom","minimized-off-screen-top","main-14x1-top"};
+   if(controller.property("layoutName").toString().startsWith("minimized-off-screen-")){
+    const int expectedX=corner%2?window->property("screenWidth").toInt()-window->width():0;
+    const int expectedY=corner>=2?window->property("screenHeight").toInt()-window->height():0;
+    if(window->property("logicalX").toInt()!=expectedX||window->property("logicalY").toInt()!=expectedY){
+     QTextStream(stderr)<<"FAIL: restore square is not flush with its screen corner"<<Qt::endl;app.exit(2);return;
+    }
+   }
    if(controller.property("layoutName").toString()==expected[stage]){
     if(++stage==4){
      if(++corner==4){QTextStream(stdout)<<"PASS: gaze minimizes and restores both keyboard edges in all four corners"<<Qt::endl;app.quit();return;}

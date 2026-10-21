@@ -22,8 +22,14 @@ class Controller:public QObject{
  Q_PROPERTY(bool paused MEMBER paused NOTIFY changed)
  Q_PROPERTY(int gazeSmoothingLevel READ gazeSmoothingLevel WRITE setGazeSmoothingLevel NOTIFY changed)
  Q_PROPERTY(bool smoothWhenChangingGazeTarget READ smoothWhenChangingGazeTarget WRITE setSmoothWhenChangingGazeTarget NOTIFY changed)
+ Q_PROPERTY(int gazeIndicatorSize MEMBER gazeIndicatorSize NOTIFY changed)
+ Q_PROPERTY(int gazeIndicatorOpacity MEMBER gazeIndicatorOpacity NOTIFY changed)
+ Q_PROPERTY(QString gazeIndicatorColor MEMBER gazeIndicatorColor NOTIFY changed)
+ Q_PROPERTY(bool gazeIndicatorKeyboardOnly MEMBER gazeIndicatorKeyboardOnly NOTIFY changed)
+ Q_PROPERTY(bool gazeIndicatorMorph MEMBER gazeIndicatorMorph NOTIFY changed)
  Q_PROPERTY(int dwellMs MEMBER dwellMs NOTIFY changed)
  Q_PROPERTY(int restoreCorner READ restoreCorner WRITE setRestoreCorner NOTIFY geometryPreferencesChanged)
+ Q_PROPERTY(int restoreOpacity MEMBER restoreOpacity NOTIFY changed)
  Q_PROPERTY(int restoreSize READ restoreSize WRITE setRestoreSize NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(int keyboardScale READ keyboardScale WRITE setKeyboardScale NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(bool highContrast MEMBER highContrast NOTIFY changed)
@@ -129,6 +135,9 @@ private:
  Q_SLOT void receiveGaze(double x,double y,bool valid,qint64 sampledAt);
  GazeSmoothing gazeSmoothing;
  QSizeF gazeDisplaySize{1,1};
+ int gazeIndicatorSize=18,gazeIndicatorOpacity=100;
+ QString gazeIndicatorColor="#00bfff";
+ bool gazeIndicatorMorph=false,gazeIndicatorKeyboardOnly=false;
  int smoothingLevel=1;
  bool smoothTargetChanges=false;
  PortalInput portal;TobiiInput tobii;Dwell dwell;ActionRunner runner;PointerActions pointer;QElapsedTimer clock,gazeAge;
@@ -158,6 +167,7 @@ private:
  bool paused=false,literal=false,learning=false,targeting=false,gazeEnabled=false;
  int dwellMs=750;
  int scalePercent=100;
+ int restoreOpacity=100;
  int recoveryCorner=2,recoverySize=64;
  bool highContrast=false;
  int shortLabelScale=150;

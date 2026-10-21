@@ -59,6 +59,17 @@ private slots:
   filter.update({std::numeric_limits<double>::quiet_NaN(),0},2,true);
   QCOMPARE(filter.update({10,20},2,true),QPointF(10,20));
  }
+ void gazeIndicatorProfileValidation(){
+  auto v=ProfileStore::defaults();
+  for(const auto &key:{"gazeIndicatorSize","gazeIndicatorOpacity","gazeIndicatorColor","gazeIndicatorMorph"})v.remove(key);
+  QVERIFY(ProfileStore::valid(v));
+  for(const auto &key:{"gazeIndicatorSize","gazeIndicatorOpacity"}){
+   for(double invalid:{-1.0,0.0,121.0,12.5}){auto bad=v;bad[key]=invalid;QVERIFY(!ProfileStore::valid(bad));}
+  }
+  v["gazeIndicatorColor"]="#Ab12EF";QVERIFY(ProfileStore::valid(v));
+  for(const auto &color:{"red","#123","#00112233","#xyzxyz"}){v["gazeIndicatorColor"]=color;QVERIFY(!ProfileStore::valid(v));}
+  v["gazeIndicatorColor"]="#00bfff";v["gazeIndicatorMorph"]=1;QVERIFY(!ProfileStore::valid(v));
+ }
  void smoothingProfileValidationAndLegacyCompatibility(){
   auto values=ProfileStore::defaults();QVERIFY(ProfileStore::valid(values));
   values.remove("gazeSmoothingLevel");values.remove("smoothWhenChangingGazeTarget");QVERIFY(ProfileStore::valid(values));

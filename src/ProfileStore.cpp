@@ -23,17 +23,23 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"version",1},{"restoreCorner",2},{"restoreSize",64},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
+    return {{"gazeIndicatorKeyboardOnly",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreSize",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"highContrast",false},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
     static const QRegularExpression layout("^[A-Za-z0-9_-]+$");
     return v["version"].isDouble()&&v["version"].toDouble()==1
+        &&(!v.contains("gazeIndicatorSize")||(v["gazeIndicatorSize"].isDouble()&&v["gazeIndicatorSize"].toDouble()==v["gazeIndicatorSize"].toInt()&&v["gazeIndicatorSize"].toInt()>=4&&v["gazeIndicatorSize"].toInt()<=120))
+        &&(!v.contains("gazeIndicatorOpacity")||(v["gazeIndicatorOpacity"].isDouble()&&v["gazeIndicatorOpacity"].toDouble()==v["gazeIndicatorOpacity"].toInt()&&v["gazeIndicatorOpacity"].toInt()>=5&&v["gazeIndicatorOpacity"].toInt()<=100))
+        &&(!v.contains("gazeIndicatorKeyboardOnly")||v["gazeIndicatorKeyboardOnly"].isBool())
+        &&(!v.contains("gazeIndicatorMorph")||v["gazeIndicatorMorph"].isBool())
+        &&(!v.contains("gazeIndicatorColor")||(v["gazeIndicatorColor"].isString()&&QRegularExpression("^#[0-9a-fA-F]{6}$").match(v["gazeIndicatorColor"].toString()).hasMatch()))
         &&v["dwellMs"].isDouble()&&v["dwellMs"].toDouble()==v["dwellMs"].toInt()
         &&v["dwellMs"].toInt()>=250&&v["dwellMs"].toInt()<=3000
         &&(!v.contains("gazeSmoothingLevel")||(v["gazeSmoothingLevel"].isDouble()&&v["gazeSmoothingLevel"].toDouble()==v["gazeSmoothingLevel"].toInt()&&v["gazeSmoothingLevel"].toInt()>=0&&v["gazeSmoothingLevel"].toInt()<=4))
         &&(!v.contains("smoothWhenChangingGazeTarget")||v["smoothWhenChangingGazeTarget"].isBool())
         &&(!v.contains("restoreCorner")||(v["restoreCorner"].isDouble()&&v["restoreCorner"].toDouble()==v["restoreCorner"].toInt()&&v["restoreCorner"].toInt()>=0&&v["restoreCorner"].toInt()<=3))
+        &&(!v.contains("restoreOpacity")||(v["restoreOpacity"].isDouble()&&v["restoreOpacity"].toDouble()==v["restoreOpacity"].toInt()&&v["restoreOpacity"].toInt()>=10&&v["restoreOpacity"].toInt()<=100))
         &&(!v.contains("restoreSize")||(v["restoreSize"].isDouble()&&v["restoreSize"].toDouble()==v["restoreSize"].toInt()&&v["restoreSize"].toInt()>=40&&v["restoreSize"].toInt()<=128))
         &&v["literal"].isBool()&&v["learning"].isBool()
         &&(!v.contains("keyboardScale")||(v["keyboardScale"].isDouble()&&v["keyboardScale"].toDouble()==v["keyboardScale"].toInt()&&v["keyboardScale"].toInt()>=50&&v["keyboardScale"].toInt()<=150))

@@ -29,7 +29,7 @@ Standalone portal output uses US physical keycodes. Experimental KWin input-meth
 
 ## Diagnostics and tests
 
-Preferences now use a versioned `profile.json` under the application configuration directory (`runtime/config/OptiKey/OptiKey-Pro/` with `run.sh`). In Settings, choose **Save preferences and startup keyboard** to persist dwell time, keyboard height, high contrast, literal-key mode, local-learning preference, and the currently selected keyboard. The interface and keyboard follow the system light/dark theme; high contrast is an explicit override. The XML is unchanged, and minimized recovery layouts use a configurable corner restore square. Changes take effect immediately; saving is explicit. **Reset preferences** restores defaults and leaves input paused. Reset does not delete learned words or shortcut mappings; learned words have their own reset control.
+Preferences now use a versioned `profile.json` under the application configuration directory (`runtime/config/OptiKey/OptiKey-Pro/` with `run.sh`). In Settings, choose **Save preferences and startup keyboard** to persist dwell time, keyboard height, high contrast, literal-key mode, local-learning preference, and the currently selected keyboard. The interface and keyboard follow the system light/dark theme; high contrast is an explicit override. The XML is unchanged, and minimized recovery layouts use a borderless restore square flush with the selected screen corner. Its size and opacity (10–100%) are configurable under Settings → Keyboard → Restore button. Changes take effect immediately; saving is explicit. **Reset preferences** restores defaults and leaves input paused. Reset does not delete learned words or shortcut mappings; learned words have their own reset control.
 
 Writes are atomic and retain a validated `.bak` recovery copy. If the main profile is corrupt, startup uses that copy or defaults and reports recovery in Settings. Profiles from newer versions are preserved and cannot be overwritten without an explicit reset. This fresh format does not import the prototype's QSettings file or legacy OptiKey settings.
 
@@ -130,3 +130,16 @@ the bottom left, inset 12 pixels from the edges. Changes apply immediately;
 use Save preferences to retain them. The square stays fully on-screen and
 ignores reserved panel space so its displayed position matches gaze detection.
 Imported XML files are unchanged.
+
+Gaze indicator appearance is configurable in **Settings → Gaze & dwell**: diameter
+(4–120 px), opacity (5–100%), and a solid RGB color (`#RRGGBB`). The default is
+a solid blue circle, 18 px at full opacity. Optional **Morph with gaze acceleration
+and direction** stretches it along gaze movement, with bounded deformation based
+on acceleration. It returns to a circle at rest and resets after tracking loss.
+These visual effects do not change gaze targeting. Use **Save preferences and
+startup keyboard** to retain changes.
+
+**Show indicator** selects **Full screen** (default) or **Keyboard only**.
+Keyboard-only mode hides the indicator outside the visible keyboard and clips
+it at the keyboard edges, including the minimized restore button. Save preferences
+to retain this choice.

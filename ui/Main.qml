@@ -8,7 +8,7 @@ Window {
  objectName: "keyboardWindow"
  width: 1100; height: 370; visible: false
  title: "OptiKey Pro"
- color: controller.highContrast?"black":Kirigami.Theme.backgroundColor
+ color: minimizedRecovery?"transparent":controller.highContrast?"black":Kirigami.Theme.backgroundColor
  flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
  property string hovered: ""
  property real progress: 0
@@ -43,7 +43,7 @@ Window {
   target:controller
   function onSettingsRequested(){settings.showNormal();settings.raise();settings.requestActivate()}
   function onLayoutChanged(){root.hovered="";root.progress=0}
-  function onGazePoint(x,y,valid){root.gazeValid=valid;root.gaze=Qt.point(x,y)}
+  function onGazePoint(x,y,valid){gazeOverlay.updateMotion(x,y,valid);root.gazeValid=valid;root.gaze=Qt.point(x,y)}
   function onChanged(){if(!controller.targeting){root.targetProgress=0;root.targetPointValid=false}}
  }
  Timer {
@@ -105,10 +105,10 @@ Window {
    width:modelData.width*root.width/controller.layout.cols
    height:modelData.height*root.height/controller.layout.rows
    color:controller.highContrast?"black":Kirigami.Theme.backgroundColor
-   opacity:enabled?1:0.35
+   opacity:(enabled?1:0.35)*(root.minimizedRecovery?controller.restoreOpacity/100:1)
    Kirigami.Theme.colorSet:Kirigami.Theme.Button
    Kirigami.Theme.inherit:false
-   border.width:1;border.color:Kirigami.Theme.disabledTextColor
+   border.width:root.minimizedRecovery?0:1;border.color:Kirigami.Theme.disabledTextColor
    property bool active:enabled&&(root.gazeEnabled ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
    Rectangle {anchors.fill:parent;color:Kirigami.Theme.highlightColor;opacity:key.active?0.18:0}
    Rectangle {
@@ -181,12 +181,54 @@ Window {
   width:root.screenWidth;height:root.screenHeight;color:"transparent"
   title:"OptiKey gaze indicator"
   flags:Qt.FramelessWindowHint|Qt.WindowDoesNotAcceptFocus|Qt.WindowStaysOnTopHint|Qt.WindowTransparentForInput
+  property real lastTime:0
+  property point lastPoint:Qt.point(0,0)
+  property point velocity:Qt.point(0,0)
+  property bool hasVelocity:false
+  property real stretch:0
+  property real heading:0
+  function resetMotion(){lastTime=0;hasVelocity=false;velocity=Qt.point(0,0);stretch=0;heading=0}
+  onVisibleChanged:resetMotion()
+  onWidthChanged:resetMotion()
+  onHeightChanged:resetMotion()
+  Connections {target:controller;function onChanged(){if(!controller.gazeIndicatorMorph)gazeOverlay.resetMotion()}}
+  function updateMotion(x,y,valid){
+   if(!valid||!visible||!controller.gazeIndicatorMorph){resetMotion();return}
+   const now=Date.now(),point=Qt.point(x*width,y*height),dt=(now-lastTime)/1000
+   if(lastTime>0&&dt>=0.004&&dt<=0.2){
+    const vx=(point.x-lastPoint.x)/dt,vy=(point.y-lastPoint.y)/dt
+    const speed=Math.sqrt(vx*vx+vy*vy)
+    const acceleration=hasVelocity?Math.sqrt(Math.pow(vx-velocity.x,2)+Math.pow(vy-velocity.y,2))/dt:0
+    stretch=speed>20?Math.min(1,acceleration/18000):0
+    if(speed>20)heading=Math.atan2(vy,vx)*180/Math.PI
+    velocity=Qt.point(vx,vy);hasVelocity=true
+   }else{hasVelocity=false;stretch=0}
+   lastTime=now;lastPoint=point
+  }
+  Item {
+   id:indicatorArea
+   x:controller.gazeIndicatorKeyboardOnly?root.logicalX:0
+   y:controller.gazeIndicatorKeyboardOnly?root.logicalY:0
+   width:controller.gazeIndicatorKeyboardOnly?root.width:gazeOverlay.width
+   height:controller.gazeIndicatorKeyboardOnly?root.height:gazeOverlay.height
+   clip:controller.gazeIndicatorKeyboardOnly
+   visible:!controller.gazeIndicatorKeyboardOnly||root.visible
   Rectangle {
-   visible:root.gazeValid
-   x:root.gaze.x*gazeOverlay.width-width/2;y:root.gaze.y*gazeOverlay.height-height/2
-   width:18;height:18;radius:9;color:Qt.alpha(Kirigami.Theme.highlightColor,0.2);border.width:2;border.color:"#ffffff"
-   Rectangle {anchors.fill:parent;anchors.margins:3;radius:6;color:"transparent";border.width:1;border.color:Kirigami.Theme.highlightColor}
-   Rectangle {anchors.centerIn:parent;width:2;height:2;radius:1;color:"#ffffff"}
+   id:gazeMarker
+   visible:root.gazeValid&&(!controller.gazeIndicatorKeyboardOnly||(
+    root.gaze.x*gazeOverlay.width>=indicatorArea.x&&root.gaze.x*gazeOverlay.width<indicatorArea.x+indicatorArea.width&&
+    root.gaze.y*gazeOverlay.height>=indicatorArea.y&&root.gaze.y*gazeOverlay.height<indicatorArea.y+indicatorArea.height))
+   x:root.gaze.x*gazeOverlay.width-indicatorArea.x-width/2;y:root.gaze.y*gazeOverlay.height-indicatorArea.y-height/2
+   width:controller.gazeIndicatorSize;height:width;radius:width/2
+   color:controller.gazeIndicatorColor;opacity:controller.gazeIndicatorOpacity/100
+   antialiasing:true
+   property real deformation:controller.gazeIndicatorMorph?gazeOverlay.stretch:0
+   Behavior on deformation {NumberAnimation {duration:100}}
+   transform:[
+    Scale {origin.x:controller.gazeIndicatorSize/2;origin.y:controller.gazeIndicatorSize/2;xScale:1+0.8*gazeMarker.deformation;yScale:1/(1+0.8*gazeMarker.deformation)},
+    Rotation {origin.x:controller.gazeIndicatorSize/2;origin.y:controller.gazeIndicatorSize/2;angle:gazeOverlay.heading}
+   ]
+  }
   }
  }
  Window {
@@ -281,6 +323,7 @@ Window {
         Desktop.Label {text:"Restore square size: "+controller.restoreSize+" px"}
         Desktop.Slider {from:40;to:128;stepSize:8;value:controller.restoreSize;Layout.fillWidth:true;onMoved:controller.restoreSize=value}
        }
+       RowLayout {Desktop.Label {text:"Restore square opacity: "+controller.restoreOpacity+"%"} Desktop.Slider {from:10;to:100;stepSize:5;value:controller.restoreOpacity;Layout.fillWidth:true;onMoved:controller.restoreOpacity=value}}
       }
      }
      Desktop.GroupBox {
@@ -296,6 +339,20 @@ Window {
        }
        Desktop.CheckBox {text:"Smooth when changing gaze target";checked:controller.smoothWhenChangingGazeTarget;enabled:controller.gazeSmoothingLevel>0;onToggled:controller.smoothWhenChangingGazeTarget=checked}
        Desktop.Label {text:"Higher levels reduce jitter but respond more slowly.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Kirigami.Heading {text:"Gaze indicator";level:3;Layout.topMargin:12}
+       RowLayout {
+        Desktop.Label {text:"Show indicator"}
+        Desktop.ComboBox {model:["Full screen","Keyboard only"];currentIndex:controller.gazeIndicatorKeyboardOnly?1:0;onActivated:controller.gazeIndicatorKeyboardOnly=currentIndex===1}
+       }
+       RowLayout {Desktop.Label {text:"Size: "+controller.gazeIndicatorSize+" px"} Desktop.Slider {from:4;to:120;stepSize:1;value:controller.gazeIndicatorSize;Layout.fillWidth:true;onMoved:controller.gazeIndicatorSize=value}}
+       RowLayout {Desktop.Label {text:"Opacity: "+controller.gazeIndicatorOpacity+"%"} Desktop.Slider {from:5;to:100;stepSize:5;value:controller.gazeIndicatorOpacity;Layout.fillWidth:true;onMoved:controller.gazeIndicatorOpacity=value}}
+       RowLayout {
+        Desktop.Label {text:"Color"}
+        Rectangle {width:24;height:24;radius:12;color:controller.gazeIndicatorColor;opacity:controller.gazeIndicatorOpacity/100}
+        Desktop.TextField {text:controller.gazeIndicatorColor;placeholderText:"#RRGGBB";Accessible.name:"Gaze indicator color, hexadecimal RGB";validator:RegularExpressionValidator {regularExpression:/#[0-9a-fA-F]{6}/} onEditingFinished:{if(acceptableInput)controller.gazeIndicatorColor=text}}
+       }
+       Desktop.CheckBox {text:"Morph with gaze acceleration and direction";checked:controller.gazeIndicatorMorph;onToggled:controller.gazeIndicatorMorph=checked}
+       Desktop.Label {text:"Stretches along gaze movement as acceleration increases, then returns to a solid circle.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Kirigami.Heading {text:"Keyboard selection";level:3;Layout.topMargin:12}
        RowLayout {Desktop.Label {text:"Keyboard dwell: "+controller.dwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.dwellMs;Layout.fillWidth:true;onMoved:controller.dwellMs=value}}
 

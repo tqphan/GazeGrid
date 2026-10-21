@@ -44,8 +44,14 @@ Controller::Controller(){
  targetStartDwellMs=profile.values.value("targetStartDwellMs").toInt(750);
  targetConfirmDwellMs=profile.values.value("targetConfirmDwellMs").toInt(1000);
  targetDwellRadius=profile.values.value("targetDwellRadius").toInt(40);
+ restoreOpacity=profile.values.value("restoreOpacity").toInt(100);
  recoveryCorner=profile.values["restoreCorner"].toInt(2);recoverySize=profile.values["restoreSize"].toInt(64);
  rememberDesktop=profile.values["rememberDesktop"].toBool();
+ gazeIndicatorSize=profile.values["gazeIndicatorSize"].toInt(18);
+ gazeIndicatorOpacity=profile.values["gazeIndicatorOpacity"].toInt(100);
+ gazeIndicatorColor=profile.values["gazeIndicatorColor"].toString("#00bfff");
+ gazeIndicatorKeyboardOnly=profile.values["gazeIndicatorKeyboardOnly"].toBool();
+ gazeIndicatorMorph=profile.values["gazeIndicatorMorph"].toBool();
  smoothingLevel=profile.values["gazeSmoothingLevel"].toInt(1);smoothTargetChanges=profile.values["smoothWhenChangingGazeTarget"].toBool();
  layoutNames=QDir(QStringLiteral(DEFAULT_PACK_PATH)).entryList({"*.xml"},QDir::Files,QDir::Name);for(auto &name:layoutNames)name.chop(4);
  for(const auto &name:layoutNames){
@@ -117,7 +123,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreSize",recoverySize}};
+ QJsonObject values{{"gazeIndicatorKeyboardOnly",gazeIndicatorKeyboardOnly},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreSize",recoverySize},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -127,7 +133,8 @@ void Controller::resetPreferences(){
  if(!paused)togglePause();
  setMagnifierEnabled(false);
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;backStack.clear();
- setRestoreCorner(2);setRestoreSize(64);
+ gazeIndicatorSize=18;gazeIndicatorOpacity=100;gazeIndicatorColor="#00bfff";gazeIndicatorMorph=false;gazeIndicatorKeyboardOnly=false;
+ setRestoreCorner(2);setRestoreSize(64);restoreOpacity=100;
  setKeyboardScale(100);highContrast=false;shortLabelScale=values["shortLabelScale"].toInt();longLabelScale=values["longLabelScale"].toInt();magnifierZoom=values["magnifierZoom"].toInt();progressiveZoom=false;zoomDurationMs=1500;targetDwellEnabled=true;targetStartDwellMs=750;targetConfirmDwellMs=1000;targetDwellRadius=40;rememberDesktop=false;
  setGazeSmoothingLevel(values["gazeSmoothingLevel"].toInt());setSmoothWhenChangingGazeTarget(false);gazeSmoothing.reset();
  openLayout(values["startLayout"].toString(),false);
