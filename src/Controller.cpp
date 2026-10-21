@@ -303,6 +303,11 @@ void Controller::targetAt(double x,double y){
  pointer.select(QPointF(x,y));
 }
 double Controller::dwellAt(double x,double y,bool valid){
+ // Tracking is independent of dwell activation, including click-only mode.
+ if(zoomAnimating&&targeting&&!paused&&ready()&&valid&&MagnifierGeometry::validPoint({x,y})){
+  zoomTarget={x,y};hasZoomTarget=true;
+ }
+
  if(!valid||!targetDwellEnabled||!targeting||paused||!ready()||capturePending||zoomAnimating||!MagnifierGeometry::validPoint({x,y})){
   pointDwell.reset();return 0;
  }
@@ -328,13 +333,15 @@ void Controller::updateMagnifierZoom(){
  if(!magnifierReady||capturedImage.isNull())return;
  const double progress=zoomAnimating?qMin(1.,double(zoomClock.elapsed())/activeZoomDurationMs):1.;
  const double zoom=1.+(activeZoom-1)*progress;
- magnifierCrop=MagnifierGeometry::crop(captureSize,coarseTarget,zoom);
+ magnifierCrop=zoomAnimating&&hasZoomTarget&&magnifierCrop.isValid()
+  ?MagnifierGeometry::zoomAt(magnifierCrop,captureSize,zoomTarget,zoom)
+  :MagnifierGeometry::crop(captureSize,coarseTarget,zoom);
  magnifiedImage=capturedImage.copy(magnifierCrop);++magnifierRevision;
  if(progress>=1.){if(zoomAnimating)pointDwell.reset();zoomAnimating=false;zoomTimer.stop();}
  emit changed();
 }
 void Controller::clearCapture(){
- pointDwell.reset();
+ pointDwell.reset();hasZoomTarget=false;
  zoomTimer.stop();zoomAnimating=false;capturedImage={};
  ++captureEpoch;screenshot.cancel();capturePending=false;magnifierReady=false;magnifiedImage={};magnifierCrop={};captureSize={};
 }

@@ -88,7 +88,6 @@ Window {
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="MouseMagnifier"
    }
    property bool stateFilled:modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)
-   property string stateLabel:sleepKey?(controller.paused?"On":"Off"):magnifierKey?(controller.magnifierEnabled?"On":"Off"):modifierState==="locked"?"Locked":"Latched"
    property real predictionWidth:2*root.width/controller.layout.cols
    property int predictionCount:Math.floor(modelData.width/2)
    property bool sleepKey: {
@@ -121,13 +120,12 @@ Window {
    }
    Column {
     anchors.centerIn:parent;spacing:4
-    anchors.verticalCenterOffset:(key.modifier||key.magnifierKey||key.sleepKey)?-9:0
     visible:key.modelData.kind!=="SuggestionRow"&&!key.unavailableReason
     Image {
      anchors.horizontalCenter:parent.horizontalCenter
      // NoIcon is the pack's X symbol, not an instruction to hide the image.
      visible:!root.minimizedRecovery&&key.modelData.symbol!==""
-     width:Math.max(1,Math.min(key.width-2*key.symbolMargin,key.height-2*key.symbolMargin-((key.modifier||key.magnifierKey||key.sleepKey)?18:0)-(key.label?keyLabel.implicitHeight+4:0)))
+     width:Math.max(1,Math.min(key.width-2*key.symbolMargin,key.height-2*key.symbolMargin-(key.label?keyLabel.implicitHeight+4:0)))
      height:width
      source:visible?"image://symbols/"+key.modelData.symbol+"/"+encodeURIComponent(key.foreground):""
      sourceSize.width:width*root.screen.devicePixelRatio;sourceSize.height:height*root.screen.devicePixelRatio
@@ -172,21 +170,6 @@ Window {
     }
    }
    Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(key.active?root.progress:0);color:root.dwellColor}
-   Rectangle {
-    visible:key.modifierState!==""||key.magnifierKey||key.sleepKey
-    anchors.bottom:parent.bottom;anchors.bottomMargin:7
-    anchors.horizontalCenter:parent.horizontalCenter
-    width:Math.max(1,Math.min(key.width-8,76));height:18;radius:3
-    color:key.stateFilled?root.dwellColor:root.color
-    border.width:1;border.color:root.dwellColor
-    Text {
-     anchors.fill:parent;anchors.margins:2
-     text:key.stateLabel
-     color:key.stateFilled?(controller.highContrast?"black":Kirigami.Theme.highlightedTextColor):key.foreground
-     font.pixelSize:12;font.bold:true;minimumPixelSize:8;fontSizeMode:Text.Fit
-     horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
-    }
-   }
    Accessible.role:Accessible.Button
    Accessible.description:key.sleepKey?(controller.paused?"Pause on":"Pause off"):key.magnifierKey?(controller.magnifierEnabled?"Magnifier on":"Magnifier off"):key.modifier?(key.modifierState==="locked"?"Locked until selected again":key.modifierState==="latched"?"Latched for the next key":"Off. Select once to latch, twice to lock."):""
    Accessible.name:key.sleepKey?(controller.paused?"Resume input":"Pause input"):root.minimizedRecovery?"Restore keyboard":key.unavailableReason?key.unavailableReason:(key.label||key.modelData.symbol)
@@ -323,15 +306,13 @@ Window {
       ColumnLayout {
        anchors.fill:parent;spacing:10
        RowLayout {Desktop.Label {text:"Magnifier zoom: "+controller.magnifierZoom+"×"} Desktop.Slider {from:2;to:8;stepSize:1;value:controller.magnifierZoom;Layout.fillWidth:true;onMoved:controller.magnifierZoom=value}}
-       Desktop.CheckBox {text:"Progressive zoom (increase magnification over time)";checked:controller.progressiveZoom;onToggled:controller.progressiveZoom=checked}
+       Desktop.CheckBox {text:"Progressive zoom";checked:controller.progressiveZoom;onToggled:controller.progressiveZoom=checked}
        RowLayout {Desktop.Label {text:"Zoom duration: "+(controller.zoomDurationMs/1000).toFixed(1)+" s"} Desktop.Slider {from:500;to:5000;stepSize:100;value:controller.zoomDurationMs;enabled:controller.progressiveZoom;Layout.fillWidth:true;onMoved:controller.zoomDurationMs=value}}
-       Desktop.Label {text:"Progressive zoom grows from 1× to the chosen magnification. Precise selection starts when the zoom finishes. Changes apply to the next target.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Kirigami.Heading {text:"Target selection";level:3;Layout.topMargin:12}
        Desktop.CheckBox {text:"Select pointer targets by dwell";checked:controller.targetDwellEnabled;onToggled:controller.targetDwellEnabled=checked}
        RowLayout {Desktop.Label {text:"Start zoom / target dwell: "+controller.targetStartDwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.targetStartDwellMs;enabled:controller.targetDwellEnabled;Layout.fillWidth:true;onMoved:controller.targetStartDwellMs=value}}
        RowLayout {Desktop.Label {text:"Confirm zoomed target dwell: "+controller.targetConfirmDwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.targetConfirmDwellMs;enabled:controller.targetDwellEnabled;Layout.fillWidth:true;onMoved:controller.targetConfirmDwellMs=value}}
        RowLayout {Desktop.Label {text:"Target dwell movement tolerance: "+controller.targetDwellRadius+" px"} Desktop.Slider {from:10;to:100;stepSize:5;value:controller.targetDwellRadius;enabled:controller.targetDwellEnabled;Layout.fillWidth:true;onMoved:controller.targetDwellRadius=value}}
-       Desktop.Label {text:"Hold your gaze, or hover the pointer, to start zoom. After zoom finishes, dwell again to confirm. The ring shows progress; no mouse click is needed. Enable gaze input under Gaze & dwell to use the eye tracker.";wrapMode:Text.Wrap;Layout.fillWidth:true}
       }
      }
      Desktop.GroupBox {
@@ -392,9 +373,10 @@ Window {
   Image {anchors.fill:parent;visible:controller.magnifierReady;source:visible?"image://magnifier/"+controller.magnifierRevision:"";cache:false;fillMode:Image.Stretch}
   Rectangle {
    anchors.horizontalCenter:parent.horizontalCenter;y:90
+   visible:!controller.magnifierEnabled
    width:targetLabel.implicitWidth+32;height:targetLabel.implicitHeight+20
    color:Kirigami.Theme.backgroundColor;radius:4
-   Text {id:targetLabel;anchors.centerIn:parent;text:controller.zoomAnimating?controller.targetPrompt:controller.targetPrompt+(controller.targetDwellEnabled?" — hold your gaze or pointer":" — click to select");font.pixelSize:24;color:Kirigami.Theme.textColor}
+   Text {id:targetLabel;anchors.centerIn:parent;text:controller.targetPrompt;font.pixelSize:24;color:Kirigami.Theme.textColor}
   }
   Button {
    id:targetCancel;anchors.horizontalCenter:parent.horizontalCenter;y:145;text:"Cancel";focusPolicy:Qt.NoFocus;z:2

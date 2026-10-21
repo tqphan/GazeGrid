@@ -162,6 +162,16 @@ private slots:
   QCOMPARE(WordPrediction::suggest("he",words,{},1).size(),1);
   QVERIFY(WordPrediction::suggest("he",words,{},0).isEmpty());
  }
+ void progressiveZoomFollowsCurrentPoint(){
+  const QSize image(1000,800);const QRect original(0,0,1000,800);
+  const auto left=MagnifierGeometry::zoomAt(original,image,{.2,.3},2);
+  QCOMPARE(left,QRect(100,120,500,400));
+  QCOMPARE(MagnifierGeometry::map(left,image,{.2,.3}),QPointF(.2,.3));
+  const auto right=MagnifierGeometry::zoomAt(left,image,{.8,.7},4);
+  QCOMPARE(right,QRect(300,260,250,200));
+  QCOMPARE(MagnifierGeometry::map(right,image,{.8,.7}),MagnifierGeometry::map(left,image,{.8,.7}));
+  QVERIFY(QRect(QPoint(0,0),image).contains(MagnifierGeometry::zoomAt(right,image,{1,1},8)));
+ }
  void magnifierCoordinatesStayInsideCapturedDesktop(){
   const QSize image(1920,1080);
   for(int zoom=2;zoom<=8;++zoom)for(const auto &point:QList<QPointF>{{0,0},{1,1},{.5,.5},{.01,.99}}){

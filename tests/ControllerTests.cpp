@@ -129,6 +129,23 @@ private slots:
   const int revision=controller.property("magnifierRevision").toInt();QTest::qWait(100);
   QCOMPARE(controller.property("magnifierRevision").toInt(),revision);
  }
+ void progressiveZoomTracksPointerWithDwellDisabled(){
+  Controller controller;controller.inputContextChanged(true,false);
+  controller.setProperty("targeting",true);controller.setProperty("capturePending",true);
+  controller.setProperty("progressiveZoom",true);controller.setProperty("zoomDurationMs",500);
+  controller.setProperty("magnifierZoom",4);controller.setProperty("targetDwellEnabled",false);
+  QImage frame(QGuiApplication::primaryScreen()->size(),QImage::Format_RGB32);
+  for(int y=0;y<frame.height();++y)for(int x=0;x<frame.width();++x)frame.setPixelColor(x,y,QColor(x*255/frame.width(),y*255/frame.height(),0));
+  QVERIFY(QMetaObject::invokeMethod(&controller,"receiveMagnifierFrame",Qt::DirectConnection,Q_ARG(QImage,frame)));
+  QCOMPARE(controller.dwellAt(1,1,true),0.);
+  QTRY_VERIFY(!controller.property("zoomAnimating").toBool());
+  auto result=controller.magnifierImage();
+  QVERIFY(result.pixelColor(0,0).red()>150);QVERIFY(result.pixelColor(0,0).green()>150);
+  const int revision=controller.property("magnifierRevision").toInt();
+  controller.dwellAt(0,0,true);QTest::qWait(60);
+  QCOMPARE(controller.property("magnifierRevision").toInt(),revision);
+  controller.resetPreferences();
+ }
  void progressiveZoomCancellationStopsAnimation(){
   Controller controller;controller.setProperty("targeting",true);controller.setProperty("capturePending",true);
   controller.setProperty("progressiveZoom",true);
