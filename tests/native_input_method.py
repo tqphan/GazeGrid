@@ -57,7 +57,11 @@ with tempfile.TemporaryDirectory(prefix="optikey-native-im-") as directory:
     log = root / "runtime/native-input-method.log"
     log.parent.mkdir(exist_ok=True)
     log.write_text(output)
-    passed = process.returncode == 0 and "PASS: native Unicode commit, Backspace, Return and private field reached the Qt receiver" in output
+    passed = (process.returncode == 0
+              and "PASS: native Unicode commit, Backspace, Return and private field reached the Qt receiver" in output
+              and "Native placement check: top (11 UI clicks)" in output
+              and "Native placement check: bottom (11 UI clicks)" in output
+              and "Wayland protocol error" not in output)
     print(output if not passed else "PASS: native Unicode commit, Backspace, Return and private field reached the Qt receiver")
     print("Log:", log)
     raise SystemExit(0 if passed else 1)

@@ -23,6 +23,8 @@ public:
     bool busy()const{return running;}
     bool isHeld(const QString &key)const;
     QStringList heldKeys()const{return held.values();}
+    QVariantMap modifierStates()const;
+    static QString modifierName(const QVariantList &commands);
     static QString validate(const QVariantList &commands,bool unicodeText=false);
     static QString signature(const QVariantList &commands);
     bool shifted()const;
@@ -36,10 +38,11 @@ private:
     bool key(QString name,bool down,bool persistent=false);
     bool tap(QString name);
     bool shortcutHeld()const;
+    bool cycleModifier(const QString &name);
     void fail(QString message);
     QVariantList queue;
     int index=0;
     bool running=false,waiting=false;
     QTimer timer;
-    QSet<QString> held,transient;
+    QSet<QString> held,transient,latched;
 };

@@ -23,17 +23,33 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"version",1},{"dwellMs",750},{"literal",false},{"learning",false},
-            {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"highContrast",false},{"rememberDesktop",false}};
+    return {{"version",1},{"restoreCorner",2},{"restoreSize",64},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
+            {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"highContrast",false},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
     static const QRegularExpression layout("^[A-Za-z0-9_-]+$");
     return v["version"].isDouble()&&v["version"].toDouble()==1
         &&v["dwellMs"].isDouble()&&v["dwellMs"].toDouble()==v["dwellMs"].toInt()
         &&v["dwellMs"].toInt()>=250&&v["dwellMs"].toInt()<=3000
+        &&(!v.contains("gazeSmoothingLevel")||(v["gazeSmoothingLevel"].isDouble()&&v["gazeSmoothingLevel"].toDouble()==v["gazeSmoothingLevel"].toInt()&&v["gazeSmoothingLevel"].toInt()>=0&&v["gazeSmoothingLevel"].toInt()<=4))
+        &&(!v.contains("smoothWhenChangingGazeTarget")||v["smoothWhenChangingGazeTarget"].isBool())
+        &&(!v.contains("restoreCorner")||(v["restoreCorner"].isDouble()&&v["restoreCorner"].toDouble()==v["restoreCorner"].toInt()&&v["restoreCorner"].toInt()>=0&&v["restoreCorner"].toInt()<=3))
+        &&(!v.contains("restoreSize")||(v["restoreSize"].isDouble()&&v["restoreSize"].toDouble()==v["restoreSize"].toInt()&&v["restoreSize"].toInt()>=40&&v["restoreSize"].toInt()<=128))
         &&v["literal"].isBool()&&v["learning"].isBool()
         &&(!v.contains("keyboardScale")||(v["keyboardScale"].isDouble()&&v["keyboardScale"].toDouble()==v["keyboardScale"].toInt()&&v["keyboardScale"].toInt()>=50&&v["keyboardScale"].toInt()<=150))
         &&(!v.contains("highContrast")||v["highContrast"].isBool())
+        &&(!v.contains("liveZoom")||v["liveZoom"].isBool())
+        &&(!v.contains("progressiveZoom")||v["progressiveZoom"].isBool())
+        &&(!v.contains("targetDwellEnabled")||v["targetDwellEnabled"].isBool())
+        &&(!v.contains("targetStartDwellMs")||(v["targetStartDwellMs"].isDouble()&&v["targetStartDwellMs"].toDouble()==v["targetStartDwellMs"].toInt()&&v["targetStartDwellMs"].toInt()>=250&&v["targetStartDwellMs"].toInt()<=3000))
+        &&(!v.contains("targetConfirmDwellMs")||(v["targetConfirmDwellMs"].isDouble()&&v["targetConfirmDwellMs"].toDouble()==v["targetConfirmDwellMs"].toInt()&&v["targetConfirmDwellMs"].toInt()>=250&&v["targetConfirmDwellMs"].toInt()<=3000))
+        &&(!v.contains("targetDwellRadius")||(v["targetDwellRadius"].isDouble()&&v["targetDwellRadius"].toDouble()==v["targetDwellRadius"].toInt()&&v["targetDwellRadius"].toInt()>=10&&v["targetDwellRadius"].toInt()<=100))
+        &&(!v.contains("zoomDurationMs")||(v["zoomDurationMs"].isDouble()&&v["zoomDurationMs"].toDouble()==v["zoomDurationMs"].toInt()&&v["zoomDurationMs"].toInt()>=500&&v["zoomDurationMs"].toInt()<=5000))
+        &&(!v.contains("enlargeShortLabels")||v["enlargeShortLabels"].isBool())
+        &&(!v.contains("magnifierEnabled")||v["magnifierEnabled"].isBool())
+        &&(!v.contains("magnifierZoom")||(v["magnifierZoom"].isDouble()&&v["magnifierZoom"].toDouble()==v["magnifierZoom"].toInt()&&v["magnifierZoom"].toInt()>=2&&v["magnifierZoom"].toInt()<=8))
+        &&(!v.contains("shortLabelScale")||(v["shortLabelScale"].isDouble()&&v["shortLabelScale"].toDouble()==v["shortLabelScale"].toInt()&&v["shortLabelScale"].toInt()>=50&&v["shortLabelScale"].toInt()<=200))
+        &&(!v.contains("longLabelScale")||(v["longLabelScale"].isDouble()&&v["longLabelScale"].toDouble()==v["longLabelScale"].toInt()&&v["longLabelScale"].toInt()>=50&&v["longLabelScale"].toInt()<=200))
         &&(!v.contains("rememberDesktop")||v["rememberDesktop"].isBool())
         &&v["startLayout"].isString()&&layout.match(v["startLayout"].toString()).hasMatch();
 }

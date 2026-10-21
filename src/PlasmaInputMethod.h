@@ -9,7 +9,7 @@ public:
  explicit PlasmaInputMethod(QObject *parent=nullptr);
  ~PlasmaInputMethod() override;
  bool initialize();
- bool attachPanel(QWindow *window);
+ bool attachPanel(QWindow *window, bool top = false);
  bool commitText(const QString &text);
  bool sendKey(const QString &name,bool down);
  bool ready()const;

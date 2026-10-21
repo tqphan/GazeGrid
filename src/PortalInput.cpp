@@ -12,13 +12,13 @@
 #include <QUuid>
 #include <libei.h>
 #include <unistd.h>
-#include <QStandardPaths>
+#include "AppPaths.h"
 #include <QDir>
 #include "PortalPermissionStore.h"
 namespace {
 const QString service="org.freedesktop.portal.Desktop",path="/org/freedesktop/portal/desktop",iface="org.freedesktop.portal.RemoteDesktop";
 QDBusMessage call(const QString &method,const QVariantList &args){auto m=QDBusMessage::createMethodCall(service,path,iface,method);m.setArguments(args);return m;}
-PortalPermissionStore permissions(){return PortalPermissionStore(QDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).filePath("desktop-permission.json"));}
+PortalPermissionStore permissions(){return PortalPermissionStore(QDir(appConfigDirectory()).filePath("desktop-permission.json"));}
 }
 PortalInput::~PortalInput(){close();}
 QVariantMap PortalInput::probe(){

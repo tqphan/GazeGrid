@@ -1,5 +1,27 @@
 #include "ActionRunner.h"
 #include "KeyNames.h"
+namespace {
+const QSet<QString> modifierKeys{"LSHIFT","RSHIFT","LCONTROL","RCONTROL","LMENU","RMENU","LWIN","RWIN"};
+}
+QString ActionRunner::modifierName(const QVariantList &commands){
+    if(commands.size()!=1)return {};
+    const auto command=commands.front().toMap();
+    if(command["tag"]!="Action"&&command["tag"]!="KeyToggle")return {};
+    const auto name=KeyNames::canonical(command["text"].toString());
+    return modifierKeys.contains(name)?name:QString();
+}
+QVariantMap ActionRunner::modifierStates()const{
+    QVariantMap states;
+    for(const auto &name:held)if(modifierKeys.contains(name)&&!transient.contains(name))
+        states[name]=latched.contains(name)?"latched":"locked";
+    return states;
+}
+bool ActionRunner::cycleModifier(const QString &name){
+    if(latched.remove(name)){emit stateChanged();return true;}
+    if(isHeld(name))return key(name,false);
+    if(!key(name,true,true))return false;
+    latched.insert(name);emit stateChanged();return true;
+}
 ActionRunner::ActionRunner(QObject *parent):QObject(parent){timer.setSingleShot(true);connect(&timer,&QTimer::timeout,this,&ActionRunner::step);}
 bool ActionRunner::isHeld(const QString &k)const{return held.contains(KeyNames::canonical(k));}
 bool ActionRunner::shifted()const{return isHeld("LSHIFT")||isHeld("RSHIFT");}
@@ -40,7 +62,7 @@ bool ActionRunner::start(const QVariantList &commands){
 }
 void ActionRunner::cancel(){
     timer.stop();running=false;waiting=false;queue.clear();index=0;
-    const auto copy=held;held.clear();transient.clear();
+    const auto copy=held;held.clear();transient.clear();latched.clear();
     for(const auto &name:copy)if(sendKey)sendKey(name,false);
     emit stateChanged();
 }
@@ -49,7 +71,7 @@ bool ActionRunner::key(QString name,bool down,bool persistent){
     name=KeyNames::canonical(name);
     if(held.contains(name)==down)return true;
     if(!sendKey||!sendKey(name,down))return false;
-    if(down){held.insert(name);if(!persistent)transient.insert(name);}else{held.remove(name);transient.remove(name);}
+    if(down){held.insert(name);if(!persistent)transient.insert(name);}else{held.remove(name);transient.remove(name);latched.remove(name);}
     emit stateChanged();return true;
 }
 bool ActionRunner::tap(QString name){
@@ -64,6 +86,7 @@ void ActionRunner::step(){
         running=false;queue.clear();emit stateChanged();emit finished();return;
     }
     auto command=queue[index++].toMap();auto tag=command["tag"].toString();QString value=command["text"].toString();bool ok=true;
+    const bool consumesLatch=(tag=="Text"&&!value.isEmpty())||(tag=="Action"&&!KeyNames::functionKey(value).isEmpty()&&!modifierKeys.contains(KeyNames::functionKey(value)));
     if(tag=="Wait"){timer.start(value.toInt());return;}
     if(tag=="KeyDown")ok=key(value,true);
     else if(tag=="KeyUp")ok=key(value,false);
@@ -94,12 +117,16 @@ void ActionRunner::step(){
     }else if(tag=="Action"){
         value=value.trimmed();auto name=KeyNames::functionKey(value);
         static const QSet<QString> modifiers{"LSHIFT","RSHIFT","LCONTROL","RCONTROL","LMENU","RMENU","LWIN","RWIN"};
-        if(modifiers.contains(name))ok=key(name,!isHeld(name),true);
+        if(modifiers.contains(name))ok=queue.size()==1?cycleModifier(name):key(name,!isHeld(name),true);
         else if(!name.isEmpty()){ok=tap(name);if(ok&&name=="BACK"&&!shortcutHeld())emit textCommitted("\b");}
         else ok=performAction&&performAction(value);
     }
     if(!running)return; // A navigation/pause action may cancel the runner.
     if(!ok){fail("Action could not complete: "+tag+" "+(tag=="Text"?QString("[text]"):value.trimmed()));return;}
+    if(consumesLatch){
+        const auto copy=latched;
+        for(const auto &name:copy)if(!key(name,false)){fail("Could not release latched modifier");return;}
+    }
     if(!waiting)timer.start(0);
 }
 

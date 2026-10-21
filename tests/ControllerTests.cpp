@@ -1,15 +1,57 @@
 #include <QtTest>
 #include <QTemporaryDir>
 #include "Controller.h"
+#include "AppPaths.h"
+#include "ProfileStore.h"
+#include "GazeClock.h"
 #include "KeyboardPack.h"
 #include "KeyboardLayout.h"
 #include <QDir>
 #include <QStandardPaths>
 #include <QFile>
 #include <QJsonDocument>
+#include <QGuiApplication>
+#include <QScreen>
 class ControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void restoreSquarePreferences(){
+  {Controller controller;controller.setRestoreCorner(1);controller.setRestoreSize(96);QVERIFY(controller.savePreferences());}
+  {Controller controller;QCOMPARE(controller.restoreCorner(),1);QCOMPARE(controller.restoreSize(),96);
+   controller.setRestoreCorner(9);QCOMPARE(controller.restoreCorner(),3);
+   controller.setRestoreSize(1);QCOMPARE(controller.restoreSize(),40);
+   controller.resetPreferences();QCOMPARE(controller.restoreCorner(),2);QCOMPARE(controller.restoreSize(),64);}
+ }
+
+ void gazeSmoothingPipelineAndRecovery(){
+  Controller controller;controller.setDisplaySize(1000,1000);controller.setGazeSmoothingLevel(2);controller.setSmoothWhenChangingGazeTarget(false);
+  QSignalSpy points(&controller,&Controller::gazePoint);
+  auto sample=[&](double x,double y,bool valid=true,qint64 timestamp=0){
+   QTest::qWait(1);if(!timestamp)timestamp=GazeClock::now();
+   QVERIFY(QMetaObject::invokeMethod(&controller,"receiveGaze",Qt::DirectConnection,Q_ARG(double,x),Q_ARG(double,y),Q_ARG(bool,valid),Q_ARG(qint64,timestamp)));
+  };
+  sample(.1,.1);QCOMPARE(points.last()[0].toDouble(),.1);
+  sample(.11,.105);QVERIFY(qAbs(points.last()[0].toDouble()-.10000074915421219)<1e-12);
+  sample(.8,.8,false);QVERIFY(!points.last()[2].toBool());
+  sample(.8,.8);QCOMPARE(points.last()[0].toDouble(),.8);
+  sample(.9,.9,true,GazeClock::now()-300000);QVERIFY(!points.last()[2].toBool());
+  sample(.2,.2);QCOMPARE(points.last()[0].toDouble(),.2);
+  sample(1.1,.4);QVERIFY(!points.last()[2].toBool());
+  sample(.3,.3);QCOMPARE(points.last()[0].toDouble(),.3);
+  QTest::qWait(230);QVERIFY(!points.last()[2].toBool());
+  sample(.7,.7);QCOMPARE(points.last()[0].toDouble(),.7);
+  controller.setDisplaySize(2000,1000);sample(.4,.4);QCOMPARE(points.last()[0].toDouble(),.4);
+  controller.setGazeSmoothingLevel(0);sample(.41,.42);QCOMPARE(points.last()[0].toDouble(),.41);
+  controller.setGazeSmoothingLevel(2);sample(.6,.6);QCOMPARE(points.last()[0].toDouble(),.6);
+  controller.setSmoothWhenChangingGazeTarget(true);sample(.2,.2);QCOMPARE(points.last()[0].toDouble(),.2);
+ }
+ void smoothingPreferencesPersistAndReset(){
+  {Controller controller;controller.setGazeSmoothingLevel(4);controller.setSmoothWhenChangingGazeTarget(true);QVERIFY(controller.savePreferences());}
+  {Controller controller;QCOMPARE(controller.gazeSmoothingLevel(),4);QVERIFY(controller.smoothWhenChangingGazeTarget());
+   controller.resetPreferences();QCOMPARE(controller.gazeSmoothingLevel(),1);QVERIFY(!controller.smoothWhenChangingGazeTarget());}
+  {Controller controller;QCOMPARE(controller.gazeSmoothingLevel(),1);QVERIFY(!controller.smoothWhenChangingGazeTarget());}
+ }
+
  void unicodeScratchpadBackspaceRemovesWholeGrapheme(){
   Controller controller;controller.configureInputMethod([](QString){return true;},[](QString,bool){return true;});controller.inputContextChanged(true,false);
   QVERIFY(controller.executeCommands({QVariantMap{{"tag","Text"},{"text",QString::fromUtf8("a😀é")}}}));QTRY_VERIFY(!controller.executingCommands());
@@ -29,23 +71,19 @@ private slots:
   QCOMPARE(output,QString("publicprivate"));QVERIFY(controller.property("scratchpad").toString().isEmpty());QVERIFY(controller.property("suggestions").toStringList().isEmpty());
   controller.inputContextChanged(false,true);QVERIFY(!controller.ready());
  }
- void nativePanelRejectsUnsupportedPlacementWithoutChangingLayout(){
+ void nativePanelSwitchesTopAndBottomButRejectsOffsets(){
   Controller controller;controller.configureInputMethod([](QString){return true;},[](QString,bool){return true;});
-  controller.openLayout("keyboard-alphabet-14x4-top",false);
-  QCOMPARE(controller.property("layoutName").toString(),QString("keyboard-alphabet-14x4-bottom"));
-  QVERIFY(controller.property("actionStatus").toString().contains("standalone mode"));
   controller.openLayout("main-14x1-bottom",false);
-  const auto keys=controller.property("layout").toMap()["keys"].toList();
-  const auto reason=keys.front().toMap()["unavailableReason"].toString();
-  QVERIFY(reason.contains("top"));
+  QVERIFY(controller.property("layout").toMap()["keys"].toList().front().toMap()["unavailableReason"].toString().isEmpty());
   controller.clickCommand("key:0");
-  QCOMPARE(controller.property("actionStatus").toString(),reason);
-  QCOMPARE(controller.property("layoutName").toString(),QString("main-14x1-bottom"));
-  QVERIFY(!controller.executingCommands());
-  Controller standalone;standalone.openLayout("main-14x1-bottom",false);
-  QVERIFY(standalone.property("layout").toMap()["keys"].toList().front().toMap()["unavailableReason"].toString().isEmpty());
-  standalone.clickCommand("key:0");
-  QTRY_COMPARE(standalone.property("layoutName").toString(),QString("main-14x1-top"));
+  QTRY_COMPARE(controller.property("layoutName").toString(),QString("main-14x1-top"));
+  controller.clickCommand("key:0");
+  QTRY_COMPARE(controller.property("layoutName").toString(),QString("main-14x1-bottom"));
+  controller.openLayout("keyboard-alphabet-14x4-top",false);
+  QCOMPARE(controller.property("layoutName").toString(),QString("keyboard-alphabet-14x4-top"));
+  controller.openLayout("minimized-off-screen-top",false);
+  QCOMPARE(controller.property("layoutName").toString(),QString("keyboard-alphabet-14x4-top"));
+  QVERIFY(controller.property("actionStatus").toString().contains("standalone mode"));
  }
  void corruptMappingsUseDefaultsAndPreserveSavedFile(){
   const auto path=QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);QVERIFY(QDir().mkpath(path));
@@ -55,15 +93,95 @@ private slots:
   QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),QByteArray("{broken"));file.close();QVERIFY(file.remove());
  }
  void visualPreferencesPersistAndReset(){
-  {Controller controller;controller.setProperty("keyboardScale",125);controller.setProperty("highContrast",true);QVERIFY(controller.savePreferences());}
-  {Controller controller;QCOMPARE(controller.keyboardScale(),125);QVERIFY(controller.property("highContrast").toBool());
-   controller.resetPreferences();QCOMPARE(controller.keyboardScale(),100);QVERIFY(!controller.property("highContrast").toBool());}
+  {Controller controller;controller.setProperty("keyboardScale",125);controller.setProperty("highContrast",true);controller.setProperty("shortLabelScale",125);controller.setProperty("longLabelScale",150);QVERIFY(controller.savePreferences());}
+  {Controller controller;QCOMPARE(controller.keyboardScale(),125);QVERIFY(controller.property("highContrast").toBool());QCOMPARE(controller.property("shortLabelScale").toInt(),125);QCOMPARE(controller.property("longLabelScale").toInt(),150);
+   controller.resetPreferences();QCOMPARE(controller.keyboardScale(),100);QVERIFY(!controller.property("highContrast").toBool());QCOMPARE(controller.property("shortLabelScale").toInt(),150);QCOMPARE(controller.property("longLabelScale").toInt(),100);}
  }
- void settingsByDwellPauseAndCancelBusyOutput(){
+ void magnifierToggleAndZoomPreferences(){
+  {Controller controller;QVERIFY(!controller.property("magnifierEnabled").toBool());
+   QVERIFY(controller.executeCommands({QVariantMap{{"tag","Action"},{"text","MouseMagnifier"}}}));
+   QTRY_VERIFY(!controller.executingCommands());QVERIFY(controller.property("magnifierEnabled").toBool());
+   QVERIFY(controller.executeCommands({QVariantMap{{"tag","Action"},{"text","MouseMagnifier"}}}));
+   QTRY_VERIFY(!controller.executingCommands());QVERIFY(!controller.property("magnifierEnabled").toBool());
+   controller.setProperty("zoomDurationMs",2500);controller.setProperty("magnifierZoom",6);controller.setProperty("progressiveZoom",true);QVERIFY(controller.savePreferences());}
+  {Controller controller;QCOMPARE(controller.property("zoomDurationMs").toInt(),2500);QCOMPARE(controller.property("magnifierZoom").toInt(),6);QVERIFY(controller.property("progressiveZoom").toBool());
+   controller.resetPreferences();QCOMPARE(controller.property("zoomDurationMs").toInt(),1500);QCOMPARE(controller.property("magnifierZoom").toInt(),4);QVERIFY(!controller.property("progressiveZoom").toBool());}
+ }
+ void magnifierStateAutomaticallyPersists(){
+  {Controller controller;controller.resetPreferences();controller.setProperty("magnifierZoom",7);controller.setMagnifierEnabled(true);}
+  {Controller controller;QVERIFY(controller.isMagnifierEnabled());QCOMPARE(controller.property("magnifierZoom").toInt(),4);controller.setMagnifierEnabled(false);}
+  {Controller controller;QVERIFY(!controller.isMagnifierEnabled());controller.setMagnifierEnabled(true);controller.resetPreferences();QVERIFY(!controller.isMagnifierEnabled());}
+  {Controller controller;QVERIFY(!controller.isMagnifierEnabled());}
+ }
+ void progressiveZoomGrowsAndStopsAtChosenMagnification(){
+  Controller controller;controller.inputContextChanged(true,false);
+  controller.setProperty("targeting",true);controller.setProperty("capturePending",true);
+  controller.setProperty("progressiveZoom",true);controller.setProperty("zoomDurationMs",500);controller.setProperty("magnifierZoom",4);
+  QImage frame(QGuiApplication::primaryScreen()->size(),QImage::Format_RGB32);frame.fill(Qt::red);
+  QVERIFY(QMetaObject::invokeMethod(&controller,"receiveMagnifierFrame",Qt::DirectConnection,Q_ARG(QImage,frame)));
+  QVERIFY(controller.property("zoomAnimating").toBool());
+  const auto initial=controller.magnifierImage().size();QVERIFY(initial.width()>frame.width()*.9);
+  controller.targetAt(.5,.5);QVERIFY(controller.property("magnifierReady").toBool()); // No click while the image moves.
+  QTest::qWait(200);const auto middle=controller.magnifierImage().size();
+  QVERIFY(middle.width()<initial.width());QVERIFY(middle.width()>frame.width()/4);
+  QTRY_VERIFY(!controller.property("zoomAnimating").toBool());
+  QCOMPARE(controller.magnifierImage().size(),QSize(frame.width()/4,frame.height()/4));
+  const int revision=controller.property("magnifierRevision").toInt();QTest::qWait(100);
+  QCOMPARE(controller.property("magnifierRevision").toInt(),revision);
+ }
+ void progressiveZoomCancellationStopsAnimation(){
+  Controller controller;controller.setProperty("targeting",true);controller.setProperty("capturePending",true);
+  controller.setProperty("progressiveZoom",true);
+  QImage frame(QGuiApplication::primaryScreen()->size(),QImage::Format_RGB32);frame.fill(Qt::blue);
+  QVERIFY(QMetaObject::invokeMethod(&controller,"receiveMagnifierFrame",Qt::DirectConnection,Q_ARG(QImage,frame)));
+  QVERIFY(controller.property("zoomAnimating").toBool());
+  controller.clickCommand("CancelTarget");QVERIFY(!controller.property("zoomAnimating").toBool());
+  const int revision=controller.property("magnifierRevision").toInt();QTest::qWait(100);
+  QVERIFY(controller.magnifierImage().isNull());QCOMPARE(controller.property("magnifierRevision").toInt(),revision);
+ }
+ void immediateZoomStillWorks(){
+  Controller controller;controller.setProperty("targeting",true);controller.setProperty("capturePending",true);controller.setProperty("progressiveZoom",false);
+  QImage frame(QGuiApplication::primaryScreen()->size(),QImage::Format_RGB32);frame.fill(Qt::blue);
+  QVERIFY(QMetaObject::invokeMethod(&controller,"receiveMagnifierFrame",Qt::DirectConnection,Q_ARG(QImage,frame)));
+  QVERIFY(!controller.property("zoomAnimating").toBool());QCOMPARE(controller.magnifierImage().size(),QSize(frame.width()/4,frame.height()/4));
+ }
+ void oldLiveZoomChoiceMigratesToProgressiveZoom(){
+  ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
+  auto values=ProfileStore::defaults();values.remove("progressiveZoom");values.remove("zoomDurationMs");values["liveZoom"]=true;
+  QVERIFY(store.save(values,error,true));
+  {Controller controller;QVERIFY(controller.property("progressiveZoom").toBool());
+   QCOMPARE(controller.property("zoomDurationMs").toInt(),1500);QVERIFY(controller.savePreferences());}
+  QVERIFY(!store.load().values.contains("liveZoom"));
+  QVERIFY(store.load().values.value("progressiveZoom").toBool());
+  QVERIFY(store.save(ProfileStore::defaults(),error,true));
+ }
+ void targetDwellSettingsPersistAndReset(){
+  {Controller controller;controller.setProperty("targetDwellEnabled",false);controller.setProperty("targetStartDwellMs",500);
+   controller.setProperty("targetConfirmDwellMs",1500);controller.setProperty("targetDwellRadius",65);QVERIFY(controller.savePreferences());}
+  {Controller controller;QVERIFY(!controller.property("targetDwellEnabled").toBool());QCOMPARE(controller.property("targetStartDwellMs").toInt(),500);
+   QCOMPARE(controller.property("targetConfirmDwellMs").toInt(),1500);QCOMPARE(controller.property("targetDwellRadius").toInt(),65);
+   controller.resetPreferences();QVERIFY(controller.property("targetDwellEnabled").toBool());QCOMPARE(controller.property("targetStartDwellMs").toInt(),750);
+   QCOMPARE(controller.property("targetConfirmDwellMs").toInt(),1000);QCOMPARE(controller.property("targetDwellRadius").toInt(),40);}
+ }
+ void shortLabelCheckboxPreferencesMigrate(){
+  ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
+  for(bool enlarged:{false,true}){
+   auto values=ProfileStore::defaults();values.remove("shortLabelScale");values["enlargeShortLabels"]=enlarged;
+   QVERIFY(store.save(values,error,true));
+   {Controller controller;QCOMPARE(controller.property("shortLabelScale").toInt(),enlarged?150:100);
+    QVERIFY(controller.savePreferences());}
+   QCOMPARE(store.load().values["shortLabelScale"].toInt(),enlarged?150:100);
+   QVERIFY(!store.load().values.contains("enlargeShortLabels"));
+  }
+  QVERIFY(store.save(ProfileStore::defaults(),error,true));
+ }
+ void settingsByDwellPreserveActiveInputAndBusyOutput(){
   Controller controller;controller.setProperty("dwellMs",250);QSignalSpy requested(&controller,&Controller::settingsRequested);
   QVERIFY(controller.executeCommands({QVariantMap{{"tag","Wait"},{"text","10000"}}}));
   for(int i=0;i<8&&requested.isEmpty();++i){controller.hover("Settings");QTest::qWait(50);}
-  QCOMPARE(requested.count(),1);QVERIFY(controller.property("paused").toBool());QVERIFY(!controller.executingCommands());
+  QCOMPARE(requested.count(),1);QVERIFY(!controller.property("paused").toBool());QVERIFY(controller.executingCommands());
+  controller.togglePause();controller.clickCommand("Settings");
+  QCOMPARE(requested.count(),2);QVERIFY(controller.property("paused").toBool());
  }
  void everyPackNavigationLinkAndBackFlagExecutes(){
   Controller controller;int links=0;
@@ -100,6 +218,40 @@ private slots:
   QVERIFY(controller.property("paused").toBool());
   QVERIFY(controller.executeCommands({})); // Previous macro no longer owns the runner.
  }
+ void sleepKeyTogglesByClick(){
+  Controller controller;
+  for(const auto &name:{"main-14x1-bottom","main-14x1-top"}){
+   controller.recover();controller.openLayout(name,false);
+   const auto keys=controller.property("layout").toMap()["keys"].toList();
+   QString sleep;
+   for(int i=0;i<keys.size();++i){
+    const auto commands=keys[i].toMap()["commands"].toList();
+    if(commands.size()==1&&commands.front().toMap()["text"]=="Sleep")sleep="key:"+QString::number(i);
+   }
+   QVERIFY(!sleep.isEmpty());
+   controller.clickCommand(sleep);QVERIFY(controller.property("paused").toBool());
+   controller.clickCommand("key:0");QCOMPARE(controller.property("layoutName").toString(),QString(name));
+   controller.clickCommand(sleep);QVERIFY(!controller.property("paused").toBool());
+  }
+ }
+ void sleepKeyDwellResumesOnlyAfterLookingAway(){
+  Controller controller;controller.recover();controller.setProperty("dwellMs",250);
+  const auto keys=controller.property("layout").toMap()["keys"].toList();
+  QString sleep;
+  for(int i=0;i<keys.size();++i){
+   const auto commands=keys[i].toMap()["commands"].toList();
+   if(commands.size()==1&&commands.front().toMap()["text"]=="Sleep")sleep="key:"+QString::number(i);
+  }
+  QVERIFY(!sleep.isEmpty());
+  QVERIFY(controller.executeCommands({QVariantMap{{"tag","Wait"},{"text","10000"}}}));
+  for(int i=0;i<9;++i){controller.hover(sleep);QTest::qWait(50);}
+  QVERIFY(controller.property("paused").toBool());QVERIFY(!controller.executingCommands());
+  for(int i=0;i<9;++i){controller.hover(sleep);QTest::qWait(50);}
+  QVERIFY(controller.property("paused").toBool());
+  controller.hover("");
+  for(int i=0;i<9;++i){controller.hover(sleep);QTest::qWait(50);}
+  QVERIFY(!controller.property("paused").toBool());
+ }
  void cancelTargetByDwellCancelsBusyMacro(){
   Controller controller;controller.setProperty("dwellMs",250);
   QVERIFY(controller.executeCommands({QVariantMap{{"tag","Wait"},{"text","10000"}}}));
@@ -124,7 +276,8 @@ private slots:
 int main(int argc,char **argv){
  QTemporaryDir dir;if(!dir.isValid())return 1;
  qputenv("XDG_CONFIG_HOME",dir.path().toUtf8());
- QCoreApplication app(argc,argv);app.setOrganizationName("OptiKeyTests");app.setApplicationName("Controller");
+ qputenv("QT_QPA_PLATFORM","offscreen");
+ QGuiApplication app(argc,argv);app.setOrganizationName("OptiKeyTests");app.setApplicationName("Controller");
  ControllerTests tests;return QTest::qExec(&tests,argc,argv);
 }
 #include "ControllerTests.moc"

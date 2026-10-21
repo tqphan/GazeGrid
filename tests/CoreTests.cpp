@@ -2,6 +2,7 @@
 #include <QTemporaryDir>
 #include <QFile>
 #include "Dwell.h"
+#include "PointDwell.h"
 #include "KeyboardPack.h"
 #include "KeyboardLayout.h"
 #include "ActionRunner.h"
@@ -9,6 +10,8 @@
 #include "ProfileStore.h"
 #include "PointerActions.h"
 #include "GazeClock.h"
+#include "GazeSmoothing.h"
+#include <limits>
 #include "MagnifierGeometry.h"
 #include "WordPrediction.h"
 #include "ShortcutMappings.h"
@@ -21,6 +24,51 @@ class CoreTests:public QObject{
  Q_OBJECT
 static QVariantMap cmd(QString tag,QString text){return {{"tag",tag},{"text",text}};}
 private slots:
+ void pointDwellToleratesJitterAcrossGridBoundaries(){
+  PointDwell dwell;
+  QVERIFY(!dwell.update({39,39},0,250,20));
+  for(int t=50;t<250;t+=50)QVERIFY(!dwell.update({41,41},t,250,20));
+  QVERIFY(dwell.update({39,41},250,250,20));
+  QVERIFY(!dwell.update({41,39},300,250,20));
+  QVERIFY(!dwell.update({80,80},350,250,20));QCOMPARE(dwell.progress(350,250),0.);
+  QVERIFY(!dwell.update({80,80},600,250,20)); // Tracking gap restarts dwell.
+  QCOMPARE(dwell.progress(600,250),0.);
+  dwell.reset();QCOMPARE(dwell.progress(650,250),0.);
+ }
+ void smoothingMatchesOptikeyReference(){
+  for(bool transitions:{false,true}){
+   GazeSmoothing filter;QCOMPARE(filter.update({100,100},2,transitions),QPointF(100,100));
+   const QList<QPointF> input{{110,105},{120,98},{600,300}};
+   const QList<QPointF> expected=transitions?QList<QPointF>{{100.0001213459688,100.0000606729844},{100.00081746616452,100.00004553567845},{328.9822048163774,190.39717557114443}}:
+    QList<QPointF>{{100.00074915421219,100.00037457710609},{100.0045631146371,99.99999309534304},{599.9999999981073,299.99999999924296}};
+   for(int i=0;i<input.size();++i)QVERIFY(QLineF(filter.update(input[i],2,transitions),expected[i]).length()<1e-9);
+  }
+ }
+ void smoothingOffResetStrengthAndLargeJumps(){
+  GazeSmoothing filter;QCOMPARE(filter.update({20,30},0,true),QPointF(20,30));
+  filter.update({100,100},2,true);filter.update({110,120},2,true);filter.reset();
+  QCOMPARE(filter.update({900,800},2,true),QPointF(900,800));
+  double previousMovement=1e9;
+  for(int level=1;level<=4;++level){
+   filter.reset();filter.update({100,100},level,false);
+   const auto point=filter.update({120,100},level,false);
+   QVERIFY(point.x()>100&&point.x()<120);QVERIFY(point.x()-100<previousMovement);previousMovement=point.x()-100;
+   const auto jump=filter.update({100000,100000},level,false);
+   QVERIFY(std::isfinite(jump.x())&&std::isfinite(jump.y()));
+  }
+  filter.update({std::numeric_limits<double>::quiet_NaN(),0},2,true);
+  QCOMPARE(filter.update({10,20},2,true),QPointF(10,20));
+ }
+ void smoothingProfileValidationAndLegacyCompatibility(){
+  auto values=ProfileStore::defaults();QVERIFY(ProfileStore::valid(values));
+  values.remove("gazeSmoothingLevel");values.remove("smoothWhenChangingGazeTarget");QVERIFY(ProfileStore::valid(values));
+  for(const QJsonValue invalid:{QJsonValue(-1),QJsonValue(5),QJsonValue(1.5),QJsonValue("2")}){
+   values["gazeSmoothingLevel"]=invalid;QVERIFY(!ProfileStore::valid(values));
+  }
+  values["gazeSmoothingLevel"]=4;values["smoothWhenChangingGazeTarget"]=true;QVERIFY(ProfileStore::valid(values));
+  values["smoothWhenChangingGazeTarget"]=1;QVERIFY(!ProfileStore::valid(values));
+ }
+
  void inactiveNativeContextUsesPhysicalFallback(){
   ActionRunner runner;QStringList events;runner.canCommitText=[] {return false;};runner.sendText=[](QString){return false;};
   runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};QSignalSpy done(&runner,&ActionRunner::finished);
@@ -116,14 +164,16 @@ private slots:
  }
  void magnifierCoordinatesStayInsideCapturedDesktop(){
   const QSize image(1920,1080);
-  for(const auto &point:QList<QPointF>{{0,0},{1,1},{.5,.5},{.01,.99}}){
-   auto crop=MagnifierGeometry::crop(image,point);QVERIFY(QRect(QPoint(0,0),image).contains(crop));
-   QCOMPARE(crop.size(),QSize(480,270));
+  for(int zoom=2;zoom<=8;++zoom)for(const auto &point:QList<QPointF>{{0,0},{1,1},{.5,.5},{.01,.99}}){
+   auto crop=MagnifierGeometry::crop(image,point,zoom);QVERIFY(QRect(QPoint(0,0),image).contains(crop));
+   QCOMPARE(crop.size(),QSize(image.width()/zoom,image.height()/zoom));
    const auto top=MagnifierGeometry::map(crop,image,{0,0}),bottom=MagnifierGeometry::map(crop,image,{1,1});
    QVERIFY(MagnifierGeometry::validPoint(top));QVERIFY(MagnifierGeometry::validPoint(bottom));
-   QCOMPARE(bottom.x()-top.x(),.25);QCOMPARE(bottom.y()-top.y(),.25);
+   QVERIFY(qAbs(bottom.x()-top.x()-double(crop.width())/image.width())<1e-12);QVERIFY(qAbs(bottom.y()-top.y()-double(crop.height())/image.height())<1e-12);
   }
   QVERIFY(!MagnifierGeometry::crop(image,{qQNaN(),.5}).isValid());
+  QVERIFY(!MagnifierGeometry::crop(image,{.5,.5},0).isValid());
+  QVERIFY(!MagnifierGeometry::crop(image,{.5,.5},9).isValid());
   QCOMPARE(MagnifierGeometry::map({},image,{.5,.5}),QPointF(-1,-1));
  }
  void queuedGazeMustRemainFreshAndOrdered(){
@@ -133,6 +183,17 @@ private slots:
   QVERIFY(!GazeClock::fresh(1000000,1100000,1000000));
   QVERIFY(!GazeClock::fresh(999999,1100000,1000000));
  }
+ void fractionalZoomKeepsCoordinatesInsideDesktop(){
+  const QSize image(1920,1080);
+  for(double zoom:{1.,1.5,2.75,4.,8.})for(QPointF point:QList<QPointF>{{0,0},{.5,.5},{1,1}}){
+   const auto crop=MagnifierGeometry::crop(image,point,zoom);
+   QVERIFY(QRect(QPoint(),image).contains(crop));
+   QCOMPARE(crop.size(),QSize(int(image.width()/zoom),int(image.height()/zoom)));
+   QVERIFY(MagnifierGeometry::validPoint(MagnifierGeometry::map(crop,image,{.5,.5})));
+  }
+  QVERIFY(!MagnifierGeometry::crop(image,{.5,.5},qQNaN()).isValid());
+ }
+
  void lookScrollDeadzoneDirectionAndTimeAreDeterministic(){
   LookScroll scroll;scroll.start({500,500},0);
   QCOMPARE(scroll.update({520,530},25,true),QPointF());
@@ -248,7 +309,7 @@ private slots:
  void invalidPreferencesAreRejected(){
   QTemporaryDir dir;ProfileStore store(dir.filePath("profile.json"));QString error;
   const auto defaults=ProfileStore::defaults();QVERIFY(store.save(defaults,error));
-  const QList<QPair<QString,QJsonValue>> invalid{{"version",2},{"dwellMs",249},{"dwellMs",3001},{"dwellMs",750.5},{"dwellMs","750"},{"literal",1},{"learning","false"},{"keyboardScale",49},{"keyboardScale",151},{"keyboardScale",100.5},{"highContrast","yes"},{"rememberDesktop","yes"},{"startLayout","../other"},{"startLayout",""}};
+  const QList<QPair<QString,QJsonValue>> invalid{{"version",2},{"dwellMs",249},{"dwellMs",3001},{"dwellMs",750.5},{"dwellMs","750"},{"literal",1},{"learning","false"},{"keyboardScale",49},{"keyboardScale",151},{"keyboardScale",100.5},{"highContrast","yes"},{"enlargeShortLabels","yes"},{"shortLabelScale",49},{"shortLabelScale",201},{"shortLabelScale",100.5},{"shortLabelScale","100"},{"liveZoom","true"},{"progressiveZoom","true"},{"targetDwellEnabled","true"},{"targetStartDwellMs",249},{"targetStartDwellMs",3001},{"targetStartDwellMs",750.5},{"targetStartDwellMs","750"},{"targetConfirmDwellMs",249},{"targetConfirmDwellMs",3001},{"targetDwellRadius",9},{"targetDwellRadius",101},{"targetDwellRadius",40.5},{"targetDwellRadius","40"},{"zoomDurationMs",499},{"zoomDurationMs",5001},{"zoomDurationMs",1500.5},{"zoomDurationMs","1500"},{"magnifierZoom",1},{"magnifierZoom",9},{"magnifierZoom",4.5},{"magnifierZoom","4"},{"longLabelScale",49},{"longLabelScale",201},{"longLabelScale",100.5},{"longLabelScale","100"},{"rememberDesktop","yes"},{"startLayout","../other"},{"startLayout",""}};
   for(const auto &entry:invalid){auto values=defaults;values[entry.first]=entry.second;QVERIFY(!store.save(values,error));QVERIFY(!error.isEmpty());QCOMPARE(store.load().values,defaults);}
  }
  void newerPreferencesArePreservedUntilReset(){
@@ -317,6 +378,43 @@ private slots:
   runner.start({cmd("KeyToggle","A")});QTRY_COMPARE(done.count(),2);QVERIFY(!runner.isHeld("A"));
   runner.start({cmd("KeyToggle","LSHIFT")});QTRY_COMPARE(done.count(),3);runner.cancel();
   QCOMPARE(events,QStringList({"A+","A-","A+","A-"}).mid(0,2)+QStringList({"LSHIFT+","LSHIFT-"}));
+ }
+ void modifierLatchLockCycle(){
+  for(const QString action:{"LeftShift","RightShift","LeftCtrl","RightCtrl","LeftAlt","RightAlt","LeftWin","RightWin"}){
+   ActionRunner runner;QStringList events;
+   runner.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+   QSignalSpy done(&runner,&ActionRunner::finished);
+   const auto commands=QVariantList{cmd("Action",action)};
+   const auto name=ActionRunner::modifierName(commands);QVERIFY(!name.isEmpty());
+   QVERIFY(runner.start(commands));QTRY_COMPARE(done.count(),1);
+   QCOMPARE(runner.modifierStates().value(name).toString(),QString("latched"));
+   QVERIFY(runner.start({cmd("Text","a")}));QTRY_COMPARE(done.count(),2);
+   QVERIFY(runner.modifierStates().isEmpty());QVERIFY(runner.heldKeys().isEmpty());
+   QCOMPARE(events,QStringList({name+"+","A+","A-",name+"-"}));events.clear();
+   QVERIFY(runner.start(commands));QTRY_COMPARE(done.count(),3);
+   QVERIFY(runner.start(commands));QTRY_COMPARE(done.count(),4);
+   QCOMPARE(runner.modifierStates().value(name).toString(),QString("locked"));
+   QCOMPARE(events,QStringList({name+"+"}));
+   QVERIFY(runner.start({cmd("Text","b")}));QTRY_COMPARE(done.count(),5);
+   QCOMPARE(runner.modifierStates().value(name).toString(),QString("locked"));
+   QVERIFY(runner.start(commands));QTRY_COMPARE(done.count(),6);
+   QVERIFY(runner.modifierStates().isEmpty());QVERIFY(runner.heldKeys().isEmpty());
+  }
+ }
+ void latchedModifiersReleaseOnActionCancelAndFailure(){
+  ActionRunner runner;runner.sendKey=[](QString,bool){return true;};
+  QSignalSpy done(&runner,&ActionRunner::finished),failed(&runner,&ActionRunner::failed);
+  QVERIFY(runner.start({cmd("Action","LeftCtrl")}));QTRY_COMPARE(done.count(),1);
+  QVERIFY(runner.start({cmd("Action","LeftShift")}));QTRY_COMPARE(done.count(),2);
+  QCOMPARE(runner.modifierStates().size(),2);
+  QVERIFY(runner.start({cmd("Action","Left")}));QTRY_COMPARE(done.count(),3);
+  QVERIFY(runner.heldKeys().isEmpty());QVERIFY(runner.modifierStates().isEmpty());
+  QVERIFY(runner.start({cmd("Action","LeftShift")}));QTRY_COMPARE(done.count(),4);
+  runner.cancel();QVERIFY(runner.modifierStates().isEmpty());QVERIFY(runner.heldKeys().isEmpty());
+  QVERIFY(runner.start({cmd("Action","LeftShift")}));QTRY_COMPARE(done.count(),5);
+  runner.sendKey=[](QString key,bool down){return key!="A"||!down;};
+  QVERIFY(runner.start({cmd("Text","a")}));QTRY_COMPARE(failed.count(),1);
+  QVERIFY(runner.modifierStates().isEmpty());QVERIFY(runner.heldKeys().isEmpty());
  }
  void failureReleasesEarlierKeys(){
   ActionRunner runner;QStringList events;runner.sendKey=[&](QString key,bool down){if(key=="A")return false;events<<key+(down?"+":"-");return true;};

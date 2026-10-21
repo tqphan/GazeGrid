@@ -1,18 +1,23 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import org.kde.desktop as Desktop
+import org.kde.kirigami as Kirigami
 Window {
  id: root
  objectName: "keyboardWindow"
  width: 1100; height: 370; visible: false
  title: "OptiKey Pro"
- color: controller.layout.backgroundcolor || "white"
+ color: controller.highContrast?"black":Kirigami.Theme.backgroundColor
  flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
  property string hovered: ""
  property real progress: 0
  property bool gazeEnabled: false
+ property bool gazeCheck: false
+ property bool minimizedRecovery:controller.layoutName.startsWith("minimized-off-screen-")
  property bool gazeValid: false
  property point gaze: Qt.point(-1,-1)
+ property color dwellColor:controller.highContrast?"#ffff00":Kirigami.Theme.highlightColor
  // Geometry is supplied by the platform adapter; Wayland does not expose reliable global window positions.
  property real screenLeft: 0
  property real screenTop: 0
@@ -20,15 +25,14 @@ Window {
  property real screenHeight: 900
  property real logicalX: 0
  property real logicalY: 530
- property string targetCell: ""
- property real targetSince: 0
- property string targetPrompt: controller.targetPrompt
- onTargetPromptChanged: {targetCell="";targetSince=0}
+ property real targetProgress:0
+ property point targetPoint:Qt.point(-1,-1)
+ property bool targetPointValid:false
  function keyAt(px,py) {
   for(let i=0;i<keys.count;++i){let item=keys.itemAt(i);if(!item)continue
    if(px>=item.x&&py>=item.y&&px<item.x+item.width&&py<item.y+item.height){
     if(item.modelData.kind==="SuggestionRow") {
-     let n=Math.floor((px-item.x)/(item.width/8));return n<controller.suggestions.length?"suggest:"+n:""
+     let n=Math.floor((px-item.x)/item.predictionWidth);return n<item.predictionCount&&n<controller.suggestions.length?"suggest:"+n:""
     }
     return "key:"+i
    }
@@ -37,37 +41,34 @@ Window {
  }
  Connections {
   target:controller
-  function onSettingsRequested(){settings.show();settings.requestActivate()}
+  function onSettingsRequested(){settings.showNormal();settings.raise();settings.requestActivate()}
   function onLayoutChanged(){root.hovered="";root.progress=0}
   function onGazePoint(x,y,valid){root.gazeValid=valid;root.gaze=Qt.point(x,y)}
-  function onChanged(){if(!controller.targeting){root.targetCell="";root.targetSince=0}}
+  function onChanged(){if(!controller.targeting){root.targetProgress=0;root.targetPointValid=false}}
  }
  Timer {
-  interval:25;running:true;repeat:true
+  interval:25;running:!root.gazeCheck;repeat:true
   onTriggered:{
    let target=root.hovered
    if(root.gazeEnabled){
     target=""
     if(root.gazeValid){
      let px=root.gaze.x*root.screenWidth,py=root.gaze.y*root.screenHeight
-     let barY=controller.layout.position==="Top"?root.screenHeight-controls.height:0
      let overPanel=px>=root.logicalX&&px<root.logicalX+root.width&&py>=root.logicalY&&py<root.logicalY+root.height
-     controller.trackGaze(root.gaze.x,root.gaze.y,!overPanel&&!(py>=barY&&py<barY+controls.height)&&!settings.visible)
-     if(controller.targeting){
-      let cancelPoint=targetCancel.mapFromItem(targetWindow.contentItem,px,py)
-      if(cancelPoint.x>=0&&cancelPoint.y>=0&&cancelPoint.x<targetCancel.width&&cancelPoint.y<targetCancel.height){
-       target="CancelTarget";root.targetCell="";root.targetSince=0
-      }else{
-       let cell=Math.floor(px/40)+":"+Math.floor(py/40), now=Date.now()
-       if(cell!==root.targetCell){root.targetCell=cell;root.targetSince=now}
-       else if(now-root.targetSince>=controller.dwellMs){root.targetSince=now+100000;controller.targetAt(root.gaze.x,root.gaze.y)}
-      }
-     }else{
-      let barTop=controller.layout.position==="Top"?root.screenHeight-controls.height:0
-      if(py>=barTop&&py<barTop+controls.height)target=controls.commandAt(px,py-barTop)
-      else target=root.keyAt(px-root.logicalX,py-root.logicalY)
-     }
-    }else {root.targetCell="";root.targetSince=0}
+     controller.trackGaze(root.gaze.x,root.gaze.y,!overPanel&&!settings.visible)
+     if(!controller.targeting)target=root.keyAt(px-root.logicalX,py-root.logicalY)
+    }
+   }
+   if(controller.targeting){
+    const point=root.gazeEnabled?root.gaze:Qt.point(targetPointer.mouseX/targetWindow.width,targetPointer.mouseY/targetWindow.height)
+    const valid=root.gazeEnabled?root.gazeValid:targetPointer.containsMouse&&targetWindow.visible
+    const cancelPoint=targetCancel.mapFromItem(targetWindow.contentItem,point.x*targetWindow.width,point.y*targetWindow.height)
+    const overCancel=(!root.gazeEnabled&&targetCancel.hovered)||(valid&&cancelPoint.x>=0&&cancelPoint.y>=0&&cancelPoint.x<targetCancel.width&&cancelPoint.y<targetCancel.height)
+    target=overCancel?"CancelTarget":""
+    root.targetPoint=point;root.targetPointValid=valid&&!overCancel
+    root.targetProgress=controller.dwellAt(point.x,point.y,valid&&!overCancel)
+   }else{
+    root.targetPointValid=false;root.targetProgress=controller.dwellAt(0,0,false)
    }
    root.progress=controller.hover(target)
   }
@@ -80,36 +81,67 @@ Window {
    required property var modelData
    required property int index
    property string command:"key:"+index
+   property string modifier:controller.modifierName(modelData.commands || [])
+   property string modifierState:modifier?(controller.modifierStates[modifier] || ""):""
+   property bool magnifierKey: {
+    const commands=modelData.commands || []
+    return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="MouseMagnifier"
+   }
+   property bool stateFilled:modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)
+   property string stateLabel:sleepKey?(controller.paused?"On":"Off"):magnifierKey?(controller.magnifierEnabled?"On":"Off"):modifierState==="locked"?"Locked":"Latched"
+   property real predictionWidth:2*root.width/controller.layout.cols
+   property int predictionCount:Math.floor(modelData.width/2)
+   property bool sleepKey: {
+    const commands=modelData.commands || []
+    return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="Sleep"&&!unavailableReason
+   }
+   property bool resumeKey:controller.paused&&sleepKey
+   enabled:!controller.paused||sleepKey
    property string unavailableReason:modelData.unavailableReason || ""
-   property string label:controller.shifted&&modelData.shiftLabel?modelData.shiftLabel:modelData.label
+   property string label:root.minimizedRecovery?"↗":controller.shifted&&modelData.shiftLabel?modelData.shiftLabel:modelData.label
    property real symbolMargin:controller.layout.symbolmargin!==undefined?Math.max(0,Number(controller.layout.symbolmargin)):12
-   property color foreground:controller.highContrast?"white":modelData.style.foregroundcolor
+   property color foreground:controller.highContrast?"white":Kirigami.Theme.textColor
    x:modelData.col*root.width/controller.layout.cols
    y:modelData.row*root.height/controller.layout.rows
    width:modelData.width*root.width/controller.layout.cols
    height:modelData.height*root.height/controller.layout.rows
-   color:controller.highContrast?"black":modelData.style.backgroundcolor
-   opacity:controller.highContrast?1:Number(modelData.style.opacity)
-   border.width:1;border.color:"#d4d9df"
-   property bool active:root.gazeEnabled ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command
-   Rectangle {anchors.fill:parent;color:"#2387b8";opacity:key.active?0.18:0}
+   color:controller.highContrast?"black":Kirigami.Theme.backgroundColor
+   opacity:enabled?1:0.35
+   Kirigami.Theme.colorSet:Kirigami.Theme.Button
+   Kirigami.Theme.inherit:false
+   border.width:1;border.color:Kirigami.Theme.disabledTextColor
+   property bool active:enabled&&(root.gazeEnabled ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
+   Rectangle {anchors.fill:parent;color:Kirigami.Theme.highlightColor;opacity:key.active?0.18:0}
+   Rectangle {
+    anchors.fill:parent;anchors.margins:2
+    visible:key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)
+    color:key.stateFilled?root.dwellColor:"transparent"
+    opacity:key.stateFilled?0.25:1
+    border.width:2;border.color:root.dwellColor
+   }
    Column {
     anchors.centerIn:parent;spacing:4
+    anchors.verticalCenterOffset:(key.modifier||key.magnifierKey||key.sleepKey)?-9:0
     visible:key.modelData.kind!=="SuggestionRow"&&!key.unavailableReason
     Image {
      anchors.horizontalCenter:parent.horizontalCenter
-     visible:key.modelData.symbol!==""&&key.modelData.symbol!=="NoIcon"
-     width:Math.max(1,Math.min(key.width-2*key.symbolMargin,key.height-2*key.symbolMargin-(key.label?30:0)))
+     // NoIcon is the pack's X symbol, not an instruction to hide the image.
+     visible:!root.minimizedRecovery&&key.modelData.symbol!==""
+     width:Math.max(1,Math.min(key.width-2*key.symbolMargin,key.height-2*key.symbolMargin-((key.modifier||key.magnifierKey||key.sleepKey)?18:0)-(key.label?keyLabel.implicitHeight+4:0)))
      height:width
      source:visible?"image://symbols/"+key.modelData.symbol+"/"+encodeURIComponent(key.foreground):""
      sourceSize.width:width*root.screen.devicePixelRatio;sourceSize.height:height*root.screen.devicePixelRatio
-     opacity:controller.highContrast?1:Number(key.modelData.style.foregroundopacity)
+     opacity:1
      fillMode:Image.PreserveAspectFit
     }
     Text {
+     id:keyLabel
      visible:key.label!=="";text:key.label;color:key.foreground
-     opacity:controller.highContrast?1:Number(key.modelData.style.foregroundopacity)
-     font.pixelSize:Math.max(16,Math.min(40,key.height*.32));anchors.horizontalCenter:parent.horizontalCenter
+     opacity:1
+     width:Math.max(1,key.width-12)
+     font.pixelSize:Math.max(16,Math.min(40,key.height*.32))*(text.length<=3?controller.shortLabelScale:controller.longLabelScale)/100
+     minimumPixelSize:8;fontSizeMode:Text.HorizontalFit
+     horizontalAlignment:Text.AlignHCenter;anchors.horizontalCenter:parent.horizontalCenter
     }
    }
    Text {
@@ -120,9 +152,6 @@ Window {
     horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
     wrapMode:Text.WordWrap
    }
-   ToolTip.visible:key.active&&key.unavailableReason.length>0
-   ToolTip.text:key.unavailableReason
-   ToolTip.delay:400
    MouseArea {
     anchors.fill:parent;hoverEnabled:true;enabled:key.modelData.kind!=="SuggestionRow"
     onEntered:root.hovered=key.command
@@ -132,116 +161,263 @@ Window {
    Row {
     anchors.fill:parent;visible:key.modelData.kind==="SuggestionRow"
     Repeater {
-     model:8
+     model:key.modelData.kind==="SuggestionRow"?key.predictionCount:0
      Rectangle {
       required property int index
-      width:key.width/8;height:key.height;color:"transparent";border.color:"#d4d9df"
-      Text {anchors.fill:parent;anchors.margins:4;text:index<controller.suggestions.length?controller.suggestions[index]:"";color:key.foreground;font.pixelSize:Math.min(24,key.height*.28);fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
+      width:key.predictionWidth;height:key.height;color:"transparent";border.color:Kirigami.Theme.disabledTextColor
+      Text {anchors.fill:parent;anchors.margins:4;text:index<controller.suggestions.length?controller.suggestions[index]:"";color:key.foreground;font.pixelSize:Math.min(24,key.height*.28)*(text.length<=3?controller.shortLabelScale:controller.longLabelScale)/100;fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
       MouseArea {anchors.fill:parent;hoverEnabled:true;onEntered:root.hovered="suggest:"+index;onExited:root.hovered="";onClicked:controller.clickCommand("suggest:"+index)}
-      Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(root.hovered==="suggest:"+index?root.progress:0);color:"#168e86"}
+      Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(root.hovered==="suggest:"+index?root.progress:0);color:root.dwellColor}
      }
     }
    }
-   Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(key.active?root.progress:0);color:"#168e86"}
+   Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(key.active?root.progress:0);color:root.dwellColor}
+   Rectangle {
+    visible:key.modifierState!==""||key.magnifierKey||key.sleepKey
+    anchors.bottom:parent.bottom;anchors.bottomMargin:7
+    anchors.horizontalCenter:parent.horizontalCenter
+    width:Math.max(1,Math.min(key.width-8,76));height:18;radius:3
+    color:key.stateFilled?root.dwellColor:root.color
+    border.width:1;border.color:root.dwellColor
+    Text {
+     anchors.fill:parent;anchors.margins:2
+     text:key.stateLabel
+     color:key.stateFilled?(controller.highContrast?"black":Kirigami.Theme.highlightedTextColor):key.foreground
+     font.pixelSize:12;font.bold:true;minimumPixelSize:8;fontSizeMode:Text.Fit
+     horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
+    }
+   }
    Accessible.role:Accessible.Button
-   Accessible.name:key.unavailableReason?key.unavailableReason:(key.label||key.modelData.symbol)
+   Accessible.description:key.sleepKey?(controller.paused?"Pause on":"Pause off"):key.magnifierKey?(controller.magnifierEnabled?"Magnifier on":"Magnifier off"):key.modifier?(key.modifierState==="locked"?"Locked until selected again":key.modifierState==="latched"?"Latched for the next key":"Off. Select once to latch, twice to lock."):""
+   Accessible.name:key.sleepKey?(controller.paused?"Resume input":"Pause input"):root.minimizedRecovery?"Restore keyboard":key.unavailableReason?key.unavailableReason:(key.label||key.modelData.symbol)
    Accessible.onPressAction:controller.clickCommand(key.command)
   }
  }
- Rectangle {visible:root.gazeEnabled&&root.gazeValid&&!controller.targeting;x:root.gaze.x*root.screenWidth-root.logicalX-7;y:root.gaze.y*root.screenHeight-root.logicalY-7;width:14;height:14;radius:7;color:"transparent";border.width:2;border.color:"#008e83"}
  Window {
-  id:controls;objectName:"controlWindow";visible:false;width:1100;height:84;color:"#101923"
-  title:"OptiKey controls";flags:Qt.FramelessWindowHint|Qt.WindowDoesNotAcceptFocus|Qt.WindowStaysOnTopHint
-  function commandAt(x,y){
-   for(let item of [authorize,tobii,pause,recover,openSettings,speakButton,stopSpeechButton]){let p=item.mapFromItem(controls.contentItem,x,y);if(p.x>=0&&p.y>=0&&p.x<item.width&&p.y<item.height)return item.command}
-   return ""
+  id:gazeOverlay;objectName:"gazeOverlay";visible:root.gazeEnabled&&!controller.targeting
+  width:root.screenWidth;height:root.screenHeight;color:"transparent"
+  title:"OptiKey gaze indicator"
+  flags:Qt.FramelessWindowHint|Qt.WindowDoesNotAcceptFocus|Qt.WindowStaysOnTopHint|Qt.WindowTransparentForInput
+  Rectangle {
+   visible:root.gazeValid
+   x:root.gaze.x*gazeOverlay.width-width/2;y:root.gaze.y*gazeOverlay.height-height/2
+   width:18;height:18;radius:9;color:Qt.alpha(Kirigami.Theme.highlightColor,0.2);border.width:2;border.color:"#ffffff"
+   Rectangle {anchors.fill:parent;anchors.margins:3;radius:6;color:"transparent";border.width:1;border.color:Kirigami.Theme.highlightColor}
+   Rectangle {anchors.centerIn:parent;width:2;height:2;radius:1;color:"#ffffff"}
   }
-  component Tool:Button {
+ }
+ Window {
+  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1000,root.screenWidth);height:Math.min(720,root.screenHeight-60);title:"OptiKey settings";color:Kirigami.Theme.backgroundColor
+  minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
+  property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Shortcuts"]
+  property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","preferences-desktop-keyboard-shortcuts"]
+  onClosing:controller.clickCommand("CancelTarget")
+  component Tool:Desktop.Button {
    property string command:""
    focusPolicy:Qt.NoFocus
    onHoveredChanged:root.hovered=hovered?command:""
    onClicked:controller.clickCommand(command)
    Accessible.name:text
   }
-  ColumnLayout {
-   anchors.fill:parent;anchors.margins:6;spacing:2
-   RowLayout {
-    Text {text:"OptiKey Pro";color:"white";font.bold:true;font.pixelSize:18}
-    Tool {id:authorize;text:"Authorize";command:"Connect"}
-    Tool {id:tobii;text:"Tobii";command:"Tobii"}
-    Tool {id:pause;text:controller.paused?"Resume":"Pause";command:"Pause"}
-    Tool {id:recover;text:"Home / recover";command:"Recover"}
-    CheckBox {text:"Gaze";palette.windowText:"white";palette.text:"white";focusPolicy:Qt.NoFocus;onToggled:{root.gazeEnabled=checked;controller.setGazeEnabled(checked)}}
-    Text {text:controller.magneticCursor?"Cursor follows gaze":"";color:"#65d7c2"}
-    Text {text:controller.lookScrolling?"Look to scroll active":"";color:"#65d7c2"}
-    Text {text:controller.capturePending?"Waiting for desktop capture":controller.magnifierEnabled?"Magnifier on":"";color:"#65d7c2"}
-    Tool {id:openSettings;text:"Settings";command:"Settings"}
-    Tool {id:speakButton;text:"Speak";command:"Speak"}
-    Tool {id:stopSpeechButton;text:"Stop speech";command:"StopSpeech"}
-    Item {Layout.fillWidth:true}
-    Text {text:controller.heldKeys.length?"Held: "+controller.heldKeys.join(", "):"";color:"#ffd49a"}
-    Text {text:controller.heldPointerButtons.length?"Mouse held: "+controller.heldPointerButtons.join(", "):"";color:"#ffd49a"}
-    Button {text:"Close";focusPolicy:Qt.NoFocus;onClicked:Qt.quit()}
-   }
-   RowLayout {
-    Text {text:controller.portalStatus;color:controller.ready?"#65d7c2":"#ffd49a";font.pixelSize:12}
-    Text {text:controller.actionStatus;color:"#d2dfec";font.pixelSize:12;Layout.fillWidth:true;elide:Text.ElideRight}
-    Text {text:controller.tobiiStatus;color:"#d2dfec";font.pixelSize:12}
-   }
-  }
- }
- Window {
-  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(860,root.screenWidth);height:Math.min(850,root.screenHeight-60);title:"OptiKey settings";color:"#f4f6f9"
-  onClosing:controller.clickCommand("CancelTarget")
-  ScrollView {
-   id:settingsScroll;anchors.fill:parent;anchors.margins:16;contentWidth:availableWidth
-  ColumnLayout {
-   width:settingsScroll.availableWidth;spacing:8
-   Label {text:"Input is paused while you edit settings. Resume from the control bar.";wrapMode:Text.Wrap;Layout.fillWidth:true}
-   RowLayout {
-    Label {text:"Keyboard"}
-    ComboBox {
-     model:includeHidden.checked?controller.layoutNames:controller.menuLayoutNames
-     currentIndex:model.indexOf(controller.layoutName)
-     displayText:currentIndex<0?controller.layoutName:currentText
-     Layout.fillWidth:true;onActivated:controller.openLayout(currentText)
+
+  RowLayout {
+   anchors.fill:parent;spacing:0
+   Rectangle {
+    Layout.preferredWidth:190;Layout.fillHeight:true
+    color:Kirigami.Theme.backgroundColor
+    Kirigami.Theme.colorSet:Kirigami.Theme.View
+    Kirigami.Theme.inherit:false
+    ListView {
+     id:settingsCategory;objectName:"settingsCategory"
+     anchors.fill:parent;anchors.margins:6;clip:true
+     model:settings.categoryNames;currentIndex:0
+     Accessible.name:"Settings categories"
+     onCurrentIndexChanged:if(settingsScroll.contentItem)settingsScroll.contentItem.contentY=0
+     delegate:Desktop.ItemDelegate {
+      required property int index
+      required property string modelData
+      width:ListView.view.width;text:modelData
+      icon.name:settings.categoryIcons[index]
+      highlighted:ListView.isCurrentItem
+      onClicked:settingsCategory.currentIndex=index
+     }
     }
    }
-   CheckBox {id:includeHidden;text:"Include layouts hidden by the XML pack"}
-   RowLayout {Label {text:"Dwell: "+controller.dwellMs+" ms"} Slider {from:250;to:3000;stepSize:50;value:controller.dwellMs;Layout.fillWidth:true;onMoved:controller.dwellMs=value}}
-   RowLayout {Label {text:"Keyboard height: "+controller.keyboardScale+"%"} Slider {from:50;to:150;stepSize:5;value:controller.keyboardScale;Layout.fillWidth:true;onMoved:controller.keyboardScale=value}}
-   CheckBox {text:"High contrast (overrides imported key colors)";checked:controller.highContrast;onToggled:controller.highContrast=checked}
-   CheckBox {text:"Literal keys (bypass platform mappings)";checked:controller.literal;onToggled:controller.literal=checked}
-   CheckBox {text:"Learn word frequencies locally";checked:controller.learning;onToggled:controller.learning=checked}
-   CheckBox {text:"Remember desktop-control permission, if supported";checked:controller.rememberDesktop;onToggled:controller.rememberDesktop=checked}
-   Button {text:"Disconnect and forget desktop permission";onClicked:controller.forgetDesktopPermission()}
-   RowLayout {
-    Button {text:"Save preferences and startup keyboard";onClicked:controller.savePreferences()}
-    Button {text:"Reset preferences";onClicked:controller.resetPreferences()}
+   Kirigami.Separator {Layout.fillHeight:true}
+   ColumnLayout {
+    Layout.fillWidth:true;Layout.fillHeight:true;Layout.margins:16;spacing:12
+    Kirigami.Heading {text:settings.categoryNames[settingsCategory.currentIndex];level:1;Layout.fillWidth:true}
+    Desktop.Label {text:controller.paused?"Input is paused. Use the keyboard’s Sleep key to resume.":"Input is active.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+   Desktop.ScrollView {
+    id:settingsScroll;Layout.fillWidth:true;Layout.fillHeight:true;contentWidth:availableWidth
+    ColumnLayout {
+     width:settingsScroll.availableWidth;spacing:12
+     Desktop.GroupBox {
+      title:settings.categoryNames[0];visible:settingsCategory.currentIndex==0;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:10
+       Desktop.Label {text:!root.gazeEnabled?"Gaze off":root.gazeValid?"Gaze: receiving":"Gaze: waiting for valid on-screen point";Layout.fillWidth:true;wrapMode:Text.Wrap}
+       Desktop.Label {text:"Desktop control: "+controller.portalStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
+       Desktop.Label {text:"Last action: "+controller.actionStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
+       Desktop.Label {text:"Eye tracker: "+controller.tobiiStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
+       Text {visible:text.length>0;text:controller.magneticCursor?"Cursor follows gaze":"";color:Kirigami.Theme.positiveTextColor}
+       Text {visible:text.length>0;text:controller.lookScrolling?"Look to scroll active":"";color:Kirigami.Theme.positiveTextColor}
+       Text {visible:text.length>0;text:controller.capturePending?"Waiting for desktop capture":controller.magnifierEnabled?"Magnifier on":"";color:Kirigami.Theme.positiveTextColor}
+       Text {visible:text.length>0;text:controller.heldKeys.length?"Held: "+controller.heldKeys.join(", "):"";color:Kirigami.Theme.neutralTextColor}
+       Text {visible:text.length>0;text:controller.heldPointerButtons.length?"Mouse held: "+controller.heldPointerButtons.join(", "):"";color:Kirigami.Theme.neutralTextColor}
+       Tool {id:recover;text:"Home / recover";command:"Recover"}
+       Desktop.Button {text:"Quit OptiKey";icon.name:"application-exit";onClicked:Qt.quit()}
+      }
+     }
+     Desktop.GroupBox {
+      title:settings.categoryNames[1];visible:settingsCategory.currentIndex==1;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:10
+       RowLayout {
+        Desktop.Label {text:"Keyboard"}
+        Desktop.ComboBox {
+         model:includeHidden.checked?controller.layoutNames:controller.menuLayoutNames
+         currentIndex:model.indexOf(controller.layoutName)
+         displayText:currentIndex<0?controller.layoutName:currentText
+         Layout.fillWidth:true;onActivated:controller.openLayout(currentText)
+        }
+       }
+       Desktop.CheckBox {id:includeHidden;text:"Include layouts hidden by the XML pack"}
+       Kirigami.Heading {text:"Appearance";level:3;Layout.topMargin:12}
+       RowLayout {Desktop.Label {text:"Keyboard height: "+controller.keyboardScale+"%"} Desktop.Slider {from:50;to:150;stepSize:5;value:controller.keyboardScale;Layout.fillWidth:true;onMoved:controller.keyboardScale=value}}
+       Desktop.CheckBox {text:"High contrast (white keys on black)";checked:controller.highContrast;onToggled:controller.highContrast=checked}
+       RowLayout {Desktop.Label {text:"Short key label size: "+controller.shortLabelScale+"%"} Desktop.Slider {from:50;to:200;stepSize:5;value:controller.shortLabelScale;Layout.fillWidth:true;onMoved:controller.shortLabelScale=value}}
+       RowLayout {Desktop.Label {text:"Long key label size: "+controller.longLabelScale+"%"} Desktop.Slider {from:50;to:200;stepSize:5;value:controller.longLabelScale;Layout.fillWidth:true;onMoved:controller.longLabelScale=value}}
+       Desktop.Label {text:"Short labels have 3 characters or fewer. Text shrinks to fit each key.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Kirigami.Heading {text:"Restore button";level:3;Layout.topMargin:12}
+       RowLayout {
+        Desktop.Label {text:"Restore square corner"}
+        Desktop.ComboBox {model:["Top left","Top right","Bottom left","Bottom right"];currentIndex:controller.restoreCorner;onActivated:controller.restoreCorner=currentIndex}
+       }
+       RowLayout {
+        Desktop.Label {text:"Restore square size: "+controller.restoreSize+" px"}
+        Desktop.Slider {from:40;to:128;stepSize:8;value:controller.restoreSize;Layout.fillWidth:true;onMoved:controller.restoreSize=value}
+       }
+      }
+     }
+     Desktop.GroupBox {
+      title:settings.categoryNames[2];visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:10
+       Desktop.CheckBox {text:"Enable gaze input";checked:root.gazeEnabled;enabled:!root.gazeCheck;focusPolicy:Qt.NoFocus;onToggled:{root.gazeEnabled=checked;controller.setGazeEnabled(checked)}}
+       Tool {id:tobii;text:"Connect eye tracker";command:"Tobii"}
+       Kirigami.Heading {text:"Gaze smoothing";level:3;Layout.topMargin:8}
+       RowLayout {
+        Desktop.Label {text:"Gaze smoothing"}
+        Desktop.ComboBox {model:["0 — Off","1 — Low","2 — Medium","3 — High","4 — Extreme"];currentIndex:controller.gazeSmoothingLevel;onActivated:controller.gazeSmoothingLevel=currentIndex}
+       }
+       Desktop.CheckBox {text:"Smooth when changing gaze target";checked:controller.smoothWhenChangingGazeTarget;enabled:controller.gazeSmoothingLevel>0;onToggled:controller.smoothWhenChangingGazeTarget=checked}
+       Desktop.Label {text:"Higher levels reduce jitter but respond more slowly.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Kirigami.Heading {text:"Keyboard selection";level:3;Layout.topMargin:12}
+       RowLayout {Desktop.Label {text:"Keyboard dwell: "+controller.dwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.dwellMs;Layout.fillWidth:true;onMoved:controller.dwellMs=value}}
+
+      }
+     }
+     Desktop.GroupBox {
+      title:"Zoom behavior";visible:settingsCategory.currentIndex==3;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:10
+       RowLayout {Desktop.Label {text:"Magnifier zoom: "+controller.magnifierZoom+"×"} Desktop.Slider {from:2;to:8;stepSize:1;value:controller.magnifierZoom;Layout.fillWidth:true;onMoved:controller.magnifierZoom=value}}
+       Desktop.CheckBox {text:"Progressive zoom (increase magnification over time)";checked:controller.progressiveZoom;onToggled:controller.progressiveZoom=checked}
+       RowLayout {Desktop.Label {text:"Zoom duration: "+(controller.zoomDurationMs/1000).toFixed(1)+" s"} Desktop.Slider {from:500;to:5000;stepSize:100;value:controller.zoomDurationMs;enabled:controller.progressiveZoom;Layout.fillWidth:true;onMoved:controller.zoomDurationMs=value}}
+       Desktop.Label {text:"Progressive zoom grows from 1× to the chosen magnification. Precise selection starts when the zoom finishes. Changes apply to the next target.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Kirigami.Heading {text:"Target selection";level:3;Layout.topMargin:12}
+       Desktop.CheckBox {text:"Select pointer targets by dwell";checked:controller.targetDwellEnabled;onToggled:controller.targetDwellEnabled=checked}
+       RowLayout {Desktop.Label {text:"Start zoom / target dwell: "+controller.targetStartDwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.targetStartDwellMs;enabled:controller.targetDwellEnabled;Layout.fillWidth:true;onMoved:controller.targetStartDwellMs=value}}
+       RowLayout {Desktop.Label {text:"Confirm zoomed target dwell: "+controller.targetConfirmDwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.targetConfirmDwellMs;enabled:controller.targetDwellEnabled;Layout.fillWidth:true;onMoved:controller.targetConfirmDwellMs=value}}
+       RowLayout {Desktop.Label {text:"Target dwell movement tolerance: "+controller.targetDwellRadius+" px"} Desktop.Slider {from:10;to:100;stepSize:5;value:controller.targetDwellRadius;enabled:controller.targetDwellEnabled;Layout.fillWidth:true;onMoved:controller.targetDwellRadius=value}}
+       Desktop.Label {text:"Hold your gaze, or hover the pointer, to start zoom. After zoom finishes, dwell again to confirm. The ring shows progress; no mouse click is needed. Enable gaze input under Gaze & dwell to use the eye tracker.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+      }
+     }
+     Desktop.GroupBox {
+      title:settings.categoryNames[4];visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:10
+       Desktop.CheckBox {text:"Literal keys (bypass platform mappings)";checked:controller.literal;onToggled:controller.literal=checked}
+       Desktop.CheckBox {text:"Learn word frequencies locally";checked:controller.learning;onToggled:controller.learning=checked}
+       Desktop.Button {text:"Reset learned words";onClicked:controller.resetLearning()}
+       Kirigami.Heading {text:"Speech";level:3;Layout.topMargin:8}
+       Flow {Layout.fillWidth:true;spacing:8
+        Tool {id:speakButton;text:"Speak";command:"Speak"}
+        Tool {id:stopSpeechButton;text:"Stop speech";command:"StopSpeech"}
+       }
+       Desktop.Label {text:"Scratchpad (text typed by OptiKey only)"}
+       Desktop.TextArea {text:controller.scratchpad;readOnly:true;Layout.fillWidth:true;Layout.preferredHeight:70;wrapMode:Text.Wrap}
+      }
+     }
+     Desktop.GroupBox {
+      title:settings.categoryNames[5];visible:settingsCategory.currentIndex==5;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:10
+       Tool {id:authorize;text:"Connect desktop control";command:"Connect"}
+       Desktop.CheckBox {text:"Remember desktop-control permission, if supported";checked:controller.rememberDesktop;onToggled:controller.rememberDesktop=checked}
+       Desktop.Label {text:"When saved, this also connects keyboard and mouse control automatically at startup. The desktop may still ask for permission.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Desktop.Button {text:"Disconnect and forget desktop permission";onClicked:controller.forgetDesktopPermission()}
+       Desktop.Label {text:"Screenshot access is separate. Approve the first magnifier capture; supported desktops remember that approval for OptiKey until it is revoked.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+      }
+     }
+     Desktop.GroupBox {
+      title:settings.categoryNames[6];visible:settingsCategory.currentIndex==6;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:10
+       Desktop.Label {text:"Linux shortcut mappings — source XML stays unchanged"}
+       Desktop.Label {text:"Each override has match (the exact signature shown in Settings → Status), description, and commands [{tag, text}]. Unmapped Windows combinations require an override or Literal keys.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Desktop.ScrollView {Layout.fillWidth:true;Layout.preferredHeight:180;Desktop.TextArea {id:mappingEditor;text:controller.mappingJson;wrapMode:Text.Wrap;font.family:"monospace";selectByMouse:true}}
+       Desktop.Button {text:"Save mappings";onClicked:controller.saveMappings(mappingEditor.text)}
+       Desktop.Label {text:controller.actionStatus;wrapMode:Text.Wrap;Layout.fillWidth:true}
+      }
+     }
+    }
    }
-   Label {text:controller.profileStatus;visible:text.length>0;wrapMode:Text.Wrap;Layout.fillWidth:true}
-   Button {text:"Reset learned words";onClicked:controller.resetLearning()}
-   Label {text:"Scratchpad (text typed by OptiKey only)"}
-   TextArea {text:controller.scratchpad;readOnly:true;Layout.fillWidth:true;Layout.preferredHeight:70;wrapMode:Text.Wrap}
-   Label {text:"Linux shortcut mappings — source XML stays unchanged"}
-   Label {text:"Each override has match (the exact signature shown in the control bar), description, and commands [{tag, text}]. Unmapped Windows combinations require an override or Literal keys.";wrapMode:Text.Wrap;Layout.fillWidth:true}
-   ScrollView {Layout.fillWidth:true;Layout.preferredHeight:180;TextArea {id:mappingEditor;text:controller.mappingJson;wrapMode:Text.Wrap;font.family:"monospace";selectByMouse:true}}
-   RowLayout {Button {text:"Save mappings";onClicked:controller.saveMappings(mappingEditor.text)} Label {text:controller.actionStatus;Layout.fillWidth:true;elide:Text.ElideRight} Button {text:"Close settings";onClicked:settings.close()}}
-  }
+   Desktop.Label {text:"Changes apply immediately. Save preferences to keep them after restart.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+   Desktop.Label {text:controller.profileStatus;visible:text.length>0;wrapMode:Text.Wrap;Layout.fillWidth:true}
+   Flow {
+    Layout.fillWidth:true;spacing:8
+    Desktop.Button {text:"Save preferences";icon.name:"document-save";ToolTip.text:"Save preferences and startup keyboard";ToolTip.visible:hovered;onClicked:controller.savePreferences()}
+    Desktop.Button {text:"Reset preferences";icon.name:"edit-undo";onClicked:controller.resetPreferences()}
+    Desktop.Button {text:"Close";icon.name:"window-close";onClicked:settings.close()}
+   }
   }
  }
+ }
+
  Window {
   id:targetWindow;objectName:"targetWindow";visible:controller.targeting&&!controller.capturePending;width:root.screenWidth;height:root.screenHeight
-  color:"#1800b7a0";flags:Qt.FramelessWindowHint|Qt.WindowDoesNotAcceptFocus|Qt.WindowStaysOnTopHint
+  color:"transparent";flags:Qt.FramelessWindowHint|Qt.WindowDoesNotAcceptFocus|Qt.WindowStaysOnTopHint
   Image {anchors.fill:parent;visible:controller.magnifierReady;source:visible?"image://magnifier/"+controller.magnifierRevision:"";cache:false;fillMode:Image.Stretch}
-  Text {anchors.horizontalCenter:parent.horizontalCenter;y:100;text:controller.targetPrompt+" — click, or hold your gaze";font.pixelSize:24;color:"#103d37"}
+  Rectangle {
+   anchors.horizontalCenter:parent.horizontalCenter;y:90
+   width:targetLabel.implicitWidth+32;height:targetLabel.implicitHeight+20
+   color:Kirigami.Theme.backgroundColor;radius:4
+   Text {id:targetLabel;anchors.centerIn:parent;text:controller.zoomAnimating?controller.targetPrompt:controller.targetPrompt+(controller.targetDwellEnabled?" — hold your gaze or pointer":" — click to select");font.pixelSize:24;color:Kirigami.Theme.textColor}
+  }
   Button {
    id:targetCancel;anchors.horizontalCenter:parent.horizontalCenter;y:145;text:"Cancel";focusPolicy:Qt.NoFocus;z:2
    onHoveredChanged:root.hovered=hovered?"CancelTarget":""
    onClicked:controller.clickCommand("CancelTarget")
-   Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*root.progress;color:"#168e86"}
+   Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*root.progress;color:Kirigami.Theme.highlightColor}
   }
-  MouseArea {anchors.fill:parent;onClicked:mouse=>controller.targetAt(mouse.x/width,mouse.y/height)}
-  Rectangle {visible:root.gazeEnabled&&root.gazeValid;x:root.gaze.x*parent.width-20;y:root.gaze.y*parent.height-20;width:40;height:40;radius:20;color:"transparent";border.color:"#00776f";border.width:3}
+  MouseArea {id:targetPointer;objectName:"targetPointer";anchors.fill:parent;hoverEnabled:true;onClicked:mouse=>controller.targetAt(mouse.x/width,mouse.y/height)}
+  Canvas {
+   visible:root.targetPointValid&&!controller.zoomAnimating
+   x:root.targetPoint.x*targetWindow.width-width/2;y:root.targetPoint.y*targetWindow.height-height/2
+   width:56;height:56
+   property real progress:root.targetProgress
+   property color ringColor:root.dwellColor
+   onProgressChanged:requestPaint()
+   onRingColorChanged:requestPaint()
+   onVisibleChanged:requestPaint()
+   onPaint:{
+    const ctx=getContext("2d");ctx.clearRect(0,0,width,height)
+    ctx.lineWidth=3;ctx.strokeStyle=ringColor;ctx.globalAlpha=.35
+    ctx.beginPath();ctx.arc(width/2,height/2,23,0,2*Math.PI);ctx.stroke()
+    ctx.globalAlpha=1;ctx.lineWidth=5;ctx.beginPath();ctx.arc(width/2,height/2,23,-Math.PI/2,-Math.PI/2+2*Math.PI*progress);ctx.stroke()
+   }
+  }
  }
 }

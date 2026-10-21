@@ -8,6 +8,8 @@
 #include <QDBusVariant>
 #include <QTimer>
 #include <QWindow>
+#include <QPointer>
+#include <LayerShellQt/Window>
 #include <QtWaylandClient/QWaylandClientExtension>
 #include <QtWaylandClient/private/qwaylandwindow_p.h>
 #include <QtWaylandClient/private/qwaylandscreen_p.h>
@@ -50,6 +52,9 @@ struct PlasmaInputMethod::Impl {
  Extension method{&zwp_input_method_v1_interface};PanelIntegration panel;
  zwp_input_method_context_v1 *context=nullptr;uint32_t serial=0;bool committed=false,privateField=true;
  QTimer activationRecovery;
+ QPointer<QWindow> panelWindow;
+ QPointer<LayerShellQt::Window> topLayer;
+ bool topPlacement=false;
  xkb_context *xkb=xkb_context_new(XKB_CONTEXT_NO_FLAGS);xkb_keymap *keymap=nullptr;xkb_state *state=nullptr;
  explicit Impl(PlasmaInputMethod *owner):owner(owner){
   activationRecovery.setSingleShot(true);
@@ -95,10 +100,28 @@ PlasmaInputMethod::PlasmaInputMethod(QObject *parent):QObject(parent),d(std::mak
 }
 PlasmaInputMethod::~PlasmaInputMethod()=default;
 bool PlasmaInputMethod::initialize(){return d->method.start()&&d->panel.initialize(nullptr);}
-bool PlasmaInputMethod::attachPanel(QWindow *window){
+bool PlasmaInputMethod::attachPanel(QWindow *window,bool top){
+ if(d->panelWindow==window&&d->topPlacement==top)return true;
+ const bool visible=window->isVisible();
+ // Surface roles cannot change in place. Keep the QML window and input
+ // context, but recreate the native surface when changing placement.
+ if(d->panelWindow==window){window->hide();window->destroy();}
+ if(d->topLayer)delete d->topLayer;
  window->create();auto wayland=dynamic_cast<QtWaylandClient::QWaylandWindow*>(window->handle());
  if(!wayland||!d->panel.panel.isActive())return false;
- wayland->setShellIntegration(&d->panel);return true;
+ if(top){
+  d->topLayer=LayerShellQt::Window::get(window);
+  d->topLayer->setScope("optikey-pro-keyboard");
+  d->topLayer->setLayer(LayerShellQt::Window::LayerTop);
+  d->topLayer->setAnchors(LayerShellQt::Window::AnchorTop);
+  d->topLayer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);
+  d->topLayer->setActivateOnShow(false);
+  d->topLayer->setExclusiveZone(-1);
+  d->topLayer->setDesiredSize(window->size());
+ }else wayland->setShellIntegration(&d->panel);
+ d->panelWindow=window;d->topPlacement=top;
+ if(visible)window->show();
+ return true;
 }
 bool PlasmaInputMethod::ready()const{return d->context&&d->committed&&d->method.isActive();}
 bool PlasmaInputMethod::sensitive()const{return d->privateField;}

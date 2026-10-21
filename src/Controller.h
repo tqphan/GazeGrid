@@ -6,6 +6,8 @@
 #include "PortalInput.h"
 #include "TobiiInput.h"
 #include "Dwell.h"
+#include "PointDwell.h"
+#include "GazeSmoothing.h"
 #include "ActionRunner.h"
 #include "PointerActions.h"
 #include "ScreenshotPortal.h"
@@ -18,9 +20,15 @@ class Controller:public QObject{
  Q_PROPERTY(QString profileStatus MEMBER profileStatus NOTIFY changed)
  Q_PROPERTY(bool ready READ ready NOTIFY changed)
  Q_PROPERTY(bool paused MEMBER paused NOTIFY changed)
+ Q_PROPERTY(int gazeSmoothingLevel READ gazeSmoothingLevel WRITE setGazeSmoothingLevel NOTIFY changed)
+ Q_PROPERTY(bool smoothWhenChangingGazeTarget READ smoothWhenChangingGazeTarget WRITE setSmoothWhenChangingGazeTarget NOTIFY changed)
  Q_PROPERTY(int dwellMs MEMBER dwellMs NOTIFY changed)
+ Q_PROPERTY(int restoreCorner READ restoreCorner WRITE setRestoreCorner NOTIFY geometryPreferencesChanged)
+ Q_PROPERTY(int restoreSize READ restoreSize WRITE setRestoreSize NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(int keyboardScale READ keyboardScale WRITE setKeyboardScale NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(bool highContrast MEMBER highContrast NOTIFY changed)
+ Q_PROPERTY(int shortLabelScale MEMBER shortLabelScale NOTIFY changed)
+ Q_PROPERTY(int longLabelScale MEMBER longLabelScale NOTIFY changed)
  Q_PROPERTY(bool rememberDesktop MEMBER rememberDesktop NOTIFY changed)
  Q_PROPERTY(QVariantMap layout MEMBER layout NOTIFY layoutChanged)
  Q_PROPERTY(QString layoutName MEMBER layoutName NOTIFY layoutChanged)
@@ -28,6 +36,7 @@ class Controller:public QObject{
  Q_PROPERTY(QStringList menuLayoutNames MEMBER menuLayoutNames CONSTANT)
  Q_PROPERTY(bool shifted READ shifted NOTIFY changed)
  Q_PROPERTY(QStringList heldKeys READ heldKeys NOTIFY changed)
+ Q_PROPERTY(QVariantMap modifierStates READ modifierStates NOTIFY changed)
  Q_PROPERTY(bool literal MEMBER literal NOTIFY changed)
  Q_PROPERTY(QString mappingJson READ mappingJson NOTIFY changed)
  Q_PROPERTY(QString scratchpad MEMBER scratchpad NOTIFY changed)
@@ -38,12 +47,22 @@ class Controller:public QObject{
  Q_PROPERTY(QStringList heldPointerButtons READ heldPointerButtons NOTIFY changed)
  Q_PROPERTY(bool magneticCursor READ magneticCursor NOTIFY changed)
  Q_PROPERTY(bool lookScrolling READ lookScrolling NOTIFY changed)
- Q_PROPERTY(bool magnifierEnabled MEMBER magnifierEnabled NOTIFY changed)
+ Q_PROPERTY(bool magnifierEnabled READ isMagnifierEnabled WRITE setMagnifierEnabled NOTIFY changed)
+ Q_PROPERTY(int magnifierZoom MEMBER magnifierZoom NOTIFY changed)
+ Q_PROPERTY(bool progressiveZoom MEMBER progressiveZoom NOTIFY changed)
+ Q_PROPERTY(int zoomDurationMs MEMBER zoomDurationMs NOTIFY changed)
+ Q_PROPERTY(bool targetDwellEnabled MEMBER targetDwellEnabled NOTIFY changed)
+ Q_PROPERTY(int targetStartDwellMs MEMBER targetStartDwellMs NOTIFY changed)
+ Q_PROPERTY(int targetConfirmDwellMs MEMBER targetConfirmDwellMs NOTIFY changed)
+ Q_PROPERTY(int targetDwellRadius MEMBER targetDwellRadius NOTIFY changed)
+ Q_PROPERTY(bool zoomAnimating MEMBER zoomAnimating NOTIFY changed)
  Q_PROPERTY(bool capturePending MEMBER capturePending NOTIFY changed)
  Q_PROPERTY(bool magnifierReady MEMBER magnifierReady NOTIFY changed)
  Q_PROPERTY(int magnifierRevision MEMBER magnifierRevision NOTIFY changed)
 public:
  Controller();~Controller()override;
+ bool isMagnifierEnabled()const{return magnifierEnabled;}
+ void setMagnifierEnabled(bool enabled);
  PortalInput *output(){return &portal;}
  bool ready()const{return nativeActive||portal.ready();}
  void configureInputMethod(std::function<bool(QString)> text,std::function<bool(QString,bool)> key);
@@ -51,10 +70,16 @@ public:
  void invalidateInputContext();
  int keyboardScale()const{return scalePercent;}
  void setKeyboardScale(int scale);
+ int restoreCorner()const{return recoveryCorner;}
+ int restoreSize()const{return recoverySize;}
+ void setRestoreCorner(int corner);
+ void setRestoreSize(int size);
  bool shifted()const{return runner.shifted();}
  QStringList heldKeys()const{return runner.heldKeys();}
+ QVariantMap modifierStates()const{return runner.modifierStates();}
+ Q_INVOKABLE QString modifierName(const QVariantList &commands)const{return ActionRunner::modifierName(commands);}
  QString mappingJson()const;
- QString targetPrompt()const{return magnifierReady?"Choose the precise target in the magnified image":pointer.prompt();}
+ QString targetPrompt()const{return zoomAnimating?"Zooming in…":magnifierReady?"Choose the precise target in the magnified image":pointer.prompt();}
  QImage magnifierImage()const{return magnifiedImage;}
  QStringList heldPointerButtons()const{return pointer.heldButtons();}
  bool magneticCursor()const{return pointer.magnetic();}
@@ -62,7 +87,11 @@ public:
  Q_INVOKABLE void setGazeEnabled(bool enabled);
  Q_INVOKABLE void trackGaze(double x,double y,bool overDesktop);
  void displayChanged();
- void setDisplaySize(double width,double height){pointer.setDisplaySize({width,height});}
+ void setDisplaySize(double width,double height);
+ int gazeSmoothingLevel()const{return smoothingLevel;}
+ bool smoothWhenChangingGazeTarget()const{return smoothTargetChanges;}
+ void setGazeSmoothingLevel(int level);
+ void setSmoothWhenChangingGazeTarget(bool enabled);
  Q_INVOKABLE bool saveMappings(QString json);
  Q_INVOKABLE bool savePreferences();
  Q_INVOKABLE void resetPreferences();
@@ -73,6 +102,7 @@ public:
  Q_INVOKABLE void activate(QString key);
  Q_INVOKABLE void clickCommand(QString key);
  Q_INVOKABLE double hover(QString key);
+ Q_INVOKABLE double dwellAt(double x,double y,bool valid);
  Q_INVOKABLE void openLayout(QString name,bool backReturnsHere=true);
  Q_INVOKABLE void recover();
  Q_INVOKABLE void targetAt(double x,double y);
@@ -89,13 +119,24 @@ signals:
  void layoutChanged();
  void gazePoint(double x,double y,bool valid);
 private:
+ bool isSleepKey(const QString &key) const;
  bool performAction(QString action);
  void clearCapture();
+ void updateMagnifierZoom();
  void updateText(QString text);
  void updateSuggestions();
  QVariantList mapped(const QVariantList &commands,bool &ok);
+ Q_SLOT void receiveGaze(double x,double y,bool valid,qint64 sampledAt);
+ GazeSmoothing gazeSmoothing;
+ QSizeF gazeDisplaySize{1,1};
+ int smoothingLevel=1;
+ bool smoothTargetChanges=false;
  PortalInput portal;TobiiInput tobii;Dwell dwell;ActionRunner runner;PointerActions pointer;QElapsedTimer clock,gazeAge;
  ScreenshotPortal screenshot;
+ Q_SLOT void receiveMagnifierFrame(QImage image);
+ QTimer zoomTimer;
+ QElapsedTimer zoomClock;
+ QImage capturedImage;
  SpeechOutput speech;
  QImage magnifiedImage;
  QRect magnifierCrop;
@@ -103,13 +144,22 @@ private:
  QPointF coarseTarget;
  bool magnifierEnabled=false,capturePending=false,magnifierReady=false;
  int magnifierRevision=0;
+ int magnifierZoom=4;
+ bool progressiveZoom=false,zoomAnimating=false;
+ int zoomDurationMs=1500,activeZoomDurationMs=1500,activeZoom=4;
+ PointDwell pointDwell;
+ bool targetDwellEnabled=true;
+ int targetStartDwellMs=750,targetConfirmDwellMs=1000,targetDwellRadius=40;
  quint64 captureEpoch=0;
  QString portalStatus="Desktop control disconnected",tobiiStatus="Tobii ready to connect",actionStatus="Choose Authorize to enable desktop output";
  QString profileStatus;
  bool paused=false,literal=false,learning=false,targeting=false,gazeEnabled=false;
  int dwellMs=750;
  int scalePercent=100;
+ int recoveryCorner=2,recoverySize=64;
  bool highContrast=false;
+ int shortLabelScale=150;
+ int longLabelScale=100;
  bool rememberDesktop=false;
  bool nativeMode=false,nativeActive=false,sensitiveInput=false;
  qint64 lastGazeSample=0;

@@ -4,9 +4,9 @@
 #include <cmath>
 namespace MagnifierGeometry {
 inline bool validPoint(QPointF p){return std::isfinite(p.x())&&std::isfinite(p.y())&&p.x()>=0&&p.x()<=1&&p.y()>=0&&p.y()<=1;}
-inline QRect crop(QSize image,QPointF point){
- if(!image.isValid()||!validPoint(point))return {};
- const int width=qMax(1,image.width()/4),height=qMax(1,image.height()/4);
+inline QRect crop(QSize image,QPointF point,double zoom=4){
+ if(!image.isValid()||!validPoint(point)||!std::isfinite(zoom)||zoom<1||zoom>8)return {};
+ const int width=qMax(1,int(image.width()/zoom)),height=qMax(1,int(image.height()/zoom));
  const int x=qBound(0,int(point.x()*image.width())-width/2,image.width()-width);
  const int y=qBound(0,int(point.y()*image.height())-height/2,image.height()-height);
  return {x,y,width,height};

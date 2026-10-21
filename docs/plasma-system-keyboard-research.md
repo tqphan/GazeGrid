@@ -75,3 +75,12 @@ See [KWin property implementation](https://github.com/KDE/kwin/blob/v6.8.0/src/v
 and [context adoption](https://github.com/KDE/kwin/blob/v6.8.0/src/inputmethod.cpp).
 Both normal and deliberately delayed startup pass the isolated receiver check.
 The desktop entry is now registered locally but not selected as the default.
+
+## Top placement implementation — 2026-10-19
+
+Top placement now uses layer-shell while native text commits remain connected.
+Returning to bottom placement recreates the surface with the input-panel role.
+The same Wayland surface is never assigned both roles. This supersedes the earlier
+top-placement limitation; offset layouts remain deferred. The top overlay stays
+visible for assistive controls outside text fields and does not participate in
+KWin's native panel visibility or application-resizing behavior.
