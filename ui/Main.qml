@@ -13,7 +13,7 @@ Window {
  flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
  property string hovered: ""
  property real progress: 0
- property bool gazeEnabled: false
+ property bool gazeEnabled: controller.gazeEnabled
  property bool gazeCheck: false
  property bool minimizedRecovery:controller.layoutName.startsWith("minimized-off-screen-")
  property bool gazeValid: false
@@ -89,7 +89,11 @@ Window {
     const commands=modelData.commands || []
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="MouseMagnifier"
    }
-   property bool stateFilled:modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)
+   property bool lookScrollKey: {
+    const commands=modelData.commands || []
+    return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="LookToScrollActive"
+   }
+   property bool stateFilled:modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)
    property real predictionWidth:2*root.width/controller.layout.cols
    property int predictionCount:Math.floor(modelData.width/2)
    property bool sleepKey: {
@@ -117,7 +121,7 @@ Window {
    Rectangle {anchors.fill:parent;color:Kirigami.Theme.highlightColor;opacity:key.active?0.18:0}
    Rectangle {
     anchors.fill:parent;anchors.margins:2
-    visible:key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)
+    visible:key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)
     color:key.stateFilled?root.dwellColor:"transparent"
     opacity:key.stateFilled?0.25:1
     border.width:2;border.color:root.dwellColor
@@ -170,11 +174,14 @@ Window {
       required property int index
       property string predictionText:index<controller.suggestions.length?controller.suggestions[index]:""
       property bool hasPrediction:predictionText.trim().length>0
+      property string command:"suggest:"+index
+      property bool active:key.enabled&&hasPrediction&&(root.gazeEnabled ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
       onHasPredictionChanged:if(!hasPrediction&&root.hovered==="suggest:"+index)root.hovered=""
       width:key.predictionWidth;height:key.height;color:"transparent";border.color:Kirigami.Theme.disabledTextColor
-      Text {anchors.fill:parent;anchors.margins:4;text:predictionSlot.predictionText;color:key.foreground;font.pixelSize:Math.min(24,key.height*.28)*(text.length<=3?controller.shortLabelScale:controller.longLabelScale)/100;fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
+      Rectangle {anchors.fill:parent;color:Kirigami.Theme.highlightColor;opacity:predictionSlot.active?0.18:0}
+      Text {anchors.fill:parent;anchors.margins:4;text:predictionSlot.predictionText;color:key.foreground;font.pixelSize:Math.min(24,key.height*.28);fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
       MouseArea {objectName:"predictionMouseArea:"+index;anchors.fill:parent;hoverEnabled:true;enabled:predictionSlot.hasPrediction;onEntered:root.hovered="suggest:"+index;onExited:if(root.hovered==="suggest:"+index)root.hovered="";onClicked:controller.clickCommand("suggest:"+index)}
-      Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(predictionSlot.hasPrediction&&root.hovered==="suggest:"+index?root.progress:0);color:root.dwellColor}
+      Rectangle {objectName:"predictionProgress:"+index;anchors.bottom:parent.bottom;height:5;width:parent.width*(predictionSlot.active?root.progress:0);color:root.dwellColor}
      }
     }
    }
@@ -232,7 +239,7 @@ Window {
  Window {
   id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1000,root.screenWidth);height:Math.min(720,root.screenHeight-60);title:"OptiKey settings";color:Kirigami.Theme.backgroundColor
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
-  property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Shortcuts"]
+  property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Shortcuts","Look to scroll"]
   property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","preferences-desktop-keyboard-shortcuts"]
   onClosing:controller.clickCommand("CancelTarget")
   component Tool:Desktop.Button {
@@ -334,7 +341,7 @@ Window {
       title:settings.categoryNames[2];visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:10
-       Desktop.CheckBox {text:"Enable gaze input";checked:root.gazeEnabled;enabled:!root.gazeCheck;focusPolicy:Qt.NoFocus;onToggled:{root.gazeEnabled=checked;controller.setGazeEnabled(checked)}}
+       Desktop.CheckBox {text:"Enable gaze input";checked:root.gazeEnabled;enabled:!root.gazeCheck;focusPolicy:Qt.NoFocus;onToggled:controller.setGazeEnabled(checked)}
        Tool {id:tobii;text:"Connect eye tracker";command:"Tobii"}
        Kirigami.Heading {text:"Gaze smoothing";level:3;Layout.topMargin:8}
        RowLayout {
@@ -419,6 +426,17 @@ Window {
        Desktop.ScrollView {Layout.fillWidth:true;Layout.preferredHeight:180;Desktop.TextArea {id:mappingEditor;text:controller.mappingJson;wrapMode:Text.Wrap;font.family:"monospace";selectByMouse:true}}
        Desktop.Button {text:"Save mappings";onClicked:controller.saveMappings(mappingEditor.text)}
        Desktop.Label {text:controller.actionStatus;wrapMode:Text.Wrap;Layout.fillWidth:true}
+      }
+     }
+     Desktop.GroupBox {
+      title:settings.categoryNames[7];visible:settingsCategory.currentIndex==7;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:10
+       Desktop.Label {text:"Select a centre with LookToScroll, then look away from it to scroll. Greater distance scrolls faster.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       RowLayout {Desktop.Label {text:"Scroll speed: "+controller.scrollSpeed+"%"} Desktop.Slider {from:10;to:300;stepSize:10;value:controller.scrollSpeed;Layout.fillWidth:true;onMoved:controller.scrollSpeed=value}}
+       RowLayout {Desktop.Label {text:"Centre dead zone: "+controller.scrollDeadzone+" px"} Desktop.Slider {from:10;to:200;stepSize:5;value:controller.scrollDeadzone;Layout.fillWidth:true;onMoved:controller.scrollDeadzone=value}}
+       Desktop.Label {text:"Scrolling stops within the dead zone. Increase it to allow more gaze movement around the centre.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       RowLayout {Desktop.Label {text:"Direction"} Desktop.ComboBox {model:["Both axes","Vertical only","Horizontal only"];currentIndex:controller.scrollAxis;onActivated:controller.scrollAxis=currentIndex}}
       }
      }
     }

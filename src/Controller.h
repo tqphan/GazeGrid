@@ -20,6 +20,7 @@ class Controller:public QObject{
  Q_PROPERTY(QString profileStatus MEMBER profileStatus NOTIFY changed)
  Q_PROPERTY(bool ready READ ready NOTIFY changed)
  Q_PROPERTY(bool paused MEMBER paused NOTIFY changed)
+ Q_PROPERTY(bool gazeEnabled READ isGazeEnabled WRITE setGazeEnabled NOTIFY gazeEnabledChanged)
  Q_PROPERTY(int gazeSmoothingLevel READ gazeSmoothingLevel WRITE setGazeSmoothingLevel NOTIFY changed)
  Q_PROPERTY(bool smoothWhenChangingGazeTarget READ smoothWhenChangingGazeTarget WRITE setSmoothWhenChangingGazeTarget NOTIFY changed)
  Q_PROPERTY(int gazeIndicatorSize MEMBER gazeIndicatorSize NOTIFY changed)
@@ -60,6 +61,9 @@ class Controller:public QObject{
  Q_PROPERTY(QString targetPrompt READ targetPrompt NOTIFY changed)
  Q_PROPERTY(QStringList heldPointerButtons READ heldPointerButtons NOTIFY changed)
  Q_PROPERTY(bool magneticCursor READ magneticCursor NOTIFY changed)
+ Q_PROPERTY(int scrollSpeed MEMBER scrollSpeed NOTIFY changed)
+ Q_PROPERTY(int scrollDeadzone MEMBER scrollDeadzone NOTIFY changed)
+ Q_PROPERTY(int scrollAxis MEMBER scrollAxis NOTIFY changed)
  Q_PROPERTY(bool lookScrolling READ lookScrolling NOTIFY changed)
  Q_PROPERTY(bool magnifierEnabled READ isMagnifierEnabled WRITE setMagnifierEnabled NOTIFY changed)
  Q_PROPERTY(int magnifierZoom MEMBER magnifierZoom NOTIFY changed)
@@ -101,6 +105,7 @@ public:
  bool keyboardTemporarilyHidden()const{return hideKeyboardDuringMouseActions&&pointer.busy();}
  bool magneticCursor()const{return pointer.magnetic();}
  bool lookScrolling()const{return pointer.lookScrolling();}
+ bool isGazeEnabled()const{return gazeEnabled;}
  Q_INVOKABLE void setGazeEnabled(bool enabled);
  Q_INVOKABLE void trackGaze(double x,double y,bool overDesktop);
  void displayChanged();
@@ -133,6 +138,7 @@ signals:
  void geometryPreferencesChanged();
  void settingsRequested();
  void changed();
+ void gazeEnabledChanged();
  void layoutChanged();
  void gazePoint(double x,double y,bool valid);
 private:
@@ -171,6 +177,7 @@ private:
  QPointF coarseTarget;
  bool magnifierEnabled=false,capturePending=false,magnifierReady=false;
  int magnifierRevision=0;
+ int scrollSpeed=100,scrollDeadzone=50,scrollAxis=0;
  int magnifierZoom=4;
  bool progressiveZoom=false,zoomAnimating=false;
  int zoomDurationMs=1500,activeZoomDurationMs=1500,activeZoom=4;

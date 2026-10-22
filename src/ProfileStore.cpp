@@ -23,12 +23,13 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"repeatPunctuationOnHover",false},{"repeatIntervalMs",750},{"repeatLettersOnHover",false},{"repeatBackspaceOnHover",false},{"repeatArrowsOnHover",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
+    return {{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",false},{"repeatPunctuationOnHover",false},{"repeatIntervalMs",750},{"repeatLettersOnHover",false},{"repeatBackspaceOnHover",false},{"repeatArrowsOnHover",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"highContrast",false},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
     static const QRegularExpression layout("^[A-Za-z0-9_-]+$");
     return v["version"].isDouble()&&v["version"].toDouble()==1
+        &&(!v.contains("gazeEnabled")||v["gazeEnabled"].isBool())
         &&(!v.contains("gazeIndicatorSize")||(v["gazeIndicatorSize"].isDouble()&&v["gazeIndicatorSize"].toDouble()==v["gazeIndicatorSize"].toInt()&&v["gazeIndicatorSize"].toInt()>=4&&v["gazeIndicatorSize"].toInt()<=120))
         &&(!v.contains("gazeIndicatorOpacity")||(v["gazeIndicatorOpacity"].isDouble()&&v["gazeIndicatorOpacity"].toDouble()==v["gazeIndicatorOpacity"].toInt()&&v["gazeIndicatorOpacity"].toInt()>=5&&v["gazeIndicatorOpacity"].toInt()<=100))
         &&(!v.contains("repeatIntervalMs")||(v["repeatIntervalMs"].isDouble()&&v["repeatIntervalMs"].toDouble()==v["repeatIntervalMs"].toInt()&&v["repeatIntervalMs"].toInt()>=100&&v["repeatIntervalMs"].toInt()<=2000))
@@ -61,6 +62,9 @@ bool ProfileStore::valid(const QJsonObject &v){
         &&(!v.contains("zoomDurationMs")||(v["zoomDurationMs"].isDouble()&&v["zoomDurationMs"].toDouble()==v["zoomDurationMs"].toInt()&&v["zoomDurationMs"].toInt()>=500&&v["zoomDurationMs"].toInt()<=5000))
         &&(!v.contains("enlargeShortLabels")||v["enlargeShortLabels"].isBool())
         &&(!v.contains("magnifierEnabled")||v["magnifierEnabled"].isBool())
+        &&(!v.contains("scrollSpeed")||(v["scrollSpeed"].isDouble()&&v["scrollSpeed"].toDouble()==v["scrollSpeed"].toInt()&&v["scrollSpeed"].toInt()>=10&&v["scrollSpeed"].toInt()<=300))
+        &&(!v.contains("scrollDeadzone")||(v["scrollDeadzone"].isDouble()&&v["scrollDeadzone"].toDouble()==v["scrollDeadzone"].toInt()&&v["scrollDeadzone"].toInt()>=10&&v["scrollDeadzone"].toInt()<=200))
+        &&(!v.contains("scrollAxis")||(v["scrollAxis"].isDouble()&&v["scrollAxis"].toDouble()==v["scrollAxis"].toInt()&&v["scrollAxis"].toInt()>=0&&v["scrollAxis"].toInt()<=2))
         &&(!v.contains("magnifierZoom")||(v["magnifierZoom"].isDouble()&&v["magnifierZoom"].toDouble()==v["magnifierZoom"].toInt()&&v["magnifierZoom"].toInt()>=2&&v["magnifierZoom"].toInt()<=8))
         &&(!v.contains("shortLabelScale")||(v["shortLabelScale"].isDouble()&&v["shortLabelScale"].toDouble()==v["shortLabelScale"].toInt()&&v["shortLabelScale"].toInt()>=50&&v["shortLabelScale"].toInt()<=200))
         &&(!v.contains("longLabelScale")||(v["longLabelScale"].isDouble()&&v["longLabelScale"].toDouble()==v["longLabelScale"].toInt()&&v["longLabelScale"].toInt()>=50&&v["longLabelScale"].toInt()<=200))

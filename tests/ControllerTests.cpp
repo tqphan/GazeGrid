@@ -16,6 +16,29 @@
 class ControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void gazePreferenceLoadsSavesAndResets(){
+  ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
+  auto values=ProfileStore::defaults();QVERIFY(!values["gazeEnabled"].toBool());
+  values.remove("gazeEnabled");QVERIFY(ProfileStore::valid(values));
+  values["gazeEnabled"]="true";QVERIFY(!ProfileStore::valid(values));
+  values["gazeEnabled"]=true;QVERIFY(store.save(values,error));
+  {Controller c;QVERIFY(c.isGazeEnabled());QVERIFY(c.property("gazeEnabled").toBool());QVERIFY(c.savePreferences());}
+  {Controller c;QVERIFY(c.isGazeEnabled());c.setProperty("dwellMs",1250);c.setGazeEnabled(false);}
+  {Controller c;QVERIFY(!c.isGazeEnabled());QCOMPARE(c.property("dwellMs").toInt(),750);}
+  values["gazeEnabled"]=true;QVERIFY(store.save(values,error));
+  {Controller c;QVERIFY(c.isGazeEnabled());c.resetPreferences();QVERIFY(!c.isGazeEnabled());}
+  {Controller c;QVERIFY(!c.isGazeEnabled());}
+ }
+ void scrollSettingsPersistAndReset(){
+  {Controller c;c.setProperty("scrollSpeed",170);c.setProperty("scrollDeadzone",90);c.setProperty("scrollAxis",1);QVERIFY(c.savePreferences());}
+  {Controller c;QCOMPARE(c.property("scrollSpeed").toInt(),170);QCOMPARE(c.property("scrollDeadzone").toInt(),90);QCOMPARE(c.property("scrollAxis").toInt(),1);c.resetPreferences();}
+  {Controller c;QCOMPARE(c.property("scrollSpeed").toInt(),100);QCOMPARE(c.property("scrollDeadzone").toInt(),50);QCOMPARE(c.property("scrollAxis").toInt(),0);}
+  for(const auto key:{"scrollSpeed","scrollDeadzone","scrollAxis"}){
+   auto values=ProfileStore::defaults();values.remove(key);QVERIFY(ProfileStore::valid(values));
+   values[key]=-1;QVERIFY(!ProfileStore::valid(values));values[key]=1000;QVERIFY(!ProfileStore::valid(values));
+   values[key]=1.5;QVERIFY(!ProfileStore::valid(values));values[key]="50";QVERIFY(!ProfileStore::valid(values));
+  }
+ }
  void repeatRatePersistsAndResets(){
   {Controller c;c.setProperty("repeatIntervalMs",150);QVERIFY(c.savePreferences());}
   {Controller c;QCOMPARE(c.property("repeatIntervalMs").toInt(),150);c.resetPreferences();QCOMPARE(c.property("repeatIntervalMs").toInt(),750);}

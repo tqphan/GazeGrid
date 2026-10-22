@@ -32,11 +32,13 @@ Controller::Controller(){
  zoomTimer.setInterval(33);connect(&zoomTimer,&QTimer::timeout,this,&Controller::updateMagnifierZoom);
  connect(&speech,&SpeechOutput::status,this,[this](QString message){actionStatus=message;emit changed();});
  clock.start();auto profile=ProfileStore(configFile("profile.json")).load();
+ gazeEnabled=profile.values["gazeEnabled"].toBool(false);
  dwellMs=profile.values["dwellMs"].toInt();literal=profile.values["literal"].toBool();learning=profile.values["learning"].toBool();profileStatus=profile.message;
  scalePercent=profile.values["keyboardScale"].toInt(100);highContrast=profile.values["highContrast"].toBool();
  shortLabelScale=profile.values.value("shortLabelScale").toInt(profile.values.value("enlargeShortLabels").toBool(true)?150:100);
  longLabelScale=profile.values["longLabelScale"].toInt(100);
  magnifierEnabled=profile.values.value("magnifierEnabled").toBool(false);
+ scrollSpeed=profile.values["scrollSpeed"].toInt(100);scrollDeadzone=profile.values["scrollDeadzone"].toInt(50);scrollAxis=profile.values["scrollAxis"].toInt(0);
  magnifierZoom=profile.values["magnifierZoom"].toInt(4);
  progressiveZoom=profile.values.value("progressiveZoom").toBool(profile.values.value("liveZoom").toBool(false));
  zoomDurationMs=profile.values.value("zoomDurationMs").toInt(1500);
@@ -104,7 +106,7 @@ Controller::Controller(){
  connect(&tobii,&TobiiInput::status,this,[this](QString m){tobiiStatus=m;emit changed();});
  connect(&tobii,&TobiiInput::gaze,this,&Controller::receiveGaze);
  auto timer=new QTimer(this);timer->setInterval(25);connect(timer,&QTimer::timeout,this,[this]{
-  if(gazeAge.isValid()&&GazeClock::now()-lastGazeSample>200000){gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();portal.releaseAll();pointer.cancel();emit gazePoint(0,0,false);}
+  if(gazeAge.isValid()&&GazeClock::now()-lastGazeSample>200000){gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();portal.releaseAll();pointer.trackingLost();emit gazePoint(0,0,false);}
  });timer->start();
  auto start=profile.values["startLayout"].toString();
  if(!layoutNames.contains(start)){start=ProfileStore::defaults()["startLayout"].toString();profileStatus="Saved keyboard is unavailable. Opened the default keyboard.";}
@@ -131,7 +133,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"repeatPunctuationOnHover",repeatPunctuationOnHover},{"repeatIntervalMs",repeatIntervalMs},{"repeatLettersOnHover",repeatLettersOnHover},{"repeatBackspaceOnHover",repeatBackspaceOnHover},{"repeatArrowsOnHover",repeatArrowsOnHover},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatPunctuationOnHover",repeatPunctuationOnHover},{"repeatIntervalMs",repeatIntervalMs},{"repeatLettersOnHover",repeatLettersOnHover},{"repeatBackspaceOnHover",repeatBackspaceOnHover},{"repeatArrowsOnHover",repeatArrowsOnHover},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -140,6 +142,7 @@ void Controller::resetPreferences(){
  if(!ProfileStore(configFile("profile.json")).save(values,error,true)){profileStatus=error;emit changed();return;}
  if(!paused)togglePause();
  setMagnifierEnabled(false);
+ setGazeEnabled(false);
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;backStack.clear();
  repeatIntervalMs=750;
  repeatPunctuationOnHover=false;
@@ -148,6 +151,7 @@ void Controller::resetPreferences(){
  repeatArrowsOnHover=false;
  cycleModifiersOnHover=false;
  hideKeyboardDuringMouseActions=false;
+ scrollSpeed=100;scrollDeadzone=50;scrollAxis=0;
  gazeIndicatorSize=18;gazeIndicatorOpacity=100;gazeIndicatorColor="#00bfff";gazeIndicatorMorph=false;
  setRestoreCorner(2);setRestoreWidth(64);setRestoreHeight(64);restoreOpacity=100;
  setKeyboardScale(100);highContrast=false;shortLabelScale=values["shortLabelScale"].toInt();longLabelScale=values["longLabelScale"].toInt();magnifierZoom=values["magnifierZoom"].toInt();progressiveZoom=false;zoomDurationMs=1500;targetDwellEnabled=true;targetStartDwellMs=750;targetConfirmDwellMs=1000;targetDwellRadius=40;rememberDesktop=false;
@@ -192,7 +196,7 @@ void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
   lastGazeSample=sampledAt;gazeAge.restart();
   const auto point=gazeSmoothing.update({x*gazeDisplaySize.width(),y*gazeDisplaySize.height()},smoothingLevel,smoothTargetChanges);
   x=point.x()/gazeDisplaySize.width();y=point.y()/gazeDisplaySize.height();
- }else{gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();portal.releaseAll();pointer.cancel();}
+ }else{gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();portal.releaseAll();pointer.trackingLost();}
  emit gazePoint(x,y,valid);
 }
 void Controller::setDisplaySize(double width,double height){
@@ -210,12 +214,20 @@ void Controller::setSmoothWhenChangingGazeTarget(bool enabled){
 }
 void Controller::togglePause(){paused=!paused;dwell.reset();runner.cancel();portal.releaseAll();pointer.cancel();emit changed();}
 void Controller::setGazeEnabled(bool enabled){
+ const bool preferenceChanged=gazeEnabled!=enabled;
  gazeEnabled=enabled;dwell.reset();gazeSmoothing.reset();
+ if(preferenceChanged){
+  ProfileStore store(configFile("profile.json"));auto saved=store.load().values;
+  saved["gazeEnabled"]=enabled;QString error;
+  if(!store.save(saved,error))profileStatus=error;
+ }
  if(enabled)connectTobii();
  if(!enabled){runner.cancel();pointer.cancel();}
+ if(preferenceChanged)emit gazeEnabledChanged();
  emit changed();
 }
 void Controller::trackGaze(double x,double y,bool overDesktop){
+ pointer.configureScroll(scrollSpeed,scrollDeadzone,scrollAxis);
  if(gazeEnabled&&!paused&&ready()&&gazeAge.isValid()&&GazeClock::now()-lastGazeSample<=200000)pointer.follow({x,y},overDesktop);
 }
 void Controller::displayChanged(){

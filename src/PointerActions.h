@@ -21,6 +21,8 @@ public:
     bool start(const QString &action,int initialDelayMs=0);
     void select(QPointF point);
     void cancel();
+    void trackingLost();
+    void configureScroll(int speed,int deadzone,int axis){lookScroll.configure(speed,deadzone,axis);}
     bool follow(QPointF point,bool overDesktop=true);
     void setDisplaySize(QSizeF size);
     bool magnetic()const{return following;}
@@ -43,6 +45,7 @@ public:
     bool click(int code);
     bool moveTo(QPointF p);
     QTimer timer;
+    QTimer trackingGrace;
     QSet<int> held;
     QPointF position{.5,.5};
     bool active=false,choosing=false,sourceChosen=false,following=false;

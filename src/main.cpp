@@ -338,6 +338,20 @@ int main(int argc,char **argv){
   controller.setProperty("suggestions",QStringList{});
   if(prediction->property("enabled").toBool()||!window->property("hovered").toString().isEmpty()){QTextStream(stderr)<<"Empty prediction enabled="<<prediction->property("enabled").toBool()<<" hover="<<window->property("hovered").toString()<<Qt::endl;return 2;}
   controller.setProperty("suggestions",QStringList{"word"});
+  auto predictionProgress=findItem(window->contentItem(),"predictionProgress:0");
+  if(!predictionProgress){QTextStream(stderr)<<"Missing prediction progress bar"<<Qt::endl;return 2;}
+  QMetaObject::invokeMethod(prediction,"entered");window->setProperty("progress",.5);
+  if(predictionProgress->width()<=0){QTextStream(stderr)<<"Mouse prediction progress missing"<<Qt::endl;return 2;}
+  const QPointF centre=prediction->mapToItem(window->contentItem(),QPointF(prediction->width()/2,prediction->height()/2));
+  window->setProperty("hovered","");window->setProperty("gazeEnabled",true);window->setProperty("gazeValid",true);
+  window->setProperty("gaze",QPointF((centre.x()+window->property("logicalX").toDouble())/window->property("screenWidth").toDouble(),
+                                   (centre.y()+window->property("logicalY").toDouble())/window->property("screenHeight").toDouble()));
+  if(predictionProgress->width()<=0){QTextStream(stderr)<<"Gaze prediction progress missing"<<Qt::endl;return 2;}
+  window->setProperty("gazeValid",false);
+  if(predictionProgress->width()!=0){QTextStream(stderr)<<"Invalid gaze shows prediction progress"<<Qt::endl;return 2;}
+  window->setProperty("gazeValid",true);controller.setProperty("suggestions",QStringList{});
+  if(predictionProgress->width()!=0){QTextStream(stderr)<<"Empty prediction shows gaze progress"<<Qt::endl;return 2;}
+  controller.setProperty("suggestions",QStringList{"word"});window->setProperty("gazeEnabled",false);
   // Qt can deliver the new key's enter before the old prediction's exit.
   QMetaObject::invokeMethod(prediction,"entered");
   QMetaObject::invokeMethod(keyArea,"entered");
@@ -480,7 +494,7 @@ int main(int argc,char **argv){
   });
   poll->start();QTimer::singleShot(15000,&app,[&]{QTextStream(stderr)<<"FAIL: minimize/restore dwell timed out"<<Qt::endl;app.exit(2);});
  }
- if(app.arguments().contains("--gaze")){window->setProperty("gazeEnabled",true);controller.setGazeEnabled(true);}
+ if(app.arguments().contains("--gaze")||controller.isGazeEnabled())controller.setGazeEnabled(true);
  if(app.arguments().contains("--gaze-check")){
   // Exercise the real worker, controller freshness filter and QML signal handler,
   // without authorizing desktop output or allowing dwell actions.

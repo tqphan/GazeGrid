@@ -224,6 +224,14 @@ private slots:
   QCOMPARE(scroll.update({800,800},400,true),QPointF());QVERIFY(!scroll.active());
   scroll.start({500,500},500);QCOMPARE(scroll.update({800,800},499,true),QPointF());QVERIFY(!scroll.active());
  }
+ void lookScrollSettingsControlSpeedDeadzoneAndAxes(){
+  LookScroll normal,custom;normal.start({500,500},0);custom.start({500,500},0);
+  const auto baseline=normal.update({600,400},25,true);
+  custom.configure(200,50,0);QCOMPARE(custom.update({600,400},25,true),baseline*2);
+  custom.configure(100,150,0);QCOMPARE(custom.update({600,400},50,true),QPointF());
+  custom.configure(100,50,1);QCOMPARE(custom.update({600,400},75,true),QPointF(0,baseline.y()));
+  custom.configure(100,50,2);QCOMPARE(custom.update({600,400},100,true),QPointF(baseline.x(),0));
+ }
  void lookScrollSelectsAnchorAndTogglesOff(){
   PointerActions p;p.setDisplaySize({1000,1000});QList<QPointF> moves,scrolls;
   p.move=[&](double x,double y){moves<<QPointF(x,y);return true;};
@@ -232,6 +240,21 @@ private slots:
   QTRY_COMPARE(done.count(),1);QVERIFY(p.lookScrolling());QCOMPARE(moves.last(),QPointF(.5,.5));
   QTest::qWait(25);QVERIFY(p.follow({.8,.8},true));QCOMPARE(scrolls.size(),1);QVERIFY(scrolls[0].x()>0);QVERIFY(scrolls[0].y()>0);
   QVERIFY(p.start("LookToScrollActive"));QVERIFY(!p.targeting());QTRY_COMPARE(done.count(),2);QVERIFY(!p.lookScrolling());
+ }
+ void lookScrollPausesThroughBlinkAndStopsOnLongLoss(){
+  PointerActions p;p.setDisplaySize({1000,1000});QList<QPointF> scrolls;
+  p.move=[](double,double){return true;};
+  p.scrollAxes=[&](double x,double y){scrolls<<QPointF(x,y);return true;};
+  QVERIFY(p.start("LookToScrollActive"));p.select({.5,.5});QTRY_VERIFY(p.lookScrolling());
+  QTest::qWait(25);QVERIFY(p.follow({.5,.8},true));QCOMPARE(scrolls.size(),1);
+  p.trackingLost();QTest::qWait(250);QVERIFY(p.lookScrolling());QCOMPARE(scrolls.size(),1);
+  QVERIFY(p.follow({.5,.8},true));QCOMPARE(scrolls.size(),1); // No accumulated scroll after a blink.
+  QTest::qWait(25);QVERIFY(p.follow({.5,.8},true));QCOMPARE(scrolls.size(),2);
+  p.trackingLost();
+  for(int i=0;i<4;++i){QTest::qWait(200);p.trackingLost();}
+  QVERIFY(!p.lookScrolling());QVERIFY(!p.follow({.5,.8},true));QCOMPARE(scrolls.size(),2);
+  QVERIFY(p.start("MouseMoveAndLeftClick"));p.select({.5,.5});p.trackingLost();
+  QVERIFY(!p.busy()); // Other pointer actions still cancel immediately.
  }
  void magneticCursorTracksOnlyWhenEnabledAndIdle(){
   PointerActions p;QList<QPointF> moves;p.move=[&](double x,double y){moves<<QPointF(x,y);return true;};
