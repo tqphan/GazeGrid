@@ -4,6 +4,7 @@
 #include "AppPaths.h"
 #include "ProfileStore.h"
 #include "GazeClock.h"
+#include "MagnifierGeometry.h"
 #include "KeyboardPack.h"
 #include "KeyboardLayout.h"
 #include <QDir>
@@ -117,7 +118,7 @@ private slots:
   sample(.8,.8);QCOMPARE(points.last()[0].toDouble(),.8);
   sample(.9,.9,true,GazeClock::now()-300000);QVERIFY(!points.last()[2].toBool());
   sample(.2,.2);QCOMPARE(points.last()[0].toDouble(),.2);
-  sample(1.1,.4);QVERIFY(!points.last()[2].toBool());
+  sample(qQNaN(),.4);QVERIFY(!points.last()[2].toBool());
   sample(.3,.3);QCOMPARE(points.last()[0].toDouble(),.3);
   QTest::qWait(230);QVERIFY(!points.last()[2].toBool());
   sample(.7,.7);QCOMPARE(points.last()[0].toDouble(),.7);
@@ -125,6 +126,22 @@ private slots:
   controller.setGazeSmoothingLevel(0);sample(.41,.42);QCOMPARE(points.last()[0].toDouble(),.41);
   controller.setGazeSmoothingLevel(2);sample(.6,.6);QCOMPARE(points.last()[0].toDouble(),.6);
   controller.setSmoothWhenChangingGazeTarget(true);sample(.2,.2);QCOMPARE(points.last()[0].toDouble(),.2);
+ }
+ void offscreenGazeClampsWithoutCanceling(){
+  Controller c;c.setGazeSmoothingLevel(0);
+  QSignalSpy points(&c,&Controller::gazePoint);
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Wait"},{"text","10000"}}}));
+  const QList<QPointF> samples{{0,.5},{1,.5},{.5,0},{.5,1},{-.01,.5},{1.01,.5},{.5,-.1},{.5,1.1},{-.5,-.5},{1.5,1.5}};
+  for(const auto &p:samples){
+   QTest::qWait(1);
+   QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,p.x()),Q_ARG(double,p.y()),Q_ARG(bool,true),Q_ARG(qint64,GazeClock::now())));
+   QVERIFY(points.last()[2].toBool());
+   QCOMPARE(points.last()[0].toDouble(),qBound(0.,p.x(),1.));
+   QCOMPARE(points.last()[1].toDouble(),qBound(0.,p.y(),1.));
+   QVERIFY(c.executingCommands());
+  }
+  QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,0.),Q_ARG(double,0.),Q_ARG(bool,false),Q_ARG(qint64,0)));
+  QVERIFY(!points.last()[2].toBool());QVERIFY(!c.executingCommands());
  }
  void smoothingPreferencesPersistAndReset(){
   {Controller controller;controller.setGazeSmoothingLevel(4);controller.setSmoothWhenChangingGazeTarget(true);QVERIFY(controller.savePreferences());}
@@ -210,18 +227,25 @@ private slots:
   const int revision=controller.property("magnifierRevision").toInt();QTest::qWait(100);
   QCOMPARE(controller.property("magnifierRevision").toInt(),revision);
  }
- void progressiveZoomTracksPointerWithDwellDisabled(){
+ void progressiveZoomIgnoresPointerMotion_data(){
+  QTest::addColumn<bool>("dwellEnabled");
+  QTest::newRow("dwell enabled")<<true;
+  QTest::newRow("dwell disabled")<<false;
+ }
+ void progressiveZoomIgnoresPointerMotion(){
+  QFETCH(bool,dwellEnabled);
   Controller controller;controller.inputContextChanged(true,false);
-  controller.setProperty("targeting",true);controller.setProperty("capturePending",true);
+  controller.setProperty("targeting",true);controller.setProperty("magnifierEnabled",true);
   controller.setProperty("progressiveZoom",true);controller.setProperty("zoomDurationMs",500);
-  controller.setProperty("magnifierZoom",4);controller.setProperty("targetDwellEnabled",false);
+  controller.setProperty("magnifierZoom",4);controller.setProperty("targetDwellEnabled",dwellEnabled);
+  controller.targetAt(.65,.6);QVERIFY(controller.property("capturePending").toBool());
   QImage frame(QGuiApplication::primaryScreen()->size(),QImage::Format_RGB32);
   for(int y=0;y<frame.height();++y)for(int x=0;x<frame.width();++x)frame.setPixelColor(x,y,QColor(x*255/frame.width(),y*255/frame.height(),0));
   QVERIFY(QMetaObject::invokeMethod(&controller,"receiveMagnifierFrame",Qt::DirectConnection,Q_ARG(QImage,frame)));
   QCOMPARE(controller.dwellAt(1,1,true),0.);
   QTRY_VERIFY(!controller.property("zoomAnimating").toBool());
   auto result=controller.magnifierImage();
-  QVERIFY(result.pixelColor(0,0).red()>150);QVERIFY(result.pixelColor(0,0).green()>150);
+  QCOMPARE(result,frame.copy(MagnifierGeometry::crop(frame.size(),{.65,.6},4)));
   const int revision=controller.property("magnifierRevision").toInt();
   controller.dwellAt(0,0,true);QTest::qWait(60);
   QCOMPARE(controller.property("magnifierRevision").toInt(),revision);

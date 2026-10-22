@@ -169,8 +169,6 @@ private:
  QRect magnifierCrop;
  QSize captureSize;
  QPointF coarseTarget;
- QPointF zoomTarget;
- bool hasZoomTarget=false;
  bool magnifierEnabled=false,capturePending=false,magnifierReady=false;
  int magnifierRevision=0;
  int magnifierZoom=4;
