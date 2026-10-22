@@ -16,6 +16,8 @@ Window {
  property bool gazeEnabled: controller.gazeEnabled
  property bool gazeCheck: false
  property bool minimizedRecovery:controller.layoutName.startsWith("minimized-off-screen-")
+ property bool usingGaze: gazeEnabled&&gazeValid
+ onUsingGazeChanged:{controller.hover("");controller.dwellAt(0,0,false);root.progress=0;root.targetProgress=0}
  property bool gazeValid: false
  property point gaze: Qt.point(-1,-1)
  property color dwellColor:controller.highContrast?"#ffff00":Kirigami.Theme.highlightColor
@@ -35,6 +37,7 @@ Window {
     if(item.modelData.kind==="SuggestionRow") {
      let n=Math.floor((px-item.x)/item.predictionWidth);return n<item.predictionCount&&n<controller.suggestions.length&&controller.suggestions[n].trim().length>0?"suggest:"+n:""
     }
+    if(item.modelData.kind==="Scratchpad")return ""
     return "key:"+i
    }
   }
@@ -51,7 +54,7 @@ Window {
   interval:25;running:!root.gazeCheck;repeat:true
   onTriggered:{
    let target=controller.keyboardTemporarilyHidden?"":root.hovered
-   if(root.gazeEnabled){
+   if(root.usingGaze){
     target=""
     if(root.gazeValid){
      let px=root.gaze.x*root.screenWidth,py=root.gaze.y*root.screenHeight
@@ -61,10 +64,10 @@ Window {
     }
    }
    if(controller.targeting){
-    const point=root.gazeEnabled?root.gaze:Qt.point(targetPointer.mouseX/targetWindow.width,targetPointer.mouseY/targetWindow.height)
-    const valid=root.gazeEnabled?root.gazeValid:targetPointer.containsMouse&&targetWindow.visible
+    const point=root.usingGaze?root.gaze:Qt.point(targetPointer.mouseX/targetWindow.width,targetPointer.mouseY/targetWindow.height)
+    const valid=root.usingGaze?root.gazeValid:targetPointer.containsMouse&&targetWindow.visible
     const cancelPoint=targetCancel.mapFromItem(targetWindow.contentItem,point.x*targetWindow.width,point.y*targetWindow.height)
-    const overCancel=(!root.gazeEnabled&&targetCancel.hovered)||(valid&&cancelPoint.x>=0&&cancelPoint.y>=0&&cancelPoint.x<targetCancel.width&&cancelPoint.y<targetCancel.height)
+    const overCancel=(!root.usingGaze&&targetCancel.hovered)||(valid&&cancelPoint.x>=0&&cancelPoint.y>=0&&cancelPoint.x<targetCancel.width&&cancelPoint.y<targetCancel.height)
     target=overCancel?"CancelTarget":""
     root.targetPoint=point;root.targetPointValid=valid&&!overCancel
     root.targetProgress=controller.dwellAt(point.x,point.y,valid&&!overCancel)
@@ -117,7 +120,7 @@ Window {
    Kirigami.Theme.colorSet:Kirigami.Theme.Button
    Kirigami.Theme.inherit:false
    border.width:root.minimizedRecovery?0:1;border.color:Kirigami.Theme.disabledTextColor
-   property bool active:enabled&&(root.gazeEnabled ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
+   property bool active:enabled&&(root.usingGaze ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
    Rectangle {anchors.fill:parent;color:Kirigami.Theme.highlightColor;opacity:key.active?0.18:0}
    Rectangle {
     anchors.fill:parent;anchors.margins:2
@@ -126,9 +129,14 @@ Window {
     opacity:key.stateFilled?0.25:1
     border.width:2;border.color:root.dwellColor
    }
+   Text {
+    anchors.fill:parent;anchors.margins:12;visible:key.modelData.kind==="Scratchpad"
+    text:controller.scratchpad;color:key.foreground;wrapMode:Text.Wrap
+    font.pixelSize:24;verticalAlignment:Text.AlignVCenter
+   }
    Column {
     anchors.centerIn:parent;spacing:4
-    visible:key.modelData.kind!=="SuggestionRow"&&!key.unavailableReason
+    visible:key.modelData.kind==="DynamicKey"&&!key.unavailableReason
     Image {
      anchors.horizontalCenter:parent.horizontalCenter
      // NoIcon is the pack's X symbol, not an instruction to hide the image.
@@ -160,7 +168,7 @@ Window {
    }
    MouseArea {
     objectName:"keyMouseArea:"+key.index
-    anchors.fill:parent;hoverEnabled:true;enabled:key.modelData.kind!=="SuggestionRow"
+    anchors.fill:parent;hoverEnabled:true;enabled:key.modelData.kind==="DynamicKey"
     onEntered:root.hovered=key.command
     onExited:if(root.hovered===key.command)root.hovered=""
     onClicked:controller.clickCommand(key.command)
@@ -175,7 +183,7 @@ Window {
       property string predictionText:index<controller.suggestions.length?controller.suggestions[index]:""
       property bool hasPrediction:predictionText.trim().length>0
       property string command:"suggest:"+index
-      property bool active:key.enabled&&hasPrediction&&(root.gazeEnabled ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
+      property bool active:key.enabled&&hasPrediction&&(root.usingGaze ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
       onHasPredictionChanged:if(!hasPrediction&&root.hovered==="suggest:"+index)root.hovered=""
       width:key.predictionWidth;height:key.height;color:"transparent";border.color:Kirigami.Theme.disabledTextColor
       Rectangle {anchors.fill:parent;color:Kirigami.Theme.highlightColor;opacity:predictionSlot.active?0.18:0}
@@ -286,7 +294,7 @@ Window {
       title:settings.categoryNames[0];visible:settingsCategory.currentIndex==0;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:10
-       Desktop.Label {text:!root.gazeEnabled?"Gaze off":root.gazeValid?"Gaze: receiving":"Gaze: waiting for valid on-screen point";Layout.fillWidth:true;wrapMode:Text.Wrap}
+       Desktop.Label {text:!root.gazeEnabled?"Gaze off":root.gazeValid?"Gaze: receiving":"Gaze unavailable — mouse dwell active";Layout.fillWidth:true;wrapMode:Text.Wrap}
        Desktop.Label {text:"Desktop control: "+controller.portalStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
        Desktop.Label {text:"Last action: "+controller.actionStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
        Desktop.Label {text:"Eye tracker: "+controller.tobiiStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}

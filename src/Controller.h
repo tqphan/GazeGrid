@@ -199,6 +199,7 @@ private:
  bool nativeMode=false,nativeActive=false,sensitiveInput=false;
  qint64 lastGazeSample=0;
  QVariantMap layout;QString layoutName;QStringList layoutNames,menuLayoutNames,backStack;
+ int suggestionOffset=0;
  QString scratchpad;QStringList suggestions,dictionary;QMap<QString,int> frequencies;
  QJsonObject mappingProfile;
 };

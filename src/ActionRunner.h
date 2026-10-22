@@ -16,6 +16,8 @@ public:
     std::function<bool(QString)> performAction;
     std::function<bool(QString)> supportsAction;
     std::function<void(QString,bool)> navigate;
+    bool textOnly=false; // Conversation keyboards never send desktop input.
+    bool capsLock=false;
     bool start(const QVariantList &commands);
     void cancel(bool preserveModifiers=false);
     void suspend();

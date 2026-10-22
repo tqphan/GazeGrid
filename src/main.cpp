@@ -346,10 +346,15 @@ int main(int argc,char **argv){
   window->setProperty("hovered","");window->setProperty("gazeEnabled",true);window->setProperty("gazeValid",true);
   window->setProperty("gaze",QPointF((centre.x()+window->property("logicalX").toDouble())/window->property("screenWidth").toDouble(),
                                    (centre.y()+window->property("logicalY").toDouble())/window->property("screenHeight").toDouble()));
+  window->setProperty("progress",.5);
   if(predictionProgress->width()<=0){QTextStream(stderr)<<"Gaze prediction progress missing"<<Qt::endl;return 2;}
   window->setProperty("gazeValid",false);
   if(predictionProgress->width()!=0){QTextStream(stderr)<<"Invalid gaze shows prediction progress"<<Qt::endl;return 2;}
-  window->setProperty("gazeValid",true);controller.setProperty("suggestions",QStringList{});
+  QMetaObject::invokeMethod(prediction,"entered");window->setProperty("progress",.5);
+  if(window->property("usingGaze").toBool()||predictionProgress->width()<=0){QTextStream(stderr)<<"Mouse fallback prediction progress missing"<<Qt::endl;return 2;}
+  window->setProperty("gazeValid",true);
+  if(!window->property("usingGaze").toBool()||window->property("progress").toDouble()!=0){QTextStream(stderr)<<"Gaze return did not reset dwell"<<Qt::endl;return 2;}
+  controller.setProperty("suggestions",QStringList{});
   if(predictionProgress->width()!=0){QTextStream(stderr)<<"Empty prediction shows gaze progress"<<Qt::endl;return 2;}
   controller.setProperty("suggestions",QStringList{"word"});window->setProperty("gazeEnabled",false);
   // Qt can deliver the new key's enter before the old prediction's exit.

@@ -42,13 +42,13 @@ QString ActionRunner::signature(const QVariantList &commands){
 }
 bool ActionRunner::start(const QVariantList &commands){
     if(running){emit failed("An action is still running");return false;}
-    auto error=validate(commands,sendText&&(!canCommitText||canCommitText()));if(!error.isEmpty()){emit failed(error);return false;}
+    auto error=validate(commands,textOnly||(sendText&&(!canCommitText||canCommitText())));if(!error.isEmpty()){emit failed(error);return false;}
     auto plannedHeld=held;
     static const QSet<QString> modifiers{"LSHIFT","RSHIFT","LCONTROL","RCONTROL","LMENU","RMENU","LWIN","RWIN"};
     for(const auto &v:commands){auto c=v.toMap();auto tag=c["tag"].toString();auto name=KeyNames::canonical(c["text"].toString());
         bool toggle=tag=="KeyToggle"||(tag=="Action"&&modifiers.contains(KeyNames::functionKey(name)));
         if(tag=="KeyDown"||tag=="KeyUp"||toggle){
-            if(supportsPhysicalKey&&!supportsPhysicalKey(name)){emit failed("Authorize desktop control for held keys and shortcuts");return false;}
+            if(!textOnly&&supportsPhysicalKey&&!supportsPhysicalKey(name)){emit failed("Authorize desktop control for held keys and shortcuts");return false;}
             if(tag=="KeyUp"||(toggle&&plannedHeld.contains(name)))plannedHeld.remove(name);else plannedHeld.insert(name);
         }
         if(tag=="Text"&&!plannedHeld.isEmpty())for(auto ch:c["text"].toString())if(KeyNames::usCharacter(ch).first.isEmpty()){emit failed("Release physical keys before committing Unicode text");return false;}
@@ -66,7 +66,7 @@ void ActionRunner::cancel(bool preserveModifiers){
     for(const auto &name:copy){
         if(preserveModifiers&&modifierKeys.contains(name)&&!transient.contains(name))continue;
         held.remove(name);latched.remove(name);
-        if(sendKey)sendKey(name,false);
+        if(!textOnly&&sendKey)sendKey(name,false);
     }
     transient.clear();
     emit stateChanged();
@@ -75,7 +75,8 @@ void ActionRunner::fail(QString message){cancel();emit failed(message);}
 bool ActionRunner::key(QString name,bool down,bool persistent){
     name=KeyNames::canonical(name);
     if(held.contains(name)==down)return true;
-    if(!sendKey||!sendKey(name,down))return false;
+    if(!textOnly&&(!sendKey||!sendKey(name,down)))return false;
+    if(textOnly&&name=="CAPITAL"&&down)capsLock=!capsLock;
     if(down){held.insert(name);if(!persistent)transient.insert(name);}else{held.remove(name);transient.remove(name);latched.remove(name);}
     emit stateChanged();return true;
 }
@@ -99,7 +100,8 @@ void ActionRunner::step(){
     else if(tag=="Text"){
         bool shortcut=shortcutHeld();
         QString composed;
-        if(sendText&&(!canCommitText||canCommitText())&&held.isEmpty()){
+        if(textOnly){for(auto ch:value)composed+=KeyNames::usTypedCharacter(ch,shifted()||(capsLock&&ch.isLetter()));}
+        else if(sendText&&(!canCommitText||canCommitText())&&held.isEmpty()){
             QString pending;
             auto flush=[&]{if(pending.isEmpty())return true;bool result=sendText(pending);if(result)composed+=pending;pending.clear();return result;};
             for(auto ch:value){
@@ -115,7 +117,7 @@ void ActionRunner::step(){
             if(!ok)break;composed+=KeyNames::usTypedCharacter(ch,upper);
         }
         }
-        if(ok&&!shortcut)emit textCommitted(composed);
+        if(ok&&(textOnly||!shortcut))emit textCommitted(composed);
     }else if(tag=="ChangeKeyboard"){
         bool back=command["attributes"].toMap().value("backreturnshere","true").toString().compare("false",Qt::CaseInsensitive)!=0;
         if(navigate)navigate(value.trimmed(),back);else ok=false;

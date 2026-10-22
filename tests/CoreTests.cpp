@@ -267,7 +267,7 @@ private slots:
   QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(!p.magnetic());QCOMPARE(moves.size(),1);
  }
  void actionCoverageListsMissingPackFeatures(){
-  auto report=KeyboardPack::audit(PACK_PATH);QCOMPARE(report["layouts"].toList().size(),22);
+  auto report=KeyboardPack::audit(PACK_PATH);QCOMPARE(report["layouts"].toList().size(),29);
   QVERIFY(report["unsupportedActions"].toStringList().isEmpty());
   QVERIFY(!report["behavioralParityVerified"].toBool());
  }
@@ -394,6 +394,37 @@ private slots:
    if(modifier.isEmpty())QCOMPARE(text.at(0).at(0).toString(),QString("\b"));
    QVERIFY(runner.heldKeys().isEmpty());
   }
+ }
+ void automaticLayoutPlacement(){
+  QTemporaryDir dir;QFile file(dir.filePath("layout.xml"));QVERIFY(file.open(QIODevice::WriteOnly));
+  file.write("<Keyboard><Grid><Rows>2</Rows><Cols>4</Cols></Grid><Content>"
+             "<DynamicKey Row='0' Col='0' Height='2'/><DynamicKey Width='2'/>"
+             "<DynamicKey/><Scratchpad Width='3'/></Content></Keyboard>");file.close();
+  auto layout=KeyboardLayout::fromXml(KeyboardPack::load(file.fileName()));
+  QVERIFY2(!layout.contains("error"),qPrintable(layout["error"].toString()));
+  auto keys=layout["keys"].toList();QCOMPARE(keys.size(),4);
+  QCOMPARE(keys[1].toMap()["col"].toInt(),1);QCOMPARE(keys[2].toMap()["col"].toInt(),3);
+  QCOMPARE(keys[3].toMap()["row"].toInt(),1);QCOMPARE(keys[3].toMap()["col"].toInt(),1);
+  QVERIFY(file.open(QIODevice::WriteOnly|QIODevice::Truncate));
+  file.write("<Keyboard><Grid><Rows>1</Rows><Cols>1</Cols></Grid><Content><DynamicKey/><DynamicKey/></Content></Keyboard>");file.close();
+  QVERIFY(KeyboardLayout::fromXml(KeyboardPack::load(file.fileName())).contains("error"));
+ }
+ void conversationNeverSendsDesktopInput(){
+  ActionRunner runner;runner.textOnly=true;int output=0;
+  runner.sendKey=[&](QString,bool){++output;return true;};
+  runner.sendText=[&](QString){++output;return true;};
+  runner.supportsPhysicalKey=[](QString){return false;};
+  QSignalSpy text(&runner,&ActionRunner::textCommitted),done(&runner,&ActionRunner::finished);
+  QVERIFY(runner.start({cmd("Action","LeftShift")}));QTRY_COMPARE(done.count(),1);
+  QVERIFY(runner.start({cmd("Text","a\t")}));QTRY_COMPARE(done.count(),2);
+  QCOMPARE(text[0][0].toString(),QString("A\t"));QVERIFY(!runner.shifted());
+  QVERIFY(runner.start({cmd("Action","BackOne")}));QTRY_COMPARE(done.count(),3);
+  QCOMPARE(text[1][0].toString(),QString("\b"));runner.cancel();QCOMPARE(output,0);
+ }
+ void extendedFunctionKeys(){
+  for(int i=13;i<=24;++i)QCOMPARE(KeyNames::linuxCode(QString("F%1").arg(i)),170+i);
+  QCOMPARE(KeyNames::linuxCode("PrintScreen"),99);
+  QCOMPARE(KeyNames::linuxCode("VK_1"),2);
  }
  void allLayoutsCompile(){
   for(const auto &file:QDir(PACK_PATH).entryList({"*.xml"})){
@@ -557,7 +588,7 @@ private slots:
  }
  void explicitActivationDoesNotFireAgain(){Dwell d;d.consume("Pause",0);for(int t=25;t<1500;t+=25)QVERIFY(!d.update("Pause",t,500));d.update("",1500,500);QVERIFY(!d.update("Pause",1550,500));}
  void changingTargetCancels(){Dwell d;d.update("a",0,150);d.update("a",100,150);QVERIFY(!d.update("b",160,150));QVERIFY(!d.update("b",260,150));QVERIFY(d.update("b",310,150));}
- void packLoadsAndLinksResolve(){auto r=KeyboardPack::audit(PACK_PATH);QCOMPARE(r["fileCount"].toInt(),22);QCOMPARE(r["keyCount"].toInt(),570);QVERIFY2(r["errors"].toStringList().isEmpty(),qPrintable(r["errors"].toStringList().join('\n')));}
+ void packLoadsAndLinksResolve(){auto r=KeyboardPack::audit(PACK_PATH);QCOMPARE(r["fileCount"].toInt(),29);QCOMPARE(r["keyCount"].toInt(),732);QVERIFY2(r["errors"].toStringList().isEmpty(),qPrintable(r["errors"].toStringList().join('\n')));}
  void textPreservesWhitespaceAndOrder(){
   QTemporaryDir dir;QFile f(dir.filePath("test.xml"));QVERIFY(f.open(QIODevice::WriteOnly));f.write("<Keyboard><DynamicKey row=\"2\"><KeyDown>LSHIFT</KeyDown><Text>&#9;</Text><Wait>50</Wait><KeyUp>LSHIFT</KeyUp></DynamicKey></Keyboard>");f.close();
   auto r=KeyboardPack::load(f.fileName());auto key=r["children"].toList()[0].toMap();QCOMPARE(key["attributes"].toMap()["row"].toString(),QString("2"));

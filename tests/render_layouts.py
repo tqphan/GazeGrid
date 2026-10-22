@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
-"""Render the unchanged XML fixture offscreen; never authorize desktop input."""
+"""Render the XML keyboard pack offscreen; never authorize desktop input."""
 import json
 import os
 from pathlib import Path
 import struct
 import subprocess
 import tempfile
+import xml.etree.ElementTree as ET
 
 root = Path(__file__).resolve().parents[1]
 output = root / "runtime" / "render-audit"
 output.mkdir(parents=True, exist_ok=True)
+icons = json.loads((root / "resources" / "icons.json").read_text())
+for layout in (root / "references" / "optikey-keyboard-en-us").glob("*.xml"):
+    for symbol in ET.parse(layout).iter("Symbol"):
+        if not icons.get((symbol.text or "").strip()):
+            raise SystemExit(f"Missing icon in {layout.name}: {symbol.text}")
 results = []
 with tempfile.TemporaryDirectory(prefix="optikey-render-") as temporary:
     environment = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software",
@@ -28,6 +34,6 @@ with tempfile.TemporaryDirectory(prefix="optikey-render-") as temporary:
     audit = subprocess.run([str(root / "build" / "optikey-pro"), "--validate-keyboards"],
                            env=environment, text=True, capture_output=True, check=True)
     (output / "coverage.json").write_text(audit.stdout)
-if len(results) != 22 or any(r["exitCode"] or not r["dimensions"] or r["diagnostics"] for r in results):
+if len(results) != 29 or any(r["exitCode"] or not r["dimensions"] or r["diagnostics"] for r in results):
     raise SystemExit("Render failures or diagnostics: inspect runtime/render-audit/results.json")
-print("All 22 layouts rendered without diagnostics.")
+print("All 29 layouts rendered without diagnostics.")

@@ -3,7 +3,6 @@
   <Width>20%</Width>
   <Height>20%</Height>
   <SymbolMargin>0</SymbolMargin>
-  <BorderThickness>0,0,0,0</BorderThickness>
   <DockSize>Full</DockSize>
   <Position>Top</Position>
   <HorizontalOffset>0</HorizontalOffset>
@@ -18,7 +17,7 @@
   </Grid>
   <KeyGroup Name="Minimize" Opacity="0.75" />
   <Content>
-    <DynamicKey Row="0" Col="0" CompletionTimes="750">
+    <DynamicKey CompletionTimes="750">
       <Symbol>MinimiseIcon</Symbol>
       <Action>BackFromKeyboard</Action>
       <KeyGroup>Minimize</KeyGroup>

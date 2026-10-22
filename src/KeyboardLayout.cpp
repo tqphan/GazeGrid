@@ -16,14 +16,23 @@ QVariantMap KeyboardLayout::fromXml(const QVariantMap &root){
     for(auto v:root["children"].toList()){auto content=v.toMap();if(content["tag"]!="Content")continue;
         for(auto entry:content["children"].toList()){
             auto n=entry.toMap(),attr=n["attributes"].toMap();auto tag=n["tag"].toString();
-            if(tag!="DynamicKey"&&tag!="SuggestionRow")return {{"error","Unsupported content item: "+tag}};
-            bool rowOk=false,colOk=false;int row=attr["row"].toString().toInt(&rowOk),col=attr["col"].toString().toInt(&colOk);
+            if(tag!="DynamicKey"&&tag!="SuggestionRow"&&tag!="Scratchpad")return {{"error","Unsupported content item: "+tag}};
+            bool rowOk=false,colOk=false;int row=attr.value("row").toString().toInt(&rowOk),col=attr.value("col").toString().toInt(&colOk);
             int width=attr.value("width",1).toInt(),height=attr.value("height",1).toInt();
+            // Unpositioned items flow into the first free rectangle in row-major order.
+            if(!attr.contains("row")&&!attr.contains("col")&&width>0&&height>0&&width<=cols&&height<=rows){
+                for(int y=0;y<=rows-height&&!rowOk;++y)for(int x=0;x<=cols-width&&!rowOk;++x){
+                    bool free=true;
+                    for(int dy=0;dy<height;++dy)for(int dx=0;dx<width;++dx)
+                        if(occupied.contains(QString("%1:%2").arg(y+dy).arg(x+dx)))free=false;
+                    if(free){row=y;col=x;rowOk=colOk=true;}
+                }
+            }
             if(!rowOk||!colOk||row<0||col<0||width<1||height<1||row+height>rows||col+width>cols)return {{"error","Key outside keyboard grid"}};
             for(int y=row;y<row+height;++y)for(int x=col;x<col+width;++x){auto cell=QString("%1:%2").arg(y).arg(x);if(occupied.contains(cell))return {{"error","Overlapping keyboard cells"}};occupied.insert(cell);}
             QVariantMap style{{"backgroundcolor","#f7f8fa"},{"foregroundcolor","#17212d"},{"foregroundopacity",1.0},{"opacity",1.0}};
             QSet<QString> memberships;for(auto c:n["children"].toList()){auto child=c.toMap();if(child["tag"]=="KeyGroup")memberships.insert(child["text"].toString().trimmed());}
-            for(auto group:groups){auto g=group.toMap();if(g["name"].toString().compare("All",Qt::CaseInsensitive)==0||memberships.contains(g["name"].toString()))for(auto it=g.begin();it!=g.end();++it)if(it.key()!="name")style[it.key()]=it.value();}
+            for(auto group:groups){auto g=group.toMap();if(g["name"].toString().compare("All",Qt::CaseInsensitive)==0||g["name"].toString().compare("Default",Qt::CaseInsensitive)==0||memberships.contains(g["name"].toString()))for(auto it=g.begin();it!=g.end();++it)if(it.key()!="name")style[it.key()]=it.value();}
             for(auto it=attr.begin();it!=attr.end();++it)style[it.key()]=it.value();
             QVariantList commands;
             static const QSet<QString> commandTags{"Action","Text","KeyDown","KeyUp","KeyToggle","Wait","ChangeKeyboard"};

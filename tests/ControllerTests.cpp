@@ -16,6 +16,25 @@
 class ControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void experimentalConversationEditing(){
+  Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+  QCOMPARE(c.property("layoutName").toString(),QString("keyboard-conversation-fullscreen"));
+  auto keys=c.property("layout").toMap()["keys"].toList();
+  auto findKey=[&](QString tag,QString text){for(int i=0;i<keys.size();++i)for(const auto &v:keys[i].toMap()["commands"].toList()){
+   auto cmd=v.toMap();if(cmd["tag"]==tag&&cmd["text"].toString()==text)return QString("key:%1").arg(i);
+  }return QString();};
+  const auto letter=findKey("Text","a"),back=findKey("Action","BackMany");QVERIFY(!letter.isEmpty());QVERIFY(!back.isEmpty());
+  c.clickCommand(letter);QTRY_VERIFY(!c.executingCommands());QCOMPARE(c.property("scratchpad").toString(),QString("a"));
+  c.setProperty("scratchpad",QString("hello world "));
+  c.clickCommand(back);QTRY_VERIFY(!c.executingCommands());QCOMPARE(c.property("scratchpad").toString(),QString("hello "));
+  c.clickCommand(findKey("Action","ClearScratchpad"));QTRY_VERIFY(!c.executingCommands());QVERIFY(c.property("scratchpad").toString().isEmpty());
+  c.clickCommand(letter);QTRY_VERIFY(!c.executingCommands());
+  const auto first=c.property("suggestions").toStringList();QVERIFY(!first.isEmpty());
+  c.clickCommand(findKey("Action","NextSuggestions"));QTRY_VERIFY(!c.executingCommands());
+  QVERIFY(c.property("suggestions").toStringList()!=first);
+  c.clickCommand(findKey("Action","PreviousSuggestions"));QTRY_VERIFY(!c.executingCommands());
+  QCOMPARE(c.property("suggestions").toStringList(),first.mid(0,6));
+ }
  void gazePreferenceLoadsSavesAndResets(){
   ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
   auto values=ProfileStore::defaults();QVERIFY(!values["gazeEnabled"].toBool());
@@ -127,6 +146,19 @@ private slots:
  void restoreOpacityPersistsAndResets(){
   {Controller controller;controller.setProperty("restoreOpacity",35);QVERIFY(controller.savePreferences());}
   {Controller controller;QCOMPARE(controller.property("restoreOpacity").toInt(),35);controller.resetPreferences();QCOMPARE(controller.property("restoreOpacity").toInt(),100);}
+ }
+ void unavailableGazeDoesNotInterruptMouseFallback(){
+  Controller c;QString output;
+  c.configureInputMethod([&](QString text){output+=text;return true;},[](QString,bool){return true;});c.inputContextChanged(true,false);
+  c.setProperty("dwellMs",100);
+  c.setProperty("layout",QVariantMap{{"keys",QVariantList{QVariantMap{{"commands",QVariantList{QVariantMap{{"tag","Text"},{"text","a"}}}}}}}});
+  auto sample=[&](bool valid){QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,.5),Q_ARG(double,.5),Q_ARG(bool,valid),Q_ARG(qint64,valid?GazeClock::now():0)));};
+  sample(true);sample(false);
+  c.hover("key:0");
+  for(int i=0;i<6;++i){QTest::qWait(25);sample(false);c.hover("key:0");}
+  QTRY_COMPARE(output,QString("a"));
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Wait"},{"text","50"}},QVariantMap{{"tag","Text"},{"text","b"}}}));
+  sample(false);QTRY_COMPARE(output,QString("ab"));
  }
  void gazeSmoothingPipelineAndRecovery(){
   Controller controller;controller.setDisplaySize(1000,1000);controller.setGazeSmoothingLevel(2);controller.setSmoothWhenChangingGazeTarget(false);
@@ -351,7 +383,7 @@ private slots:
  void keyboardMenuHonorsXmlVisibility(){
   Controller controller;
   QCOMPARE(controller.property("menuLayoutNames").toStringList(),QStringList({"main-14x1-top"}));
-  QCOMPARE(controller.property("layoutNames").toStringList().size(),22);
+  QCOMPARE(controller.property("layoutNames").toStringList().size(),29);
   controller.openLayout("minimized-off-screen-bottom");
   QCOMPARE(controller.property("layoutName").toString(),QString("minimized-off-screen-bottom"));
   controller.recover();QCOMPARE(controller.property("layoutName").toString(),QString("main-14x1-bottom"));
@@ -365,7 +397,7 @@ private slots:
  }
  void sleepKeyTogglesByClick(){
   Controller controller;
-  for(const auto &name:{"main-14x1-bottom","main-14x1-top"}){
+  for(const auto &name:{"keyboard-conversation-fullscreen"}){
    controller.recover();controller.openLayout(name,false);
    const auto keys=controller.property("layout").toMap()["keys"].toList();
    QString sleep;
@@ -375,12 +407,12 @@ private slots:
    }
    QVERIFY(!sleep.isEmpty());
    controller.clickCommand(sleep);QVERIFY(controller.property("paused").toBool());
-   controller.clickCommand("key:0");QCOMPARE(controller.property("layoutName").toString(),QString(name));
+   controller.clickCommand("key:1");QCOMPARE(controller.property("layoutName").toString(),QString(name));
    controller.clickCommand(sleep);QVERIFY(!controller.property("paused").toBool());
   }
  }
  void sleepKeyDwellResumesOnlyAfterLookingAway(){
-  Controller controller;controller.recover();controller.setProperty("dwellMs",250);
+  Controller controller;controller.recover();controller.openLayout("keyboard-conversation-fullscreen",false);controller.setProperty("dwellMs",250);
   const auto keys=controller.property("layout").toMap()["keys"].toList();
   QString sleep;
   for(int i=0;i<keys.size();++i){

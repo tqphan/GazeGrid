@@ -1,0 +1,86 @@
+<Keyboard>
+  <Name>Dolphin - Top - 14x1</Name>
+  <Width>100%</Width>
+  <Height>11.50%</Height>
+  <SymbolMargin>12</SymbolMargin>
+  <DockSize>Full</DockSize>
+  <Position>Top</Position>
+  <HorizontalOffset>0</HorizontalOffset>
+  <VerticalOffset>0</VerticalOffset>
+  <WindowState>Floating</WindowState>
+  <PersistNewState>false</PersistNewState>
+  <HideFromKeyboardMenu>true</HideFromKeyboardMenu>
+  <Grid>
+    <Rows>1</Rows>
+    <Cols>14</Cols>
+  </Grid>
+  <KeyGroup 
+    BackgroundColor="#230F18" 
+    ForegroundColor="#ffffff" 
+    ForegroundOpacity="0.75"
+    Name="Default" />
+  <Content>
+    <DynamicKey>
+      <Symbol>DownArrowKeyIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">dolphin-14x1-bottom</ChangeKeyboard>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>ArrowsAllDirectionsIcon</Symbol>    
+      <Action>MouseMagneticCursor</Action>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>LookToScrollActiveIcon</Symbol>
+      <Action>LookToScrollActive</Action>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>MouseLeftButtonClickIcon</Symbol>
+      <Action>F21</Action>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>MouseMiddleButtonClickIcon</Symbol>
+      <Action>F22</Action>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>MouseRightButtonClickIcon</Symbol>
+      <Action>F23</Action>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>KeyboardIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">keyboard-alphabet-14x4-top</ChangeKeyboard>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>MouseNeutralIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">mouse-14x1-top</ChangeKeyboard>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>BrowserIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">web-14x1-top</ChangeKeyboard>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>WinKeyIcon</Symbol>
+      <KeyDown>LWIN</KeyDown>
+      <KeyUp>LWIN</KeyUp>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>TransferUpDownIcon</Symbol>
+      <Action>F24</Action>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>CtrlAltTab</Symbol>
+      <KeyDown>LMenu</KeyDown>
+      <KeyDown>LCONTROL</KeyDown>
+      <KeyDown>TAB</KeyDown>
+      <KeyUp>TAB</KeyUp>
+      <KeyUp>LMenu</KeyUp>
+      <KeyUp>LCONTROL</KeyUp>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>MoreIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">dolphin-14x2-top</ChangeKeyboard>
+    </DynamicKey>
+    <DynamicKey>
+      <Symbol>MinimiseIcon</Symbol>
+      <ChangeKeyboard BackReturnsHere="true">minimized-off-screen-top</ChangeKeyboard>
+    </DynamicKey>
+  </Content>
+</Keyboard>

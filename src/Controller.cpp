@@ -196,7 +196,12 @@ void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
   lastGazeSample=sampledAt;gazeAge.restart();
   const auto point=gazeSmoothing.update({x*gazeDisplaySize.width(),y*gazeDisplaySize.height()},smoothingLevel,smoothTargetChanges);
   x=point.x()/gazeDisplaySize.width();y=point.y()/gazeDisplaySize.height();
- }else{gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();portal.releaseAll();pointer.trackingLost();}
+ }else{
+  // Cancel gaze work once on tracking loss. Further invalid samples must not
+  // continually reset mouse dwell or cancel actions started by the fallback.
+  const bool wasValid=gazeAge.isValid();gazeAge.invalidate();gazeSmoothing.reset();
+  if(wasValid){dwell.reset();runner.cancel();portal.releaseAll();pointer.trackingLost();}
+ }
  emit gazePoint(x,y,valid);
 }
 void Controller::setDisplaySize(double width,double height){
@@ -288,7 +293,7 @@ void Controller::activate(QString key){
  if(key=="CancelTarget"){targeting=false;runner.cancel();portal.releaseAll();pointer.cancel();emit changed();return;}
  if(paused)return;
  if(key.startsWith("suggest:")){
-  bool valid=false;int i=key.mid(8).toInt(&valid);if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()||!ready())return;
+  bool valid=false;int i=key.mid(8).toInt(&valid);if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()||(!runner.textOnly&&!ready()))return;
   if(!runner.heldKeys().isEmpty()){actionStatus="Release held keys before accepting a suggestion";emit changed();return;}
   QString prefix=WordPrediction::prefix(scratchpad);auto word=suggestions[i];
   runner.start({command("Text",word.mid(prefix.size())+" ")});return;
@@ -300,8 +305,8 @@ void Controller::activate(QString key){
  auto commands=keys[i].toMap()["commands"].toList();bool ok=false;commands=mapped(commands,ok);
  if(!ok){emit changed();return;}
  // Navigation, sleep, and scratchpad clearing work without a portal session.
- bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad")))needsOutput=true;}
- if(needsOutput&&!ready()){actionStatus="Authorize desktop control before sending input";emit changed();return;}
+ bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="NextSuggestions"||value=="PreviousSuggestions")))needsOutput=true;}
+ if(needsOutput&&!runner.textOnly&&!ready()){actionStatus="Authorize desktop control before sending input";emit changed();return;}
  runner.start(commands);emit changed();
 }
 void Controller::openLayout(QString name,bool backReturnsHere){
@@ -328,14 +333,29 @@ void Controller::openLayout(QString name,bool backReturnsHere){
   }
   compiled["keys"]=keys;
  }
- runner.cancel(true);pointer.cancel();dwell.reset();
+ const bool textOnly=compiled["simulatekeystrokes"].toString().compare("false",Qt::CaseInsensitive)==0;
+ runner.cancel(textOnly==runner.textOnly);runner.textOnly=textOnly;runner.capsLock=false;pointer.cancel();dwell.reset();
  if(backReturnsHere&&!layoutName.isEmpty()&&layoutName!=name){backStack<<layoutName;if(backStack.size()>64)backStack.removeFirst();}
- layout=compiled;layoutName=name;emit layoutChanged();emit changed();
+ layout=compiled;layoutName=name;updateSuggestions();emit layoutChanged();emit changed();
 }
 void Controller::recover(){paused=false;backStack.clear();openLayout("main-14x1-bottom",false);}
 bool Controller::performAction(QString action){
  if(action=="MouseMagnifier"){
   setMagnifierEnabled(!magnifierEnabled);actionStatus=magnifierEnabled?"Magnifier enabled: target selection will request desktop capture":"Magnifier disabled";emit changed();return true;
+ }
+ if(action=="Speak"){speak();return true;}
+ if(action=="BackMany"){
+  if(!runner.textOnly)return false;
+  int end=scratchpad.size();while(end>0&&scratchpad[end-1].isSpace())--end;
+  while(end>0&&!scratchpad[end-1].isSpace())--end;
+  scratchpad.truncate(end);updateSuggestions();return true;
+ }
+ if(action=="NextSuggestions"||action=="PreviousSuggestions"){
+  int pageSize=4;for(const auto &v:layout["keys"].toList()){auto k=v.toMap();if(k["kind"]=="SuggestionRow")pageSize=qMax(1,k["width"].toInt()/2);}
+  const auto all=WordPrediction::suggest(scratchpad,dictionary,frequencies,1000);
+  int next=suggestionOffset+(action=="NextSuggestions"?pageSize:-pageSize);
+  if(next>=0&&next<all.size())suggestionOffset=next;
+  suggestions=all.mid(suggestionOffset,pageSize);emit changed();return true;
  }
  if(action=="ClearScratchpad"){scratchpad.clear();updateSuggestions();return true;}
  if(action=="Sleep"){togglePause();return true;}
@@ -415,6 +435,7 @@ void Controller::updateText(QString text){
  if(scratchpad.size()>4096)scratchpad=scratchpad.right(4096);updateSuggestions();
 }
 void Controller::updateSuggestions(){
+ suggestionOffset=0;
  suggestions=WordPrediction::suggest(scratchpad,dictionary,frequencies);emit changed();
 }
 void Controller::resetLearning(){frequencies.clear();QFile::remove(configFile("learned.json"));updateSuggestions();}

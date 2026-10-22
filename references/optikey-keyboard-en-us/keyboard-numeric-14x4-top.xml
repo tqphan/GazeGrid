@@ -2,14 +2,11 @@
   <Name>OptiKey-HorizontalBoard</Name>
   <Height>46%</Height>
   <SymbolMargin>12</SymbolMargin>
-  <BorderThickness>0,0,0,0</BorderThickness>
   <DockSize>Full</DockSize>
   <Position>Top</Position>
   <Width>100%</Width>
   <HorizontalOffset>0</HorizontalOffset>
   <VerticalOffset>0</VerticalOffset>
-  <BackgroundColor>#ffffff</BackgroundColor>
-  <BorderColor>#ffffff</BorderColor>
   <WindowState>Floating</WindowState>
   <HideFromKeyboardMenu>true</HideFromKeyboardMenu>
   <PersistNewState>false</PersistNewState>
@@ -19,256 +16,257 @@
   </Grid>
   <Content>
     <!-- Row 0 -->
-    <DynamicKey Row="0" Col="0">
+    <DynamicKey>
       <Symbol>ShiftKeyIcon</Symbol>
       <Action>LeftShift</Action>
       <KeyGroup>Modifier</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="1">
+    <DynamicKey>
       <ShiftDownLabel>!</ShiftDownLabel>
       <Label>1</Label>
       <Text>1</Text>
       <KeyGroup>Numeric</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="2">
+    <DynamicKey>
       <ShiftDownLabel>@</ShiftDownLabel>
       <Label>2</Label>
       <Text>2</Text>
       <KeyGroup>Numeric</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="3">
+    <DynamicKey>
       <ShiftDownLabel>#</ShiftDownLabel>
       <Label>3</Label>
       <Text>3</Text>
       <KeyGroup>Numeric</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="4">
+    <DynamicKey>
       <ShiftDownLabel>$</ShiftDownLabel>
       <Label>4</Label>
       <Text>4</Text>
       <KeyGroup>Numeric</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="5">
+    <DynamicKey>
       <ShiftDownLabel>%</ShiftDownLabel>
       <Label>5</Label>
       <Text>5</Text>
       <KeyGroup>Numeric</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="6">
+    <DynamicKey>
       <ShiftDownLabel>^</ShiftDownLabel>
       <Label>6</Label>
       <Text>6</Text>
       <KeyGroup>Numeric</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="7">
+    <DynamicKey>
       <ShiftDownLabel>&amp;</ShiftDownLabel>
       <Label>7</Label>
       <Text>7</Text>
       <KeyGroup>Numeric</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="8">
+    <DynamicKey>
       <ShiftDownLabel>*</ShiftDownLabel>
       <Label>8</Label>
       <Text>8</Text>
       <KeyGroup>Numeric</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="9">
+    <DynamicKey>
       <ShiftDownLabel>(</ShiftDownLabel>
       <Label>9</Label>
       <Text>9</Text>
       <KeyGroup>Numeric</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="10">
+    <DynamicKey>
       <ShiftDownLabel>)</ShiftDownLabel>
       <Label>0</Label>
       <Text>0</Text>
       <KeyGroup>Numeric</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="11">
+    <DynamicKey>
       <ShiftDownLabel>_</ShiftDownLabel>
       <Label>-</Label>
       <Text>-</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="12">
+    <DynamicKey>
       <ShiftDownLabel>+</ShiftDownLabel>
       <Label>=</Label>
       <Text>=</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="0" Col="13">
+    <DynamicKey>
       <Symbol>BackspaceKeyIcon</Symbol>
       <Action>BackOne</Action>
       <KeyGroup>Modifier</KeyGroup>
     </DynamicKey>
     <!-- Row 1 -->
-    <DynamicKey Row="1" Col="0">
+    <DynamicKey>
       <Symbol>WinKeyIcon</Symbol>
       <Action>LeftWin</Action>
       <KeyGroup>Modifier</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="1">
+    <DynamicKey>
       <Label>!</Label>
       <Text>!</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="2">
+    <DynamicKey>
       <Label>@</Label>
       <Text>@</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="3">
+    <DynamicKey>
       <Label>#</Label>
       <Text>#</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="4">
+    <DynamicKey>
       <Label>$</Label>
       <Text>$</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="5">
+    <DynamicKey>
       <Label>%</Label>
       <Text>%</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="6">
+    <DynamicKey>
       <Label>^</Label>
       <Text>^</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="7">
+    <DynamicKey>
       <Label>&amp;</Label>
       <Text>&amp;</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="8">
+    <DynamicKey>
       <Label>*</Label>
       <Text>*</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="9">
+    <DynamicKey>
       <ShiftDownLabel>|</ShiftDownLabel>
       <Label>\</Label>
       <Text>\</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="10">
+    <DynamicKey>
       <Label>⮝</Label>
       <KeyDown>UP</KeyDown>
       <KeyUp>UP</KeyUp>
       <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="11">
-      <Label>_</Label>
-      <Text>_</Text>
+    <DynamicKey>
+      <Label>/</Label>
+      <Text>/</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="12">
+    <DynamicKey>
       <Label>+</Label>
       <Text>+</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="1" Col="13">
+    <DynamicKey>
       <Symbol>EnterIcon</Symbol>
       <Text>&#13;</Text>
       <KeyGroup>Modifier</KeyGroup>
     </DynamicKey>
     <!-- Row 2 -->
-    <DynamicKey Row="2" Col="0">
+    <DynamicKey>
       <Symbol>CtrlKeyIcon</Symbol>
       <Action>LeftCtrl</Action>
       <KeyGroup>Modifier</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="1">
+    <DynamicKey>
       <Symbol>AltKeyIcon</Symbol>
       <Action>LeftAlt</Action>
       <KeyGroup>Modifier</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="2">
+    <DynamicKey>
       <Label>␣</Label>
       <Text>&#32;</Text>
       <KeyGroup>Alphabet</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="3">
+    <DynamicKey>
       <Label>(</Label>
       <Text>(</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="4">
+    <DynamicKey>
       <Label>)</Label>
       <Text>)</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="5">
+    <DynamicKey>
       <Label>[</Label>
       <Text>[</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="6">
+    <DynamicKey>
       <Label>]</Label>
       <Text>]</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="7">
+    <DynamicKey>
       <Label>{</Label>
       <Text>{</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="8">
+    <DynamicKey>
       <Label>}</Label>
       <Text>}</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="9">
+    <DynamicKey>
       <Label>⮜</Label>
       <KeyDown>LEFT</KeyDown>
       <KeyUp>LEFT</KeyUp>
       <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="10">
+    <DynamicKey>
       <Label>⮟</Label>
       <KeyDown>DOWN</KeyDown>
       <KeyUp>DOWN</KeyUp>
       <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="11">
+    <DynamicKey>
       <Label>⮞</Label>
       <KeyDown>RIGHT</KeyDown>
       <KeyUp>RIGHT</KeyUp>
       <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="12">
-      <Label>~</Label>
-      <Text>~</Text>
-      <KeyGroup>Alphabet</KeyGroup>
+    <DynamicKey>
+      <ShiftDownLabel>></ShiftDownLabel>
+      <Label>.</Label>
+      <Text>.</Text>
+      <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="2" Col="13">
+    <DynamicKey>
       <ShiftDownLabel>~</ShiftDownLabel>
       <Label>`</Label>
       <Text>`</Text>
       <KeyGroup>Punctuation</KeyGroup>
     </DynamicKey>
     <!-- Row 3 -->
-    <DynamicKey Row="3" Col="0">
+    <DynamicKey>
       <Symbol>DownArrowKeyIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="false">keyboard-numeric-14x4-bottom</ChangeKeyboard>
       <KeyGroup>Mirror</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="3" Col="1">
+    <DynamicKey>
       <Symbol>AlphaIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="false">keyboard-alphabet-14x4-top</ChangeKeyboard>
       <KeyGroup>Pagination</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="3" Col="2">
+    <DynamicKey>
       <Symbol>EraserIcon</Symbol>
       <Action>ClearScratchpad</Action>
       <KeyGroup>Exit</KeyGroup>
     </DynamicKey>
-    <SuggestionRow Row="3" Col="3" Width="8">
+    <SuggestionRow Width="8">
       <KeyGroup>Suggestion</KeyGroup>
     </SuggestionRow>
-    <DynamicKey Row="3" Col="11">
+    <DynamicKey>
       <Symbol>ConversationIcon</Symbol>
       <KeyDown>LWIN</KeyDown>
       <Text>c</Text>
@@ -276,12 +274,12 @@
       <Action>ClearScratchpad</Action>
       <KeyGroup>Exit</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="3" Col="12">
+    <DynamicKey>
       <Symbol>PhysicalKeysIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="false">keyboard-function-14x4-top</ChangeKeyboard>
       <KeyGroup>Pagination</KeyGroup>
     </DynamicKey>
-    <DynamicKey Row="3" Col="13">
+    <DynamicKey>
       <Symbol>NoIcon</Symbol>
       <Action>BackFromKeyboard</Action>
       <KeyGroup>Exit</KeyGroup>

@@ -55,9 +55,9 @@ Use a single ordered output queue with cancellation and tracked key/button owner
 
 ## Required keyboard compatibility — user requirement
 
-Load the original XML files from [tqphan/optikey-keyboard-en-us](https://github.com/tqphan/optikey-keyboard-en-us) directly, without requiring the user to rewrite them as QML or convert them manually. This is a first usable release requirement, not deferred general XML compatibility. All 22 layouts are in scope, including the game and mouse layouts within Pro; these are not separate product variants.
+Load the original XML files from [tqphan/optikey-keyboard-en-us](https://github.com/tqphan/optikey-keyboard-en-us) directly, without requiring the user to rewrite them as QML or convert them manually. This is a first usable release requirement, not deferred general XML compatibility. All 29 layouts are in scope, including the game and mouse layouts within Pro; these are not separate product variants.
 
-Reference checkout: `references/optikey-keyboard-en-us`, inspected at commit `03b37b19bb947fb55d3a137dfd6a14398ff44b61`. Preserve it unchanged as the compatibility fixture. Future upstream revisions require explicit compatibility verification.
+Reference checkout: `references/optikey-keyboard-en-us`, based on upstream `experimental` commit `c44d4b7a1df273852b676087089e87871c0f4a55` (29 XML files). Local repairs populate the three empty Dolphin variants: the top strip mirrors the bottom strip, and both two-row variants add the existing mouse tools row. Other XML files remain unchanged from that revision. The loader supports automatic row-major placement and Scratchpad content; regression checks cover all 29 layouts and 732 dynamic keys. Full behavioral parity remains unverified.
 
 Observed requirements:
 
@@ -68,7 +68,7 @@ Observed requirements:
 - Modifier and WASD toggles, function/navigation keys, sleep, and 51 distinct action names observed in the XML (derive the authoritative list from the fixture during implementation).
 - Advanced mouse operations including drag, held buttons, repeated actions, magnifier, magnetic cursor and look-to-scroll. Inspect the original implementation for their semantics before porting.
 
-Build a loader/action coverage report for every XML file, referenced symbol, navigation target, attribute and command. Validate all 22 files, render every layout, exercise every navigation link, and replay action sequences with assertions for ordering, waits and release behavior. Compare geometry and key behavior against the original implementation. Unsupported operations must be reported; reporting alone does not meet this pack's compatibility acceptance gate.
+Build a loader/action coverage report for every XML file, referenced symbol, navigation target, attribute and command. Validate all 29 files, render every layout, exercise every navigation link, and replay action sequences with assertions for ordering, waits and release behavior. Compare geometry and key behavior against the original implementation. Unsupported operations must be reported; reporting alone does not meet this pack's compatibility acceptance gate.
 
 The first usable release must load the pack unchanged and demonstrate its actions on this machine, including a recoverable minimized panel on Wayland. Move the features required by this pack forward from milestone 3 into milestone 2. If a feature is blocked, bring the specific limitation to the user rather than silently reducing the required scope.
 
@@ -98,7 +98,7 @@ Preserve imported XML keyboard geometry, colors, symbols, labels, navigation and
 
 ## Existing plugins — user decision
 
-Existing OptiKey plugins are out of scope, not deferred release requirements. No legacy plugin loading or compatibility host will be implemented. This does not reduce compatibility with the required 22 XML keyboard layouts; their required actions will be implemented directly in the new application.
+Existing OptiKey plugins are out of scope, not deferred release requirements. No legacy plugin loading or compatibility host will be implemented. This does not reduce compatibility with the required 29 XML keyboard layouts; their required actions will be implemented directly in the new application.
 
 ## Settings and profiles — user decision
 
@@ -155,7 +155,7 @@ Provide a versioned local settings format with atomic writes, last-known-good re
 
 Exit checklist:
 
-- Pass the required 22-layout keyboard-pack compatibility gate above.
+- Pass the required 29-layout keyboard-pack compatibility gate above.
 - Compose, correct and send text to the tested editor and browser without focus loss.
 - Move the pointer, select text, drag an item and scroll a page.
 - Speak and cancel a scratchpad utterance; speech failure does not disable typing.
