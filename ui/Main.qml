@@ -32,7 +32,7 @@ Window {
  property point targetPoint:Qt.point(-1,-1)
  property bool targetPointValid:false
  function keyAt(px,py) {
-  for(let i=0;i<keys.count;++i){let item=keys.itemAt(i);if(!item)continue
+  for(let i=keys.count-1;i>=0;--i){let item=keys.itemAt(i);if(!item)continue
    if(px>=item.x&&py>=item.y&&px<item.x+item.width&&py<item.y+item.height){
     if(item.modelData.kind==="SuggestionRow") {
      let n=Math.floor((px-item.x)/item.predictionWidth);return n<item.predictionCount&&n<controller.suggestions.length&&controller.suggestions[n].trim().length>0?"suggest:"+n:""
@@ -83,6 +83,7 @@ Window {
   model:controller.layout.keys || []
   Rectangle {
    id:key
+   clip:true
    required property var modelData
    required property int index
    property string command:"key:"+index
@@ -97,8 +98,8 @@ Window {
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="LookToScrollActive"
    }
    property bool stateFilled:modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)
-   property real predictionWidth:2*root.width/controller.layout.cols
-   property int predictionCount:Math.floor(modelData.width/2)
+   property real predictionWidth:controller.layout.layoutMode==="canvas"?width/Math.max(1,predictionCount):2*root.width/controller.layout.cols
+   property int predictionCount:modelData.suggestionCount!==undefined?modelData.suggestionCount:Math.floor(modelData.width/2)
    property bool sleepKey: {
     const commands=modelData.commands || []
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="Sleep"&&!unavailableReason
@@ -168,10 +169,10 @@ Window {
    }
    MouseArea {
     objectName:"keyMouseArea:"+key.index
-    anchors.fill:parent;hoverEnabled:true;enabled:key.modelData.kind==="DynamicKey"
-    onEntered:root.hovered=key.command
+    anchors.fill:parent;hoverEnabled:true;enabled:true
+    onEntered:root.hovered=key.modelData.kind==="DynamicKey"?key.command:""
     onExited:if(root.hovered===key.command)root.hovered=""
-    onClicked:controller.clickCommand(key.command)
+    onClicked:if(key.modelData.kind==="DynamicKey")controller.clickCommand(key.command)
    }
    Row {
     anchors.fill:parent;visible:key.modelData.kind==="SuggestionRow"

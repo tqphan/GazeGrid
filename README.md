@@ -180,3 +180,29 @@ retain the option.
 gaze input and reconnects the eye tracker. When no valid gaze is available, mouse
 dwell takes over for keys, predictions, and target selection. Valid gaze automatically
 takes priority again; switching inputs starts a fresh dwell. Reset preferences turns it off.
+
+## Freely positioned keys
+
+XML keyboards can replace `<Grid>` with `<Canvas><Width>100</Width><Height>100</Height></Canvas>`.
+On a canvas, every `DynamicKey`, `Scratchpad`, and `SuggestionRow` specifies
+`X`, `Y`, `Width`, and `Height`, including decimal values:
+
+```xml
+<DynamicKey X="12.5" Y="20" Width="18" Height="9.5">
+  <Label>A</Label><Text>a</Text>
+</DynamicKey>
+```
+
+Coordinates start at the canvas's top-left and scale with the keyboard window.
+A 100 × 100 canvas makes each unit one percent of the window; any positive canvas
+size is supported. Set the keyboard's top-level `Width` and `Height` to `100%`
+(and keyboard height scaling to 100%) to place keys across the screen.
+Each rectangle must have positive dimensions and fit inside the canvas.
+Keys may overlap; the last item in XML is drawn on top and receives targeting.
+Empty areas do not activate keys. Key contents are clipped to their rectangles.
+`SuggestionRow` accepts `Count` (1–64, default 4), dividing its width equally.
+Grid layouts retain their existing cell sizing and automatic placement.
+
+See [the complete example](docs/examples/freeform.xml). Copy it into your keyboard
+pack directory and select it in Settings → Keyboard after restarting. Placement
+is configured through XML; there is no drag-and-drop layout editor.

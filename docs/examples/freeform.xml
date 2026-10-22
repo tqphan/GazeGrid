@@ -1,0 +1,22 @@
+<Keyboard>
+  <Name>Free placement example</Name>
+  <Width>100%</Width>
+  <Height>100%</Height>
+  <Position>Bottom</Position>
+  <Canvas><Width>100</Width><Height>100</Height></Canvas>
+  <Content>
+    <DynamicKey X="5" Y="8" Width="12.5" Height="10">
+      <Label>A</Label><Text>a</Text>
+    </DynamicKey>
+    <DynamicKey X="72" Y="25.5" Width="23" Height="18">
+      <Label>B</Label><Text>b</Text>
+    </DynamicKey>
+    <DynamicKey X="30" Y="60" Width="40" Height="12">
+      <Label>Space</Label><Text> </Text>
+    </DynamicKey>
+    <DynamicKey X="82" Y="80" Width="15" Height="15">
+      <Label>Pause</Label><Action>Sleep</Action>
+    </DynamicKey>
+    <SuggestionRow X="5" Y="92" Width="70" Height="8" Count="4"/>
+  </Content>
+</Keyboard>

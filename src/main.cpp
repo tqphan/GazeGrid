@@ -162,8 +162,8 @@ int main(int argc,char **argv){
       }
       const auto layout=controller.property("layout").toMap();
       const auto key=layout["keys"].toList().front().toMap();
-      QPointF point((key["col"].toDouble()+key["width"].toDouble()/2)*nativeCheckWindow->width()/layout["cols"].toInt(),
-                    (key["row"].toDouble()+key["height"].toDouble()/2)*nativeCheckWindow->height()/layout["rows"].toInt());
+      QPointF point((key["col"].toDouble()+key["width"].toDouble()/2)*nativeCheckWindow->width()/layout["cols"].toDouble(),
+                    (key["row"].toDouble()+key["height"].toDouble()/2)*nativeCheckWindow->height()/layout["rows"].toDouble());
       expected=layout["position"]=="Top"?"main-14x1-bottom":"main-14x1-top";
       QMouseEvent press(QEvent::MouseButtonPress,point,point,Qt::LeftButton,Qt::LeftButton,Qt::NoModifier);
       QMouseEvent release(QEvent::MouseButtonRelease,point,point,Qt::LeftButton,Qt::NoButton,Qt::NoModifier);
@@ -315,6 +315,28 @@ int main(int argc,char **argv){
   poll->start();return app.exec();
  }
 
+ if(app.arguments().contains("--canvas-ui-check")){
+  QVariantMap layout{{"layoutMode","canvas"},{"cols",100.0},{"rows",100.0}};
+  auto key=[](double x,double y,double w,double h,QString kind){return QVariantMap{
+   {"col",x},{"row",y},{"width",w},{"height",h},{"kind",kind},
+   {"label","A"},{"symbol",""},{"commands",QVariantList{}},{"suggestionCount",3}};};
+  layout["keys"]=QVariantList{key(12.5,20,30,10.5,"DynamicKey"),key(20,22,5,5,"DynamicKey"),key(0,80,90,10,"SuggestionRow")};
+  controller.setProperty("layout",layout);emit controller.layoutChanged();
+  controller.setProperty("suggestions",QStringList{"one","two","three"});
+  auto hit=[&](double x,double y){
+   QVariant result;
+   QMetaObject::invokeMethod(window,"keyAt",Q_RETURN_ARG(QVariant,result),Q_ARG(QVariant,x*window->width()/100),Q_ARG(QVariant,y*window->height()/100));
+   return result.toString();
+  };
+  for(const QSize size:{QSize(1000,600),QSize(700,900)}){
+   window->resize(size);QCoreApplication::processEvents();
+   if(hit(13,21)!="key:0"||hit(22,24)!="key:1"||!hit(60,50).isEmpty()||hit(45,85)!="suggest:1"||!hit(90,85).isEmpty()){
+    QTextStream(stderr)<<"FAIL: canvas targeting at "<<size.width()<<"x"<<size.height()<<" hits: "<<hit(13,21)<<","<<hit(22,24)<<","<<hit(60,50)<<","<<hit(45,85)<<","<<hit(90,85)<<Qt::endl;return 2;
+   }
+  }
+  QTextStream(stdout)<<"PASS: fractional canvas geometry, overlap order, gaps, suggestions and resizing"<<Qt::endl;
+  return 0;
+ }
  if(app.arguments().contains("--prediction-hover-ui-check")){
   window->setProperty("gazeEnabled",false);
   controller.openLayout("keyboard-alphabet-14x4-bottom",false);
@@ -461,8 +483,8 @@ int main(int argc,char **argv){
    }
    const auto layout=controller.property("layout").toMap();
    const auto key=layout["keys"].toList().front().toMap();
-   const double x=window->property("logicalX").toDouble()+(key["col"].toDouble()+key["width"].toDouble()/2)*window->width()/layout["cols"].toInt();
-   const double y=window->property("logicalY").toDouble()+(key["row"].toDouble()+key["height"].toDouble()/2)*window->height()/layout["rows"].toInt();
+   const double x=window->property("logicalX").toDouble()+(key["col"].toDouble()+key["width"].toDouble()/2)*window->width()/layout["cols"].toDouble();
+   const double y=window->property("logicalY").toDouble()+(key["row"].toDouble()+key["height"].toDouble()/2)*window->height()/layout["rows"].toDouble();
    emit controller.gazePoint(x/window->property("screenWidth").toDouble(),y/window->property("screenHeight").toDouble(),true);
   });
   poll->start();QTimer::singleShot(4000,&app,[&]{QTextStream(stderr)<<"FAIL: startup dwell timed out"<<Qt::endl;app.exit(2);});
@@ -491,8 +513,8 @@ int main(int argc,char **argv){
    const auto layout=controller.property("layout").toMap();
    const auto keys=layout["keys"].toList();
    const auto key=keys[stage%2?0:keys.size()-1].toMap();
-   const double x=window->property("logicalX").toDouble()+(key["col"].toDouble()+key["width"].toDouble()/2)*window->width()/layout["cols"].toInt();
-   const double y=window->property("logicalY").toDouble()+(key["row"].toDouble()+key["height"].toDouble()/2)*window->height()/layout["rows"].toInt();
+   const double x=window->property("logicalX").toDouble()+(key["col"].toDouble()+key["width"].toDouble()/2)*window->width()/layout["cols"].toDouble();
+   const double y=window->property("logicalY").toDouble()+(key["row"].toDouble()+key["height"].toDouble()/2)*window->height()/layout["rows"].toDouble();
    const double nx=x/window->property("screenWidth").toDouble(),ny=y/window->property("screenHeight").toDouble();
    if(nx<0||nx>1||ny<0||ny>1){QTextStream(stderr)<<"FAIL: recovery key is outside the display"<<Qt::endl;app.exit(2);return;}
    emit controller.gazePoint(nx,ny,true);
@@ -570,8 +592,8 @@ int main(int argc,char **argv){
        auto layout=controller.property("layout").toMap();
        for(auto value:layout["keys"].toList()){
         auto key=value.toMap();if(key["label"]!="q")continue;
-        double px=window->property("logicalX").toDouble()+(key["col"].toDouble()+key["width"].toDouble()/2)*window->width()/layout["cols"].toInt();
-        double py=window->property("logicalY").toDouble()+(key["row"].toDouble()+key["height"].toDouble()/2)*window->height()/layout["rows"].toInt();
+        double px=window->property("logicalX").toDouble()+(key["col"].toDouble()+key["width"].toDouble()/2)*window->width()/layout["cols"].toDouble();
+        double py=window->property("logicalY").toDouble()+(key["row"].toDouble()+key["height"].toDouble()/2)*window->height()/layout["rows"].toDouble();
         if(!controller.output()->moveAbsolute(px/window->property("screenWidth").toDouble(),py/window->property("screenHeight").toDouble())){app.exit(6);return;}
         QTimer::singleShot(100,&app,[&]{if(!active||!controller.ready()){app.exit(7);return;}if(!controller.output()->click())app.exit(6);});return;
        }

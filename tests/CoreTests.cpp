@@ -395,6 +395,38 @@ private slots:
    QVERIFY(runner.heldKeys().isEmpty());
   }
  }
+ void canvasLayout(){
+  QTemporaryDir dir;
+  auto parse=[&](QByteArray geometry,QByteArray content){
+   QFile file(dir.filePath("canvas.xml"));
+   if(!file.open(QIODevice::WriteOnly|QIODevice::Truncate))return QVariantMap{{"error","write failed"}};
+   file.write("<Keyboard>"+geometry+"<Content>"+content+"</Content></Keyboard>");file.close();
+   return KeyboardLayout::fromXml(KeyboardPack::load(file.fileName()));
+  };
+  const QByteArray canvas="<Canvas><Width>100.5</Width><Height>100</Height></Canvas>";
+  auto layout=parse(canvas,"<DynamicKey X='12.25' Y='7.5' Width='20.5' Height='10.25'><Label>A</Label><Text>a</Text></DynamicKey>"
+                           "<DynamicKey X='20' Y='10' Width='0.5' Height='0.25'/>"
+                           "<SuggestionRow X='0' Y='80' Width='100.5' Height='20' Count='3'/>");
+  QVERIFY2(!layout.contains("error"),qPrintable(layout["error"].toString()));
+  QCOMPARE(layout["layoutMode"].toString(),QString("canvas"));
+  QCOMPARE(layout["cols"].toDouble(),100.5);
+  auto keys=layout["keys"].toList();QCOMPARE(keys.size(),3);
+  QCOMPARE(keys[0].toMap()["col"].toDouble(),12.25);
+  QCOMPARE(keys[0].toMap()["height"].toDouble(),10.25);
+  QCOMPARE(keys[0].toMap()["commands"].toList().size(),1);
+  QCOMPARE(keys[2].toMap()["suggestionCount"].toInt(),3);
+  for(const auto &item:QList<QByteArray>{
+       "<DynamicKey X='0' Y='0' Width='0' Height='1'/>",
+       "<DynamicKey X='-1' Y='0' Width='1' Height='1'/>",
+       "<DynamicKey X='100' Y='0' Width='1' Height='1'/>",
+       "<DynamicKey X='nan' Y='0' Width='1' Height='1'/>",
+       "<DynamicKey X='0' Width='1' Height='1'/>",
+       "<DynamicKey X='0' Y='0' Row='0' Width='1' Height='1'/>",
+       "<SuggestionRow X='0' Y='0' Width='10' Height='10' Count='0'/>"})
+   QVERIFY2(parse(canvas,item).contains("error"),item.constData());
+  QVERIFY(parse(canvas+"<Grid><Rows>2</Rows><Cols>2</Cols></Grid>",{}).contains("error"));
+  QVERIFY(parse("<Canvas><Width>inf</Width><Height>100</Height></Canvas>",{}).contains("error"));
+ }
  void automaticLayoutPlacement(){
   QTemporaryDir dir;QFile file(dir.filePath("layout.xml"));QVERIFY(file.open(QIODevice::WriteOnly));
   file.write("<Keyboard><Grid><Rows>2</Rows><Cols>4</Cols></Grid><Content>"

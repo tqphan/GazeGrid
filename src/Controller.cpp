@@ -351,7 +351,7 @@ bool Controller::performAction(QString action){
   scratchpad.truncate(end);updateSuggestions();return true;
  }
  if(action=="NextSuggestions"||action=="PreviousSuggestions"){
-  int pageSize=4;for(const auto &v:layout["keys"].toList()){auto k=v.toMap();if(k["kind"]=="SuggestionRow")pageSize=qMax(1,k["width"].toInt()/2);}
+  int pageSize=4;for(const auto &v:layout["keys"].toList()){auto k=v.toMap();if(k["kind"]=="SuggestionRow")pageSize=qMax(1,k.value("suggestionCount",k["width"].toInt()/2).toInt());}
   const auto all=WordPrediction::suggest(scratchpad,dictionary,frequencies,1000);
   int next=suggestionOffset+(action=="NextSuggestions"?pageSize:-pageSize);
   if(next>=0&&next<all.size())suggestionOffset=next;
