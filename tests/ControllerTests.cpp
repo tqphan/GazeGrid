@@ -16,6 +16,16 @@
 class ControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void controllerLayoutAndConversationSafety(){
+  Controller c;c.openLayout("game-controller",false);
+  QCOMPARE(c.property("layoutName").toString(),QString("game-controller"));
+  const auto keys=c.property("layout").toMap()["keys"].toList();
+  QCOMPARE(keys.first().toMap()["kind"].toString(),QString("Joystick"));
+  c.joystick(-1,0,0,false);c.togglePause();c.joystick(0,1,1,true);
+  c.togglePause();c.openLayout("keyboard-conversation-fullscreen",false);
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","GamepadAPress"}}}));
+  QTRY_VERIFY(!c.executingCommands());QVERIFY(!c.gamepadHeld("GamepadAPress"));
+ }
  void experimentalConversationEditing(){
   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
   QCOMPARE(c.property("layoutName").toString(),QString("keyboard-conversation-fullscreen"));
@@ -382,8 +392,8 @@ private slots:
  }
  void keyboardMenuHonorsXmlVisibility(){
   Controller controller;
-  QCOMPARE(controller.property("menuLayoutNames").toStringList(),QStringList({"main-14x1-top"}));
-  QCOMPARE(controller.property("layoutNames").toStringList().size(),29);
+  QCOMPARE(controller.property("menuLayoutNames").toStringList(),QStringList({"game-controller","main-14x1-top"}));
+  QCOMPARE(controller.property("layoutNames").toStringList().size(),30);
   controller.openLayout("minimized-off-screen-bottom");
   QCOMPARE(controller.property("layoutName").toString(),QString("minimized-off-screen-bottom"));
   controller.recover();QCOMPARE(controller.property("layoutName").toString(),QString("main-14x1-bottom"));

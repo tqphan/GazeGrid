@@ -206,3 +206,5 @@ Grid layouts retain their existing cell sizing and automatic placement.
 See [the complete example](docs/examples/freeform.xml). Copy it into your keyboard
 pack directory and select it in Settings → Keyboard after restarting. Placement
 is configured through XML; there is no drag-and-drop layout editor.
+
+Virtual controller output and gaze/mouse joystick keys are available from the game toolbar’s **Gamepad** key. See [controller actions and setup](docs/game-controller.md).

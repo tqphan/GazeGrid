@@ -17,7 +17,14 @@ Window {
  property bool gazeCheck: false
  property bool minimizedRecovery:controller.layoutName.startsWith("minimized-off-screen-")
  property bool usingGaze: gazeEnabled&&gazeValid
- onUsingGazeChanged:{controller.hover("");controller.dwellAt(0,0,false);root.progress=0;root.targetProgress=0}
+ onUsingGazeChanged:{
+  // Require fresh pointer motion after a gaze transition; stale hover must not
+  // deflect a joystick again immediately after tracking loss.
+  if(root.hovered.startsWith("key:")){
+   const item=keys.itemAt(Number(root.hovered.substring(4)))
+   if(item&&item.modelData.kind==="Joystick")root.hovered=""
+  }
+  controller.joystick(-1,0,0,false);controller.hover("");controller.dwellAt(0,0,false);root.progress=0;root.targetProgress=0}
  property bool gazeValid: false
  property point gaze: Qt.point(-1,-1)
  property color dwellColor:controller.highContrast?"#ffff00":Kirigami.Theme.highlightColor
@@ -74,6 +81,20 @@ Window {
    }else{
     root.targetPointValid=false;root.targetProgress=controller.dwellAt(0,0,false)
    }
+   let joystickIndex=-1
+   if(root.visible&&(!root.usingGaze||!settings.visible)&&!controller.targeting&&!controller.keyboardTemporarilyHidden&&target.startsWith("key:")){
+    let i=Number(target.substring(4)),item=keys.itemAt(i)
+    if(item&&item.modelData.kind==="Joystick"){
+     joystickIndex=i
+     let px=root.usingGaze?root.gaze.x*root.screenWidth-root.logicalX-item.x:item.pointerX
+     let py=root.usingGaze?root.gaze.y*root.screenHeight-root.logicalY-item.y:item.pointerY
+     item.stickX=Math.max(-1,Math.min(1,(px-item.width/2)/(Math.min(item.width,item.height)*.4)))
+     item.stickY=Math.max(-1,Math.min(1,(py-item.height/2)/(Math.min(item.width,item.height)*.4)))
+     controller.joystick(i,item.stickX,item.stickY,true)
+     target=""
+    }
+   }
+   if(joystickIndex<0)controller.joystick(-1,0,0,false)
    root.progress=controller.hover(target)
   }
  }
@@ -86,6 +107,15 @@ Window {
    clip:true
    required property var modelData
    required property int index
+   property bool gamepadPressed:false
+   Connections {target:controller;function onChanged(){
+    const commands=key.modelData.commands||[]
+    key.gamepadPressed=commands.length===1&&commands[0].tag==="Action"&&controller.gamepadHeld(commands[0].text.trim())
+   }}
+   property real pointerX:0
+   property real pointerY:0
+   property real stickX:0
+   property real stickY:0
    property string command:"key:"+index
    property string modifier:controller.modifierName(modelData.commands || [])
    property string modifierState:modifier?(controller.modifierStates[modifier] || ""):""
@@ -97,7 +127,7 @@ Window {
     const commands=modelData.commands || []
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="LookToScrollActive"
    }
-   property bool stateFilled:modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)
+   property bool stateFilled:gamepadPressed||modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)
    property real predictionWidth:controller.layout.layoutMode==="canvas"?width/Math.max(1,predictionCount):2*root.width/controller.layout.cols
    property int predictionCount:modelData.suggestionCount!==undefined?modelData.suggestionCount:Math.floor(modelData.width/2)
    property bool sleepKey: {
@@ -125,7 +155,7 @@ Window {
    Rectangle {anchors.fill:parent;color:Kirigami.Theme.highlightColor;opacity:key.active?0.18:0}
    Rectangle {
     anchors.fill:parent;anchors.margins:2
-    visible:key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)
+    visible:key.gamepadPressed||key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)
     color:key.stateFilled?root.dwellColor:"transparent"
     opacity:key.stateFilled?0.25:1
     border.width:2;border.color:root.dwellColor
@@ -167,10 +197,20 @@ Window {
     horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
     wrapMode:Text.WordWrap
    }
+   Rectangle {
+    visible:key.modelData.kind==="Joystick"
+    anchors.centerIn:parent;width:Math.min(key.width,key.height)*.8;height:width;radius:width/2
+    color:"transparent";border.color:key.foreground;opacity:.8
+    Rectangle {objectName:"joystickThumb:"+key.index;width:parent.width*.18;height:width;radius:width/2;color:root.dwellColor
+     x:(parent.width-width)/2+(key.active?key.stickX:0)*parent.width*.35
+     y:(parent.height-height)/2+(key.active?key.stickY:0)*parent.height*.35}
+    Text {anchors.horizontalCenter:parent.horizontalCenter;anchors.bottom:parent.bottom;text:key.label||"Joystick";color:key.foreground;font.pixelSize:14}
+   }
    MouseArea {
     objectName:"keyMouseArea:"+key.index
     anchors.fill:parent;hoverEnabled:true;enabled:true
-    onEntered:root.hovered=key.modelData.kind==="DynamicKey"?key.command:""
+    onEntered:root.hovered=(key.modelData.kind==="DynamicKey"||key.modelData.kind==="Joystick")?key.command:""
+    onPositionChanged:mouse=>{key.pointerX=mouse.x;key.pointerY=mouse.y;if(key.modelData.kind==="Joystick")root.hovered=key.command}
     onExited:if(root.hovered===key.command)root.hovered=""
     onClicked:if(key.modelData.kind==="DynamicKey")controller.clickCommand(key.command)
    }

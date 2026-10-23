@@ -26,7 +26,7 @@ void inventory(const QVariantMap &n, QSet<QString> &tags, QSet<QString> &actions
     auto tag=n["tag"].toString(); tags.insert(tag);
     if(tag=="Action") actions.insert(n["text"].toString().trimmed());
     if(tag=="ChangeKeyboard") links.insert(n["text"].toString().trimmed());
-    if(tag=="DynamicKey") ++keys;
+    if(tag=="DynamicKey"||tag=="Joystick") ++keys;
     for(const auto &c:n["children"].toList()) inventory(c.toMap(),tags,actions,links,keys);
 }
 void details(const QVariantMap &n,QSet<QString> &symbols,QSet<QString> &attributes){

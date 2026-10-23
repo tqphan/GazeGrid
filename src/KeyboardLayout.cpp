@@ -18,7 +18,8 @@ QVariantMap KeyboardLayout::fromXml(const QVariantMap &root){
     for(auto v:root["children"].toList()){auto content=v.toMap();if(content["tag"]!="Content")continue;
         for(auto entry:content["children"].toList()){
             auto n=entry.toMap(),attr=n["attributes"].toMap();auto tag=n["tag"].toString();
-            if(tag!="DynamicKey"&&tag!="SuggestionRow"&&tag!="Scratchpad")return {{"error","Unsupported content item: "+tag}};
+            if(tag!="Joystick"&&tag!="DynamicKey"&&tag!="SuggestionRow"&&tag!="Scratchpad")return {{"error","Unsupported content item: "+tag}};
+            if(tag=="Joystick"&&attr.value("stick","Left").toString()!="Left"&&attr.value("stick").toString()!="Right")return {{"error","Joystick stick must be Left or Right"}};
             bool rowOk=false,colOk=false;double row=attr.value("row").toString().toInt(&rowOk),col=attr.value("col").toString().toInt(&colOk);
             double width=attr.value("width",1).toInt(),height=attr.value("height",1).toInt();
             int suggestions=0;

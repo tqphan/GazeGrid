@@ -10,6 +10,7 @@
 #include "GazeSmoothing.h"
 #include "ActionRunner.h"
 #include "PointerActions.h"
+#include "GameController.h"
 #include "ScreenshotPortal.h"
 #include "SpeechOutput.h"
 class Controller:public QObject{
@@ -122,6 +123,8 @@ public:
  Q_INVOKABLE void connectTobii(){if(!tobii.isRunning())tobii.start();}
  Q_INVOKABLE void togglePause();
  Q_INVOKABLE void activate(QString key);
+ Q_INVOKABLE bool gamepadHeld(QString action)const{return gameController.held(action);}
+ Q_INVOKABLE void joystick(int index,double x,double y,bool active);
  Q_INVOKABLE void clickCommand(QString key);
  Q_INVOKABLE double hover(QString key);
  Q_INVOKABLE double dwellAt(double x,double y,bool valid);
@@ -164,6 +167,8 @@ private:
  bool gazeIndicatorMorph=false;
  int smoothingLevel=1;
  bool smoothTargetChanges=false;
+ GameController gameController;
+ int activeJoystick=-1;
  PortalInput portal;TobiiInput tobii;Dwell dwell;ActionRunner runner;PointerActions pointer;QElapsedTimer clock,gazeAge;
  ScreenshotPortal screenshot;
  Q_SLOT void receiveMagnifierFrame(QImage image);

@@ -90,29 +90,31 @@ Controller::Controller(){
  pointer.releaseAll=[this]{portal.releaseButtons();};
  connect(&pointer,&PointerActions::changed,this,[this]{targeting=pointer.targeting();if(!targeting)clearCapture();emit changed();});
  connect(&screenshot,&ScreenshotPortal::failed,this,[this](QString error){
-  clearCapture();runner.cancel();pointer.cancel();actionStatus=error;emit changed();
+  clearCapture();runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();actionStatus=error;emit changed();
  });
  connect(&screenshot,&ScreenshotPortal::captured,this,[this](QImage image){receiveMagnifierFrame(image);});
  connect(&pointer,&PointerActions::completed,this,[this](bool ok){actionStatus=pointer.prompt();runner.resume(ok);emit changed();});
  runner.sendKey=[this](QString name,bool down){return portal.key(KeyNames::linuxCode(name),down);};
+ connect(&gameController,&GameController::changed,this,&Controller::changed);
+ connect(&gameController,&GameController::failed,this,[this](QString error){activeJoystick=-1;actionStatus=error;emit changed();});
  runner.performAction=[this](QString action){return performAction(action);};
  runner.supportsAction=ActionCatalog::supported;
  runner.navigate=[this](QString name,bool back){openLayout(name,back);};
- connect(&runner,&ActionRunner::failed,this,[this](QString m){actionStatus=m;emit changed();});
+ connect(&runner,&ActionRunner::failed,this,[this](QString m){gameController.reset();activeJoystick=-1;actionStatus=m.contains("Gamepad")&&!gameController.error().isEmpty()?gameController.error():m;emit changed();});
  connect(&runner,&ActionRunner::stateChanged,this,&Controller::changed);
  connect(&runner,&ActionRunner::textCommitted,this,&Controller::updateText);
  connect(&portal,&PortalInput::status,this,[this](QString m){portalStatus=m;emit changed();});
- connect(&portal,&PortalInput::readyChanged,this,[this]{dwell.reset();if(!ready()){runner.cancel();pointer.cancel();}emit changed();});
+ connect(&portal,&PortalInput::readyChanged,this,[this]{dwell.reset();if(!ready()){runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();}emit changed();});
  connect(&tobii,&TobiiInput::status,this,[this](QString m){tobiiStatus=m;emit changed();});
  connect(&tobii,&TobiiInput::gaze,this,&Controller::receiveGaze);
  auto timer=new QTimer(this);timer->setInterval(25);connect(timer,&QTimer::timeout,this,[this]{
-  if(gazeAge.isValid()&&GazeClock::now()-lastGazeSample>200000){gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();portal.releaseAll();pointer.trackingLost();emit gazePoint(0,0,false);}
+  if(gazeAge.isValid()&&GazeClock::now()-lastGazeSample>200000){gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();emit gazePoint(0,0,false);}
  });timer->start();
  auto start=profile.values["startLayout"].toString();
  if(!layoutNames.contains(start)){start=ProfileStore::defaults()["startLayout"].toString();profileStatus="Saved keyboard is unavailable. Opened the default keyboard.";}
  openLayout(start,false);
 }
-Controller::~Controller(){runner.cancel();pointer.cancel();portal.releaseAll();portal.close();
+Controller::~Controller(){runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();portal.close();
  QJsonObject obj;for(auto it=frequencies.begin();it!=frequencies.end();++it)obj[it.key()]=it.value();QSaveFile file(configFile("learned.json"));if(file.open(QIODevice::WriteOnly)){file.write(QJsonDocument(obj).toJson());file.commit();}
 }
 void Controller::configureInputMethod(std::function<bool(QString)> text,std::function<bool(QString,bool)> key){
@@ -125,7 +127,7 @@ void Controller::configureInputMethod(std::function<bool(QString)> text,std::fun
  actionStatus="Native text input enabled; authorize desktop control for pointer actions and held shortcuts";emit changed();
 }
 void Controller::invalidateInputContext(){
- runner.cancel();pointer.cancel();portal.releaseAll();dwell.reset();speech.stop();scratchpad.clear();suggestions.clear();emit changed();
+ runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();dwell.reset();speech.stop();scratchpad.clear();suggestions.clear();emit changed();
 }
 void Controller::inputContextChanged(bool active,bool sensitive){
  nativeActive=active;sensitiveInput=sensitive;
@@ -173,7 +175,7 @@ void Controller::setRestoreHeight(int height){
 }
 void Controller::setKeyboardScale(int scale){
  scale=qBound(50,scale,150);if(scale==scalePercent)return;
- runner.cancel();pointer.cancel();dwell.reset();scalePercent=scale;emit geometryPreferencesChanged();emit changed();
+ runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();dwell.reset();scalePercent=scale;emit geometryPreferencesChanged();emit changed();
 }
 QString Controller::mappingJson()const{return QString::fromUtf8(QJsonDocument(mappingProfile).toJson(QJsonDocument::Indented));}
 bool Controller::saveMappings(QString json){
@@ -200,7 +202,7 @@ void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
   // Cancel gaze work once on tracking loss. Further invalid samples must not
   // continually reset mouse dwell or cancel actions started by the fallback.
   const bool wasValid=gazeAge.isValid();gazeAge.invalidate();gazeSmoothing.reset();
-  if(wasValid){dwell.reset();runner.cancel();portal.releaseAll();pointer.trackingLost();}
+  if(wasValid){dwell.reset();runner.cancel();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();}
  }
  emit gazePoint(x,y,valid);
 }
@@ -211,13 +213,13 @@ void Controller::setDisplaySize(double width,double height){
 }
 void Controller::setGazeSmoothingLevel(int level){
  level=qBound(0,level,4);if(level==smoothingLevel)return;
- smoothingLevel=level;gazeSmoothing.reset();dwell.reset();runner.cancel();pointer.cancel();emit changed();
+ smoothingLevel=level;gazeSmoothing.reset();dwell.reset();runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();emit changed();
 }
 void Controller::setSmoothWhenChangingGazeTarget(bool enabled){
  if(enabled==smoothTargetChanges)return;
- smoothTargetChanges=enabled;gazeSmoothing.reset();dwell.reset();runner.cancel();pointer.cancel();emit changed();
+ smoothTargetChanges=enabled;gazeSmoothing.reset();dwell.reset();runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();emit changed();
 }
-void Controller::togglePause(){paused=!paused;dwell.reset();runner.cancel();portal.releaseAll();pointer.cancel();emit changed();}
+void Controller::togglePause(){paused=!paused;dwell.reset();runner.cancel();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.cancel();emit changed();}
 void Controller::setGazeEnabled(bool enabled){
  const bool preferenceChanged=gazeEnabled!=enabled;
  gazeEnabled=enabled;dwell.reset();gazeSmoothing.reset();
@@ -227,7 +229,7 @@ void Controller::setGazeEnabled(bool enabled){
   if(!store.save(saved,error))profileStatus=error;
  }
  if(enabled)connectTobii();
- if(!enabled){runner.cancel();pointer.cancel();}
+ if(!enabled){runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();}
  if(preferenceChanged)emit gazeEnabledChanged();
  emit changed();
 }
@@ -236,7 +238,7 @@ void Controller::trackGaze(double x,double y,bool overDesktop){
  if(gazeEnabled&&!paused&&ready()&&gazeAge.isValid()&&GazeClock::now()-lastGazeSample<=200000)pointer.follow({x,y},overDesktop);
 }
 void Controller::displayChanged(){
- if(!paused)togglePause();else{runner.cancel();pointer.cancel();dwell.reset();}
+ if(!paused)togglePause();else{runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();dwell.reset();}
  gazeAge.invalidate();gazeSmoothing.reset();emit gazePoint(0,0,false);
  actionStatus="Display configuration changed. Check tracker calibration and resume when ready.";emit changed();
 }
@@ -290,7 +292,7 @@ void Controller::activate(QString key){
  if(key=="Recover"){recover();return;}
  if(key=="Connect"){connectDesktop();return;}
  if(key=="Tobii"){connectTobii();return;}
- if(key=="CancelTarget"){targeting=false;runner.cancel();portal.releaseAll();pointer.cancel();emit changed();return;}
+ if(key=="CancelTarget"){targeting=false;runner.cancel();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.cancel();emit changed();return;}
  if(paused)return;
  if(key.startsWith("suggest:")){
   bool valid=false;int i=key.mid(8).toInt(&valid);if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()||(!runner.textOnly&&!ready()))return;
@@ -305,7 +307,7 @@ void Controller::activate(QString key){
  auto commands=keys[i].toMap()["commands"].toList();bool ok=false;commands=mapped(commands,ok);
  if(!ok){emit changed();return;}
  // Navigation, sleep, and scratchpad clearing work without a portal session.
- bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="NextSuggestions"||value=="PreviousSuggestions")))needsOutput=true;}
+ bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="NextSuggestions"||value=="PreviousSuggestions"||GameController::supports(value))))needsOutput=true;}
  if(needsOutput&&!runner.textOnly&&!ready()){actionStatus="Authorize desktop control before sending input";emit changed();return;}
  runner.start(commands);emit changed();
 }
@@ -334,12 +336,26 @@ void Controller::openLayout(QString name,bool backReturnsHere){
   compiled["keys"]=keys;
  }
  const bool textOnly=compiled["simulatekeystrokes"].toString().compare("false",Qt::CaseInsensitive)==0;
- runner.cancel(textOnly==runner.textOnly);runner.textOnly=textOnly;runner.capsLock=false;pointer.cancel();dwell.reset();
+ runner.cancel(textOnly==runner.textOnly);gameController.reset();activeJoystick=-1;runner.textOnly=textOnly;runner.capsLock=false;pointer.cancel();dwell.reset();
  if(backReturnsHere&&!layoutName.isEmpty()&&layoutName!=name){backStack<<layoutName;if(backStack.size()>64)backStack.removeFirst();}
  layout=compiled;layoutName=name;updateSuggestions();emit layoutChanged();emit changed();
 }
 void Controller::recover(){paused=false;backStack.clear();openLayout("main-14x1-bottom",false);}
+void Controller::joystick(int index,double x,double y,bool active){
+ const auto keys=layout["keys"].toList();
+ if(!active||paused||runner.textOnly||index<0||index>=keys.size()){
+  if(activeJoystick>=0&&activeJoystick<keys.size())gameController.stick(keys[activeJoystick].toMap()["style"].toMap().value("stick","Left").toString(),0,0);
+  activeJoystick=-1;return;
+ }
+ const auto entry=keys[index].toMap();if(entry["kind"]!="Joystick")return;
+ if(activeJoystick>=0&&activeJoystick!=index)joystick(-1,0,0,false);
+ activeJoystick=index;
+ if(!gameController.stick(entry["style"].toMap().value("stick","Left").toString(),x,y)){
+  if(actionStatus!=gameController.error()){actionStatus=gameController.error();emit changed();}
+ }
+}
 bool Controller::performAction(QString action){
+ if(GameController::supports(action))return runner.textOnly?true:gameController.perform(action);
  if(action=="MouseMagnifier"){
   setMagnifierEnabled(!magnifierEnabled);actionStatus=magnifierEnabled?"Magnifier enabled: target selection will request desktop capture":"Magnifier disabled";emit changed();return true;
  }
@@ -397,7 +413,7 @@ void Controller::receiveMagnifierFrame(QImage image){
  if(!targeting||paused||!capturePending)return;
  auto screen=QGuiApplication::primaryScreen();
  if(image.isNull()||!screen||QGuiApplication::screens().size()!=1||qAbs(double(image.width())/image.height()-double(screen->size().width())/screen->size().height())>.01){
-  clearCapture();runner.cancel();pointer.cancel();actionStatus="Capture does not match the single display; target selection cancelled";emit changed();return;
+  clearCapture();runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();actionStatus="Capture does not match the single display; target selection cancelled";emit changed();return;
  }
  capturedImage=image;captureSize=image.size();capturePending=false;magnifierReady=true;
  activeZoom=qBound(2,magnifierZoom,8);activeZoomDurationMs=qBound(500,zoomDurationMs,5000);
@@ -426,7 +442,7 @@ void Controller::setMagnifierEnabled(bool enabled){
  ProfileStore store(configFile("profile.json"));auto saved=store.load().values;
  saved["magnifierEnabled"]=enabled;QString error;
  if(!store.save(saved,error))profileStatus="Could not remember magnifier state. "+error;
- if(!enabled&&(capturePending||magnifierReady)){clearCapture();runner.cancel();pointer.cancel();}
+ if(!enabled&&(capturePending||magnifierReady)){clearCapture();runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();}
  emit changed();
 }
 void Controller::updateText(QString text){

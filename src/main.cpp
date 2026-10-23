@@ -337,6 +337,47 @@ int main(int argc,char **argv){
   QTextStream(stdout)<<"PASS: fractional canvas geometry, overlap order, gaps, suggestions and resizing"<<Qt::endl;
   return 0;
  }
+ if(app.arguments().contains("--joystick-mouse-ui-check")||app.arguments().contains("--joystick-mouse-settings-ui-check")){
+  controller.openLayout("game-controller",false);
+  window->setProperty("gazeEnabled",true);window->setProperty("gazeValid",false);
+  std::function<QQuickItem*(QQuickItem*)> findArea=[&](QQuickItem *item)->QQuickItem*{
+   if(item->objectName()=="keyMouseArea:0")return item;
+   for(auto child:item->childItems())if(auto found=findArea(child))return found;
+   return nullptr;
+  };
+  auto area=findArea(window->contentItem());if(!area)return 2;
+  auto key=area->parentItem();
+  auto settings=window->findChild<QQuickWindow*>("settingsWindow");if(!settings)return 2;
+  if(app.arguments().contains("--joystick-mouse-settings-ui-check"))settings->show();
+  std::function<QQuickItem*(QQuickItem*)> findThumb=[&](QQuickItem *item)->QQuickItem*{
+   if(item->objectName()=="joystickThumb:0")return item;
+   for(auto child:item->childItems())if(auto found=findThumb(child))return found;
+   return nullptr;
+  };
+  auto thumb=findThumb(key);if(!thumb)return 2;
+  const double centeredX=thumb->x();
+  auto poll=new QTimer(&app);poll->setInterval(50);
+  QObject::connect(poll,&QTimer::timeout,&app,[&,area,key,thumb,centeredX,stage=0]()mutable{
+   if(!window->isVisible())return;
+   const QPointF local(stage<2?area->width()*.8:area->width()/2,area->height()/2);
+   const QPointF point=area->mapToItem(window->contentItem(),local);
+   if(stage==0||stage==2){
+    QEnterEvent enter(point,point,point);QCoreApplication::sendEvent(window,&enter);
+    QMouseEvent move(QEvent::MouseMove,point,point,Qt::NoButton,Qt::NoButton,Qt::NoModifier);QCoreApplication::sendEvent(window,&move);
+    ++stage;return;
+   }
+   if(stage==1){
+    if(window->property("hovered").toString()!="key:0"||key->property("stickX").toDouble()<.5||thumb->x()<=centeredX+1){QTextStream(stderr)<<"FAIL: mouse joystick dot did not move"<<Qt::endl;app.exit(2);return;}
+    stage=2;return;
+   }
+   if(std::abs(key->property("stickX").toDouble())>.01||std::abs(thumb->x()-centeredX)>1){QTextStream(stderr)<<"FAIL: mouse joystick did not center"<<Qt::endl;app.exit(2);return;}
+   QMetaObject::invokeMethod(area,"exited");
+   if(!window->property("hovered").toString().isEmpty()){app.exit(2);return;}
+   QTextStream(stdout)<<"PASS: actual joystick dot moves and centers with gaze unavailable"<<Qt::endl;app.quit();
+  });
+  poll->start();QTimer::singleShot(3000,&app,[&]{app.exit(2);});return app.exec();
+ }
+
  if(app.arguments().contains("--prediction-hover-ui-check")){
   window->setProperty("gazeEnabled",false);
   controller.openLayout("keyboard-alphabet-14x4-bottom",false);

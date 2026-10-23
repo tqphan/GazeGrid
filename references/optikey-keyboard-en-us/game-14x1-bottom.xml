@@ -25,8 +25,8 @@
       <ChangeKeyboard BackReturnsHere="true">game-14x1-top</ChangeKeyboard>
     </DynamicKey>
     <DynamicKey>
-      <Symbol>ArrowsAllDirectionsIcon</Symbol>
-      <Action>MouseMagneticCursor</Action>
+      <Label>Gamepad</Label>
+      <ChangeKeyboard BackReturnsHere="true">game-controller</ChangeKeyboard>
     </DynamicKey>
     <DynamicKey>
       <Symbol>EscapeKeyIcon</Symbol>
