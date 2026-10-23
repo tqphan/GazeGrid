@@ -93,6 +93,6 @@ analog axes, modifiers and macros do not accept this attribute.
 
 The same attribute works for physical keyboard keys, for example
 `<DynamicKey row="0" col="2" mode="Repeat"><Label>Space</Label><Action>Space</Action></DynamicKey>`.
-Fixed Tap also ignores legacy per-category repeat settings. Hold and Repeat apply
+Hold and Repeat apply
 to dwell; clicking taps except in Toggle mode. Normal pause and release safeguards
 still apply, including releasing held buttons when changing cycle modes.

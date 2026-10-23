@@ -253,13 +253,17 @@ int main(int argc,char **argv){
   auto dimension=[](QString value,double total){return value.endsWith('%')?value.chopped(1).toDouble()*total/100:value.toDouble();};
   int width=qMax(1,int(dimension(layout.value("width","100%").toString(),size.width())));
   int height=qMax(1,int(dimension(layout.value("height","46%").toString(),size.height())));
-  if(controller.keyboardScale()!=100&&!controller.property("layoutName").toString().startsWith("minimized-off-screen-"))
+  // Full-screen layouts must use the whole output, including panel reservations.
+  const bool fullScreen=layout.value("width").toString().trimmed()=="100%"
+   &&layout.value("height").toString().trimmed()=="100%";
+  if(!fullScreen&&controller.keyboardScale()!=100&&!controller.property("layoutName").toString().startsWith("minimized-off-screen-"))
    height=qBound(1,int(height*controller.keyboardScale()/100.0),qMax(1,size.height()-84));
   bool top=layout["position"].toString()=="Top";
   int offset=int(dimension(layout.value("verticaloffset","0").toString(),size.height()));
   const bool minimized=controller.property("layoutName").toString().startsWith("minimized-off-screen-");
   int x=(size.width()-width)/2+int(dimension(layout.value("horizontaloffset","0").toString(),size.width()));
   int y=(top?0:size.height()-height)+offset;
+  if(fullScreen){width=size.width();height=size.height();x=0;y=0;offset=0;}
   if(minimized){
    width=qMin(controller.restoreWidth(),size.width());
    height=qMin(controller.restoreHeight(),size.height());
@@ -271,11 +275,11 @@ int main(int argc,char **argv){
   window->setProperty("screenWidth",size.width());window->setProperty("screenHeight",size.height());window->setProperty("logicalX",x);window->setProperty("logicalY",y);
 #ifdef OPTIKEY_LINUX
   if(QGuiApplication::platformName().startsWith("wayland")){
-   if(inputMethod&&!inputMethod->attachPanel(window,top)){QTextStream(stderr)<<"Unable to assign keyboard surface role\n";app.exit(2);return;}
-   if(!inputMethod||top){auto layer=LayerShellQt::Window::get(window);layer->setScope("optikey-pro-keyboard");layer->setScreen(screen);layer->setLayer(minimized?LayerShellQt::Window::LayerOverlay:LayerShellQt::Window::LayerTop);
+   if(inputMethod&&!inputMethod->attachPanel(window,top||fullScreen)){QTextStream(stderr)<<"Unable to assign keyboard surface role\n";app.exit(2);return;}
+   if(!inputMethod||top||fullScreen){auto layer=LayerShellQt::Window::get(window);layer->setScope("optikey-pro-keyboard");layer->setScreen(screen);layer->setLayer((minimized||fullScreen)?LayerShellQt::Window::LayerOverlay:LayerShellQt::Window::LayerTop);
    layer->setAnchors(minimized?LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft:LayerShellQt::Window::Anchors(top?LayerShellQt::Window::AnchorTop:LayerShellQt::Window::AnchorBottom));
    layer->setMargins(minimized?QMargins(x,y,0,0):top?QMargins(0,offset,0,0):QMargins(0,0,0,-offset));layer->setDesiredSize(QSize(width,height));
-   layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);layer->setActivateOnShow(false);layer->setExclusiveZone(inputMethod||minimized?-1:0);
+   layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);layer->setActivateOnShow(false);layer->setExclusiveZone(inputMethod||minimized||fullScreen?-1:0);
    }
    if(target){target->setScreen(screen);target->resize(size);auto overlay=LayerShellQt::Window::get(target);overlay->setScope("optikey-pro-target");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setExclusiveZone(-1);}
   }else

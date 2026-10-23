@@ -150,30 +150,33 @@ private slots:
   {Controller c;QCOMPARE(c.property("repeatIntervalMs").toInt(),150);c.resetPreferences();QCOMPARE(c.property("repeatIntervalMs").toInt(),750);}
  }
 
- void repeatPreferencesAreIndependent(){
-  const char *names[]={"repeatLettersOnHover","repeatBackspaceOnHover","repeatArrowsOnHover","repeatPunctuationOnHover"};
-  for(int selected=0;selected<4;++selected){
-   {Controller c;c.resetPreferences();c.setProperty(names[selected],true);QVERIFY(c.savePreferences());}
-   {Controller c;for(int i=0;i<4;++i)QCOMPARE(c.property(names[i]).toBool(),i==selected);c.resetPreferences();for(auto n:names)QVERIFY(!c.property(n).toBool());}
-  }
- }
- void repeatKeyCategories(){
-  const char *options[]={"repeatLettersOnHover","repeatBackspaceOnHover","repeatArrowsOnHover","repeatPunctuationOnHover"};
-  const QStringList values{"a","BackOne","Left","Right","Up","Down","1"," ","Return",".",",","!","?",";",":","-","+","$","..."};
-  for(int selected=0;selected<4;++selected){
-   for(int k=0;k<values.size();++k){
-    Controller c;c.configureInputMethod([](QString){return true;},[](QString,bool){return true;});c.inputContextChanged(true,false);
-    c.setProperty(options[selected],true);
-    const bool text=k==0||k==6||k==7||k>=9;
-    const QVariantList commands{QVariantMap{{"tag",text?"Text":"Action"},{"text",values[k]}}};
-    const QVariantList keys{QVariantMap{{"commands",commands}}};
-    c.setProperty("layout",QVariantMap{{"keys",keys}});
-    c.clickCommand("key:0");QTRY_VERIFY(!c.executingCommands());
-    QCOMPARE(c.hover("key:0"),0.0);QTest::qWait(30);
-    const bool expected=(selected==0&&k==0)||(selected==1&&k==1)||(selected==2&&k>=2&&k<=5)||(selected==3&&k>=9&&k<values.size()-1);
-    QCOMPARE(c.hover("key:0")>0,expected);
+ void repeatRequiresModeOrXmlOverride(){
+  Controller c;c.configureInputMethod([](QString){return true;},[](QString,bool){return true;});c.inputContextChanged(true,false);
+  c.setProperty("repeatIntervalMs",100);
+  for(const QString global:{"Tap","Repeat"}){
+   if(global=="Repeat")c.clickCommand("CycleKeyMode");
+   for(const QString fixed:{"","Tap","Repeat"}){
+    for(const QString value:{"a","1"," ",".","BackOne","Left","Return","F1"}){
+     const bool text=value.size()==1;
+     const QVariantList commands{QVariantMap{{"tag",text?"Text":"Action"},{"text",value}}};
+     c.setProperty("layout",QVariantMap{{"keys",QVariantList{QVariantMap{{"mode",fixed},{"commands",commands}}}}});
+     c.clickCommand("key:0");QTRY_VERIFY(!c.executingCommands());
+     QCOMPARE(c.hover("key:0"),0.0);QTest::qWait(20);
+     QCOMPARE(c.hover("key:0")>0,(fixed.isEmpty()?global:fixed)=="Repeat");
+    }
    }
   }
+ }
+ void obsoleteRepeatPreferencesIgnored(){
+  const QStringList obsolete{"repeatLettersOnHover","repeatPunctuationOnHover","repeatBackspaceOnHover","repeatArrowsOnHover"};
+  auto values=ProfileStore::defaults();
+  for(const auto &name:obsolete){QVERIFY(!values.contains(name));values[name]=true;}
+  QString error;ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QVERIFY(store.save(values,error));
+  Controller c;QCOMPARE(c.keyMode(),QString("Tap"));
+  for(const auto &name:obsolete)QVERIFY(c.metaObject()->indexOfProperty(name.toUtf8().constData())<0);
+  QVERIFY(c.savePreferences());
+  const auto saved=store.load().values;
+  for(const auto &name:obsolete)QVERIFY(!saved.contains(name));
  }
 
  void modifierCyclingPreference(){

@@ -57,10 +57,6 @@ Controller::Controller(){
  gazeIndicatorOpacity=profile.values["gazeIndicatorOpacity"].toInt(100);
  gazeIndicatorColor=profile.values["gazeIndicatorColor"].toString("#00bfff");
  repeatIntervalMs=profile.values["repeatIntervalMs"].toInt(750);
- repeatPunctuationOnHover=profile.values["repeatPunctuationOnHover"].toBool();
- repeatLettersOnHover=profile.values["repeatLettersOnHover"].toBool();
- repeatBackspaceOnHover=profile.values["repeatBackspaceOnHover"].toBool();
- repeatArrowsOnHover=profile.values["repeatArrowsOnHover"].toBool();
  cycleModifiersOnHover=profile.values["cycleModifiersOnHover"].toBool();
  hideKeyboardDuringMouseActions=profile.values["hideKeyboardDuringMouseActions"].toBool();
  gazeIndicatorMorph=profile.values["gazeIndicatorMorph"].toBool();
@@ -141,7 +137,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatPunctuationOnHover",repeatPunctuationOnHover},{"repeatIntervalMs",repeatIntervalMs},{"repeatLettersOnHover",repeatLettersOnHover},{"repeatBackspaceOnHover",repeatBackspaceOnHover},{"repeatArrowsOnHover",repeatArrowsOnHover},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -153,10 +149,6 @@ void Controller::resetPreferences(){
  setGazeEnabled(false);
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";nextWordEnabled=true;backStack.clear();
  repeatIntervalMs=750;
- repeatPunctuationOnHover=false;
- repeatLettersOnHover=false;
- repeatBackspaceOnHover=false;
- repeatArrowsOnHover=false;
  cycleModifiersOnHover=false;
  hideKeyboardDuringMouseActions=false;
  scrollSpeed=100;scrollDeadzone=50;scrollAxis=0;
@@ -295,20 +287,13 @@ double Controller::hover(QString key){
     }
    }
    if(ready()&&entry["unavailableReason"].toString().isEmpty()&&commands.size()==1){
-    const auto command=commands.front().toMap();const auto tag=command["tag"].toString();const auto text=command["text"].toString();
-    const auto code=tag=="Action"?KeyNames::functionKey(text):QString();
-    const bool letter=tag=="Text"&&text.size()==1&&text.front().isLetter();
-    const bool punctuation=tag=="Text"&&text.size()==1&&(text.front().isPunct()||text.front().isSymbol());
     const bool modeKey=!ActionRunner::dwellKey(commands).first.isEmpty();
     if(modeKey&&keyMode=="Hold"&&!runner.textOnly){
      const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,literal);
      if(resolved.allowed&&!ActionRunner::dwellKey(resolved.commands).first.isEmpty())holdCommands=resolved.commands;
     }
     repeatKey=repeatKey||(cycleModifiersOnHover&&!ActionRunner::modifierName(commands).isEmpty())
-     ||(modeKey&&keyMode=="Repeat")||(fixedMode.isEmpty()&&keyMode!="Hold"&&keyMode!="Toggle"&&((repeatLettersOnHover&&letter)
-     ||(repeatPunctuationOnHover&&punctuation)
-     ||(repeatBackspaceOnHover&&code=="BACK")
-     ||(repeatArrowsOnHover&&(code=="LEFT"||code=="RIGHT"||code=="UP"||code=="DOWN"))));
+     ||(modeKey&&keyMode=="Repeat");
    }
   }
  }
@@ -416,7 +401,6 @@ bool Controller::performAction(QString action){
   runner.endDwellHold();heldDwellTarget.clear();
   runner.releaseToggledKeys();
   keyModeValue=keyModeValue=="Tap"?"Repeat":keyModeValue=="Repeat"?"Hold":keyModeValue=="Hold"?"Toggle":"Tap";
-  repeatLettersOnHover=repeatPunctuationOnHover=repeatBackspaceOnHover=repeatArrowsOnHover=false;
   actionStatus="Key mode: "+keyModeValue;emit changed();return true;
  }
  if(GameController::supports(action))return runner.textOnly?true:gameController.perform(action);
@@ -538,3 +522,8 @@ void Controller::updateSuggestions(){
 void Controller::resetLearning(){frequencies.clear();QFile::remove(configFile("learned.json"));updateSuggestions();}
 void Controller::speak(){if(!sensitiveInput)speech.speak(scratchpad);}
 void Controller::stopSpeech(){speech.stop();}
+
+bool Controller::keyToggled(const QVariantList &commands)const{
+ const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,literal);
+ return resolved.allowed&&runner.isToggled(resolved.commands);
+}

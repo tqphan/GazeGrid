@@ -31,10 +31,6 @@ class Controller:public QObject{
  Q_PROPERTY(QString buttonMode READ buttonMode NOTIFY changed)
  Q_PROPERTY(QString keyMode READ keyMode NOTIFY changed)
  Q_PROPERTY(int repeatIntervalMs MEMBER repeatIntervalMs NOTIFY changed)
- Q_PROPERTY(bool repeatPunctuationOnHover MEMBER repeatPunctuationOnHover NOTIFY changed)
- Q_PROPERTY(bool repeatLettersOnHover MEMBER repeatLettersOnHover NOTIFY changed)
- Q_PROPERTY(bool repeatBackspaceOnHover MEMBER repeatBackspaceOnHover NOTIFY changed)
- Q_PROPERTY(bool repeatArrowsOnHover MEMBER repeatArrowsOnHover NOTIFY changed)
  Q_PROPERTY(bool cycleModifiersOnHover MEMBER cycleModifiersOnHover NOTIFY changed)
  Q_PROPERTY(int dwellMs MEMBER dwellMs NOTIFY changed)
  Q_PROPERTY(int restoreCorner READ restoreCorner WRITE setRestoreCorner NOTIFY geometryPreferencesChanged)
@@ -102,6 +98,7 @@ public:
  bool shifted()const{return runner.shifted();}
  QStringList heldKeys()const{return runner.heldKeys();}
  QVariantMap modifierStates()const{return runner.modifierStates();}
+ Q_INVOKABLE bool keyToggled(const QVariantList &commands)const;
  Q_INVOKABLE QString modifierName(const QVariantList &commands)const{return ActionRunner::modifierName(commands);}
  QString mappingJson()const;
  QString targetPrompt()const{return zoomAnimating?"Zooming in…":magnifierReady?"Choose the precise target in the magnified image":pointer.prompt();}
@@ -174,10 +171,6 @@ private:
  QString keyModeValue="Tap",heldDwellTarget;
  qint64 lastHoldHover=0;
  int repeatIntervalMs=750;
- bool repeatPunctuationOnHover=false;
- bool repeatLettersOnHover=false;
- bool repeatBackspaceOnHover=false;
- bool repeatArrowsOnHover=false;
  bool cycleModifiersOnHover=false;
  bool hideKeyboardDuringMouseActions=false;
  bool gazeIndicatorMorph=false;

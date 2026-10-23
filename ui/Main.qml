@@ -120,9 +120,11 @@ Window {
    clip:true
    required property var modelData
    required property int index
+   property bool keyboardToggled:controller.keyToggled(modelData.commands||[])
    property bool gamepadPressed:false
    Connections {target:controller;function onChanged(){
     const commands=key.modelData.commands||[]
+    key.keyboardToggled=controller.keyToggled(commands)
     key.gamepadPressed=commands.length===1&&commands[0].tag==="Action"&&controller.gamepadHeld(commands[0].text.trim())
    }}
    property real pointerX:0
@@ -148,7 +150,7 @@ Window {
     const commands=modelData.commands || []
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="LookToScrollActive"
    }
-   property bool stateFilled:gamepadPressed||modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)
+   property bool stateFilled:keyboardToggled||gamepadPressed||modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)
    property real predictionWidth:controller.layout.layoutMode==="canvas"?width/Math.max(1,predictionCount):2*root.width/controller.layout.cols
    property int predictionCount:modelData.suggestionCount!==undefined?modelData.suggestionCount:Math.floor(modelData.width/2)
    property bool sleepKey: {
@@ -176,7 +178,7 @@ Window {
    Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:key.active?0.18:0}
    Rectangle {
     anchors.fill:parent;anchors.margins:2
-    visible:key.gamepadPressed||key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)
+    visible:key.keyboardToggled||key.gamepadPressed||key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)
     color:key.stateFilled?root.dwellColor:"transparent"
     opacity:key.stateFilled?0.25:1
     border.width:2;border.color:root.dwellColor
@@ -193,7 +195,7 @@ Window {
      anchors.horizontalCenter:parent.horizontalCenter
      // NoIcon is the pack's X symbol, not an instruction to hide the image.
      visible:!root.minimizedRecovery&&key.modelData.symbol!==""
-     width:Math.max(1,Math.min(key.width-2*key.symbolMargin,key.height-2*key.symbolMargin-(key.label?keyLabel.implicitHeight+4:0)-(modeBadge.visible?modeBadge.height+4:0)))
+     width:Math.max(1,Math.min(key.width-2*key.symbolMargin,key.height-2*key.symbolMargin-(key.label?keyLabel.implicitHeight+4:0)))
      height:width
      source:visible?"image://symbols/"+key.modelData.symbol+"/"+encodeURIComponent(key.foreground):""
      sourceSize.width:width*root.screen.devicePixelRatio;sourceSize.height:height*root.screen.devicePixelRatio
@@ -209,23 +211,24 @@ Window {
      minimumPixelSize:8;fontSizeMode:Text.HorizontalFit
      horizontalAlignment:Text.AlignHCenter;anchors.horizontalCenter:parent.horizontalCenter
     }
-    Rectangle {
-     id:modeBadge
-     objectName:"keyModeBadge:"+key.index
-     visible:(key.cycleKeyModeKey||key.cycleButtonModeKey)&&!root.minimizedRecovery
-     anchors.horizontalCenter:parent.horizontalCenter
-     width:Math.max(1,Math.min(key.width-12,modeBadgeText.implicitWidth+16))
-     height:Math.max(16,Math.min(26,key.height*.22))
-     radius:height/2
-     color:"transparent";border.width:1;border.color:key.foreground
-     Text {
-      id:modeBadgeText
-      anchors.fill:parent;anchors.leftMargin:6;anchors.rightMargin:6
-      text:key.cycleButtonModeKey?controller.buttonMode:controller.keyMode;color:key.foreground
-      font.pixelSize:Math.max(10,Math.min(16,key.height*.16));font.bold:true
-      minimumPixelSize:8;fontSizeMode:Text.Fit
-      horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
-     }
+   }
+   Rectangle {
+    id:modeBadge
+    objectName:"keyModeBadge:"+key.index
+    visible:key.modelData.kind==="DynamicKey"&&!key.unavailableReason&&(key.cycleKeyModeKey||key.cycleButtonModeKey)&&!root.minimizedRecovery
+    anchors.horizontalCenter:parent.horizontalCenter
+    anchors.bottom:parent.bottom;anchors.bottomMargin:7
+    width:Math.max(1,Math.min(key.width-12,modeBadgeText.implicitWidth+16))
+    height:Math.max(16,Math.min(26,key.height*.22))
+    radius:height/2
+    color:key.color;border.width:1;border.color:key.foreground
+    Text {
+     id:modeBadgeText
+     anchors.fill:parent;anchors.leftMargin:6;anchors.rightMargin:6
+     text:key.cycleButtonModeKey?controller.buttonMode:controller.keyMode;color:key.foreground
+     font.pixelSize:Math.max(10,Math.min(16,key.height*.16));font.bold:true
+     minimumPixelSize:8;fontSizeMode:Text.Fit
+     horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
     }
    }
    Text {
@@ -275,7 +278,7 @@ Window {
    }
    Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(key.active?root.progress:0);color:root.dwellColor}
    Accessible.role:Accessible.Button
-   Accessible.description:key.cycleButtonModeKey?"Button mode: "+controller.buttonMode:key.cycleKeyModeKey?"Key mode: "+controller.keyMode:key.sleepKey?(controller.paused?"Pause on":"Pause off"):key.magnifierKey?(controller.magnifierEnabled?"Magnifier on":"Magnifier off"):key.modifier?(key.modifierState==="locked"?"Locked until selected again":key.modifierState==="latched"?"Latched for the next key":"Off. Select once to latch, twice to lock."):""
+   Accessible.description:key.keyboardToggled?"Locked until selected again":key.cycleButtonModeKey?"Button mode: "+controller.buttonMode:key.cycleKeyModeKey?"Key mode: "+controller.keyMode:key.sleepKey?(controller.paused?"Pause on":"Pause off"):key.magnifierKey?(controller.magnifierEnabled?"Magnifier on":"Magnifier off"):key.modifier?(key.modifierState==="locked"?"Locked until selected again":key.modifierState==="latched"?"Latched for the next key":"Off. Select once to latch, twice to lock."):""
    Accessible.name:key.sleepKey?(controller.paused?"Resume input":"Pause input"):root.minimizedRecovery?"Restore keyboard":key.unavailableReason?key.unavailableReason:(key.label||key.modelData.symbol)
    Accessible.onPressAction:controller.clickCommand(key.command)
   }
@@ -501,11 +504,7 @@ Window {
        Tool {text:"Key mode: "+controller.keyMode+" (cycle)";command:"CycleKeyMode"}
        Desktop.Label {text:"Tap → Repeat → Hold → Toggle. Hold presses after dwell and releases when mouse or gaze leaves. Toggle keeps a key pressed until selected again. Applies to all physical keyboard keys except modifiers (Shift, Ctrl, Alt and Super/Windows).";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Desktop.CheckBox {text:"Cycle modifiers while hovering";checked:controller.cycleModifiersOnHover;onToggled:controller.cycleModifiersOnHover=checked}
-       Desktop.CheckBox {text:"Repeat letters while hovering";checked:controller.repeatLettersOnHover;onToggled:controller.repeatLettersOnHover=checked}
-       Desktop.CheckBox {text:"Repeat punctuation while hovering";checked:controller.repeatPunctuationOnHover;onToggled:controller.repeatPunctuationOnHover=checked}
-       Desktop.CheckBox {text:"Repeat Backspace while hovering";checked:controller.repeatBackspaceOnHover;onToggled:controller.repeatBackspaceOnHover=checked}
-       Desktop.CheckBox {text:"Repeat arrow keys while hovering";checked:controller.repeatArrowsOnHover;onToggled:controller.repeatArrowsOnHover=checked}
-       SettingSlider {label:"Repeat rate";displayValue:(1000/controller.repeatIntervalMs).toFixed(1)+" / sec ("+controller.repeatIntervalMs+" ms)";from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;enabled:controller.buttonMode==="Repeat"||controller.keyMode==="Repeat"||controller.repeatPunctuationOnHover||controller.cycleModifiersOnHover||controller.repeatLettersOnHover||controller.repeatBackspaceOnHover||controller.repeatArrowsOnHover;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
+       SettingSlider {label:"Repeat rate";displayValue:(1000/controller.repeatIntervalMs).toFixed(1)+" / sec ("+controller.repeatIntervalMs+" ms)";from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
        SettingSlider {label:"Keyboard dwell";displayValue:controller.dwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.dwellMs;onMoved:controller.dwellMs=value}
 
       }

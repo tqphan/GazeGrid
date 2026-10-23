@@ -155,26 +155,16 @@ Shift, Ctrl, Alt, and Win at the configured repeat rate without looking away. Th
 defaults off, applies to modifier keys only, and is retained with Save preferences.
 Explicit KeyToggle modifier keys retain their two-state toggle behavior.
 
-**Settings → Gaze & dwell** also has independent **Repeat letters**, **Repeat
-Backspace**, and **Repeat arrow keys while hovering** options. All default off.
-Enabled keys repeat at the configured repeat rate; moving away stops repetition.
-The arrow option covers Left, Right, Up, and Down. Letter repetition applies to
-single-letter text keys, not predictions, digits, punctuation, or macros. Save
-preferences to retain these choices.
+Use **Key mode: Repeat** or an XML `mode="Repeat"` override to repeat keyboard
+keys while dwelling. Tap fires once until mouse or gaze leaves and returns.
 
 **Repeat rate** sets the interval between repeat activations from 100–2000 ms
-(10–0.5 repeats per second), default 750 ms. It applies to enabled letter,
-Backspace, arrow, and modifier repetition. The initial activation still uses
+(10–0.5 repeats per second), default 750 ms. It applies to keyboard and gamepad Repeat mode, XML Repeat overrides,
+and modifier cycling. The initial activation still uses
 Keyboard dwell. Each repeat waits for the previous action to finish.
 
 Existing restore-button size preferences initialize both width and height to the
 previous square size. New width and height values save independently.
-
-**Repeat punctuation while hovering** independently enables repetition for
-single-character punctuation and symbol keys, such as `.`, `,`, `!`, `?`, `+`,
-and `$`. It defaults off and uses the shared repeat rate. Digits, spaces,
-predictions, and multi-character text keys are excluded. Save preferences to
-retain the option.
 
 **Enable gaze input** saves automatically. When enabled, the next launch restores
 gaze input and reconnects the eye tracker. When no valid gaze is available, mouse

@@ -25,6 +25,7 @@ public:
     void resume(bool success);
     bool busy()const{return running;}
     bool isHeld(const QString &key)const;
+    bool isToggled(const QVariantList &commands)const;
     QStringList heldKeys()const{return held.values();}
     QVariantMap modifierStates()const;
     static QString modifierName(const QVariantList &commands);

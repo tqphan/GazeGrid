@@ -76,10 +76,14 @@ private slots:
   r.supportsPhysicalKey=[](QString){return true;};
   QVERIFY(r.toggleDwellKey({cmd("Text","a")}));
   r.endDwellHold();QVERIFY(r.isHeld("A"));
+  QVERIFY(r.isToggled({cmd("Text","a")}));
   QVERIFY(r.toggleDwellKey({cmd("Action","Tab")}));
   QVERIFY(r.toggleDwellKey({cmd("Text","a")}));
   QVERIFY(!r.isHeld("A"));QVERIFY(r.isHeld("TAB"));
+  QVERIFY(!r.isToggled({cmd("Text","a")}));
+  QVERIFY(r.isToggled({cmd("Action","Tab")}));
   r.releaseToggledKeys();QVERIFY(r.heldKeys().isEmpty());
+  QVERIFY(!r.isToggled({cmd("Action","Tab")}));
   QCOMPARE(events,QStringList({"A+","TAB+","A-","TAB-"}));
   events.clear();
   QVERIFY(r.toggleDwellKey({cmd("Text","!")}));
@@ -704,12 +708,6 @@ private slots:
   QVERIFY(d.update("a",500,500));QVERIFY(!d.update("a",600,500));
   d.update("",650,500);QVERIFY(!d.update("a",700,500));
   QVERIFY(!d.update("a",1300,500)); // stale interval cancels accumulated dwell
- }
- void punctuationRepeatPreferenceValidation(){
-  auto v=ProfileStore::defaults();QVERIFY(!v["repeatPunctuationOnHover"].toBool());
-  v.remove("repeatPunctuationOnHover");QVERIFY(ProfileStore::valid(v));
-  v["repeatPunctuationOnHover"]=true;QVERIFY(ProfileStore::valid(v));
-  v["repeatPunctuationOnHover"]=1;QVERIFY(!ProfileStore::valid(v));
  }
  void repeatRateDoesNotChangeInitialDwell(){
   Dwell d;QVERIFY(!d.update("a",0,500,true,100));

@@ -206,10 +206,22 @@ bool ActionRunner::toggleDwellKey(const QVariantList &commands){
     if(!key(name,true,true)){fail("Could not press toggled key");return false;}
     toggledKeys.insert(name);
     if(shift)shiftedToggles.insert(name);
+    emit stateChanged();
     return true;
 }
 void ActionRunner::releaseToggledKeys(){
     const auto copy=toggledKeys;toggledKeys.clear();shiftedToggles.clear();
     for(const auto &name:copy)key(name,false);
     if(toggleOwnShift){toggleOwnShift=false;key("LSHIFT",false);}
+}
+
+bool ActionRunner::isToggled(const QVariantList &commands)const{
+    if(commands.size()!=1)return false;
+    const auto command=commands.front().toMap();
+    if(command["tag"]=="KeyToggle"){
+        const auto name=KeyNames::canonical(command["text"].toString());
+        return !modifierKeys.contains(name)&&isHeld(name);
+    }
+    const auto name=dwellKey(commands).first;
+    return !name.isEmpty()&&toggledKeys.contains(name)&&isHeld(name);
 }
