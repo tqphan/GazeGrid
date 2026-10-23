@@ -36,7 +36,7 @@ Controller::Controller(){
  predictionModeValue=profile.values["predictionMode"].toString("context");
  nextWordEnabled=profile.values["predictNextWord"].toBool(true);
  dwellMs=profile.values["dwellMs"].toInt();literal=profile.values["literal"].toBool();learning=profile.values["learning"].toBool();profileStatus=profile.message;
- scalePercent=profile.values["keyboardScale"].toInt(100);highContrast=profile.values["highContrast"].toBool();
+ scalePercent=profile.values["keyboardScale"].toInt(100);keyboardTheme=profile.values["highContrast"].toBool()?QStringLiteral("high-contrast"):profile.values["keyboardTheme"].toString("system");
  shortLabelScale=profile.values.value("shortLabelScale").toInt(profile.values.value("enlargeShortLabels").toBool(true)?150:100);
  longLabelScale=profile.values["longLabelScale"].toInt(100);
  magnifierEnabled=profile.values.value("magnifierEnabled").toBool(false);
@@ -93,7 +93,7 @@ Controller::Controller(){
  pointer.releaseAll=[this]{portal.releaseButtons();};
  connect(&pointer,&PointerActions::changed,this,[this]{targeting=pointer.targeting();if(!targeting)clearCapture();emit changed();});
  connect(&screenshot,&ScreenshotPortal::failed,this,[this](QString error){
-  clearCapture();runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();actionStatus=error;emit changed();
+  clearCapture();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();actionStatus=error;emit changed();
  });
  connect(&screenshot,&ScreenshotPortal::captured,this,[this](QImage image){receiveMagnifierFrame(image);});
  connect(&pointer,&PointerActions::completed,this,[this](bool ok){actionStatus=pointer.prompt();runner.resume(ok);emit changed();});
@@ -103,21 +103,23 @@ Controller::Controller(){
  runner.performAction=[this](QString action){return performAction(action);};
  runner.supportsAction=ActionCatalog::supported;
  runner.navigate=[this](QString name,bool back){openLayout(name,back);};
- connect(&runner,&ActionRunner::failed,this,[this](QString m){gameController.reset();activeJoystick=-1;actionStatus=m.contains("Gamepad")&&!gameController.error().isEmpty()?gameController.error():m;emit changed();});
+ connect(&runner,&ActionRunner::failed,this,[this](QString m){endButtonHold();gameController.reset();activeJoystick=-1;actionStatus=m.contains("Gamepad")&&!gameController.error().isEmpty()?gameController.error():m;emit changed();});
  connect(&runner,&ActionRunner::stateChanged,this,&Controller::changed);
  connect(&runner,&ActionRunner::textCommitted,this,&Controller::updateText);
  connect(&portal,&PortalInput::status,this,[this](QString m){portalStatus=m;emit changed();});
- connect(&portal,&PortalInput::readyChanged,this,[this]{dwell.reset();if(!ready()){runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();}emit changed();});
+ connect(&portal,&PortalInput::readyChanged,this,[this]{dwell.reset();if(!ready()){runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}emit changed();});
  connect(&tobii,&TobiiInput::status,this,[this](QString m){tobiiStatus=m;emit changed();});
  connect(&tobii,&TobiiInput::gaze,this,&Controller::receiveGaze);
  auto timer=new QTimer(this);timer->setInterval(25);connect(timer,&QTimer::timeout,this,[this]{
-  if(gazeAge.isValid()&&GazeClock::now()-lastGazeSample>200000){gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();emit gazePoint(0,0,false);}
+  if(!buttonHoldTarget.isEmpty()&&clock.elapsed()-lastHoldHover>200){endButtonHold();dwell.reset();}
+  if(!heldDwellTarget.isEmpty()&&clock.elapsed()-lastHoldHover>200){runner.endDwellHold();heldDwellTarget.clear();dwell.reset();}
+  if(gazeAge.isValid()&&GazeClock::now()-lastGazeSample>200000){gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();emit gazePoint(0,0,false);}
  });timer->start();
  auto start=profile.values["startLayout"].toString();
  if(!layoutNames.contains(start)){start=ProfileStore::defaults()["startLayout"].toString();profileStatus="Saved keyboard is unavailable. Opened the default keyboard.";}
  openLayout(start,false);
 }
-Controller::~Controller(){runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();portal.close();
+Controller::~Controller(){runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();portal.close();
  QJsonObject obj;for(auto it=frequencies.begin();it!=frequencies.end();++it)obj[it.key()]=it.value();QSaveFile file(configFile("learned.json"));if(file.open(QIODevice::WriteOnly)){file.write(QJsonDocument(obj).toJson());file.commit();}
 }
 void Controller::configureInputMethod(std::function<bool(QString)> text,std::function<bool(QString,bool)> key){
@@ -130,7 +132,7 @@ void Controller::configureInputMethod(std::function<bool(QString)> text,std::fun
  actionStatus="Native text input enabled; authorize desktop control for pointer actions and held shortcuts";emit changed();
 }
 void Controller::invalidateInputContext(){
- runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();dwell.reset();speech.stop();scratchpad.clear();suggestions.clear();emit changed();
+ runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();dwell.reset();speech.stop();scratchpad.clear();suggestions.clear();emit changed();
 }
 void Controller::inputContextChanged(bool active,bool sensitive){
  nativeActive=active;sensitiveInput=sensitive;
@@ -138,7 +140,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatPunctuationOnHover",repeatPunctuationOnHover},{"repeatIntervalMs",repeatIntervalMs},{"repeatLettersOnHover",repeatLettersOnHover},{"repeatBackspaceOnHover",repeatBackspaceOnHover},{"repeatArrowsOnHover",repeatArrowsOnHover},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatPunctuationOnHover",repeatPunctuationOnHover},{"repeatIntervalMs",repeatIntervalMs},{"repeatLettersOnHover",repeatLettersOnHover},{"repeatBackspaceOnHover",repeatBackspaceOnHover},{"repeatArrowsOnHover",repeatArrowsOnHover},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -159,7 +161,7 @@ void Controller::resetPreferences(){
  scrollSpeed=100;scrollDeadzone=50;scrollAxis=0;
  gazeIndicatorSize=18;gazeIndicatorOpacity=100;gazeIndicatorColor="#00bfff";gazeIndicatorMorph=false;
  setRestoreCorner(2);setRestoreWidth(64);setRestoreHeight(64);restoreOpacity=100;
- setKeyboardScale(100);highContrast=false;shortLabelScale=values["shortLabelScale"].toInt();longLabelScale=values["longLabelScale"].toInt();magnifierZoom=values["magnifierZoom"].toInt();progressiveZoom=false;zoomDurationMs=1500;targetDwellEnabled=true;targetStartDwellMs=750;targetConfirmDwellMs=1000;targetDwellRadius=40;rememberDesktop=false;
+ setKeyboardScale(100);keyboardTheme="system";shortLabelScale=values["shortLabelScale"].toInt();longLabelScale=values["longLabelScale"].toInt();magnifierZoom=values["magnifierZoom"].toInt();progressiveZoom=false;zoomDurationMs=1500;targetDwellEnabled=true;targetStartDwellMs=750;targetConfirmDwellMs=1000;targetDwellRadius=40;rememberDesktop=false;
  setGazeSmoothingLevel(values["gazeSmoothingLevel"].toInt());setSmoothWhenChangingGazeTarget(false);gazeSmoothing.reset();
  openLayout(values["startLayout"].toString(),false);
  profileStatus="Preferences reset. Input remains paused.";emit changed();
@@ -178,7 +180,7 @@ void Controller::setRestoreHeight(int height){
 }
 void Controller::setKeyboardScale(int scale){
  scale=qBound(50,scale,150);if(scale==scalePercent)return;
- runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();dwell.reset();scalePercent=scale;emit geometryPreferencesChanged();emit changed();
+ runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();dwell.reset();scalePercent=scale;emit geometryPreferencesChanged();emit changed();
 }
 QString Controller::mappingJson()const{return QString::fromUtf8(QJsonDocument(mappingProfile).toJson(QJsonDocument::Indented));}
 bool Controller::saveMappings(QString json){
@@ -205,7 +207,7 @@ void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
   // Cancel gaze work once on tracking loss. Further invalid samples must not
   // continually reset mouse dwell or cancel actions started by the fallback.
   const bool wasValid=gazeAge.isValid();gazeAge.invalidate();gazeSmoothing.reset();
-  if(wasValid){dwell.reset();runner.cancel();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();}
+  if(wasValid){dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();}
  }
  emit gazePoint(x,y,valid);
 }
@@ -216,13 +218,13 @@ void Controller::setDisplaySize(double width,double height){
 }
 void Controller::setGazeSmoothingLevel(int level){
  level=qBound(0,level,4);if(level==smoothingLevel)return;
- smoothingLevel=level;gazeSmoothing.reset();dwell.reset();runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();emit changed();
+ smoothingLevel=level;gazeSmoothing.reset();dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();emit changed();
 }
 void Controller::setSmoothWhenChangingGazeTarget(bool enabled){
  if(enabled==smoothTargetChanges)return;
- smoothTargetChanges=enabled;gazeSmoothing.reset();dwell.reset();runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();emit changed();
+ smoothTargetChanges=enabled;gazeSmoothing.reset();dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();emit changed();
 }
-void Controller::togglePause(){paused=!paused;dwell.reset();runner.cancel();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.cancel();emit changed();}
+void Controller::togglePause(){paused=!paused;dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.cancel();emit changed();}
 void Controller::setGazeEnabled(bool enabled){
  const bool preferenceChanged=gazeEnabled!=enabled;
  gazeEnabled=enabled;dwell.reset();gazeSmoothing.reset();
@@ -232,7 +234,7 @@ void Controller::setGazeEnabled(bool enabled){
   if(!store.save(saved,error))profileStatus=error;
  }
  if(enabled)connectTobii();
- if(!enabled){runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();}
+ if(!enabled){runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}
  if(preferenceChanged)emit gazeEnabledChanged();
  emit changed();
 }
@@ -241,7 +243,7 @@ void Controller::trackGaze(double x,double y,bool overDesktop){
  if(gazeEnabled&&!paused&&ready()&&gazeAge.isValid()&&GazeClock::now()-lastGazeSample<=200000)pointer.follow({x,y},overDesktop);
 }
 void Controller::displayChanged(){
- if(!paused)togglePause();else{runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();dwell.reset();}
+ if(!paused)togglePause();else{runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();dwell.reset();}
  gazeAge.invalidate();gazeSmoothing.reset();emit gazePoint(0,0,false);
  actionStatus="Display configuration changed. Check tracker calibration and resume when ready.";emit changed();
 }
@@ -257,37 +259,72 @@ bool Controller::isSleepKey(const QString &key) const{
  const auto action=commands.front().toMap();
  return action["tag"]=="Action"&&action["text"].toString().trimmed()=="Sleep";
 }
+void Controller::endButtonHold(){
+ const auto action=buttonHoldAction;buttonHoldAction.clear();buttonHoldTarget.clear();
+ if(!action.isEmpty())gameController.perform(action);
+}
 double Controller::hover(QString key){
+ if(key!=buttonHoldTarget||paused)endButtonHold();
+ if(key!=heldDwellTarget||paused){runner.endDwellHold();heldDwellTarget.clear();}
+ lastHoldHover=clock.elapsed();
  if(key.startsWith("suggest:")){
   bool valid=false;const int i=key.mid(8).toInt(&valid);
   if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()){dwell.reset();return 0;}
  }
  const bool recovery=key=="Pause"||key=="Recover"||key=="CancelTarget"||key=="Connect"||key=="Tobii"||key=="Settings"||key=="Speak"||key=="StopSpeech"||isSleepKey(key);
  if(!recovery&&(paused||runner.busy())){dwell.inhibit(key,clock.elapsed());return 0;}
- int duration=dwellMs;bool repeatKey=false;
+ int duration=dwellMs;bool repeatKey=false;QVariantList holdCommands;QString buttonHold;
  if(key.startsWith("key:")){
   bool valid=false;const int i=key.mid(4).toInt(&valid);const auto keys=layout["keys"].toList();
   if(valid&&i>=0&&i<keys.size()){
    const auto entry=keys[i].toMap();const int custom=entry["dwell"].toInt();if(custom>0)duration=custom;
    const auto commands=entry["commands"].toList();
+   const auto fixedMode=entry["mode"].toString();
+   const auto keyMode=fixedMode.isEmpty()?keyModeValue:fixedMode;
+   const auto buttonMode=fixedMode.isEmpty()?buttonModeValue:fixedMode;
+   if(!runner.textOnly&&entry["unavailableReason"].toString().isEmpty()&&commands.size()==1){
+    const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,literal);
+    if(resolved.allowed&&resolved.commands.size()==1){
+     const auto cmd=resolved.commands.front().toMap();
+     const auto button=cmd["tag"]=="Action"?GameController::buttonAction(cmd["text"].toString(),"Press"):QString();
+     if(!button.isEmpty()){
+      repeatKey=buttonMode=="Repeat";
+      if(buttonMode=="Hold")buttonHold=button;
+     }
+    }
+   }
    if(ready()&&entry["unavailableReason"].toString().isEmpty()&&commands.size()==1){
     const auto command=commands.front().toMap();const auto tag=command["tag"].toString();const auto text=command["text"].toString();
     const auto code=tag=="Action"?KeyNames::functionKey(text):QString();
     const bool letter=tag=="Text"&&text.size()==1&&text.front().isLetter();
     const bool punctuation=tag=="Text"&&text.size()==1&&(text.front().isPunct()||text.front().isSymbol());
-    repeatKey=(cycleModifiersOnHover&&!ActionRunner::modifierName(commands).isEmpty())
-     ||(repeatLettersOnHover&&letter)
+    const bool modeKey=!ActionRunner::dwellKey(commands).first.isEmpty();
+    if(modeKey&&keyMode=="Hold"&&!runner.textOnly){
+     const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,literal);
+     if(resolved.allowed&&!ActionRunner::dwellKey(resolved.commands).first.isEmpty())holdCommands=resolved.commands;
+    }
+    repeatKey=repeatKey||(cycleModifiersOnHover&&!ActionRunner::modifierName(commands).isEmpty())
+     ||(modeKey&&keyMode=="Repeat")||(fixedMode.isEmpty()&&keyMode!="Hold"&&keyMode!="Toggle"&&((repeatLettersOnHover&&letter)
      ||(repeatPunctuationOnHover&&punctuation)
      ||(repeatBackspaceOnHover&&code=="BACK")
-     ||(repeatArrowsOnHover&&(code=="LEFT"||code=="RIGHT"||code=="UP"||code=="DOWN"));
+     ||(repeatArrowsOnHover&&(code=="LEFT"||code=="RIGHT"||code=="UP"||code=="DOWN"))));
    }
   }
  }
- if(dwell.update(key,clock.elapsed(),duration,repeatKey,repeatIntervalMs)){activate(key);dwell.consume(key,clock.elapsed());}
+ if(dwell.update(key,clock.elapsed(),duration,repeatKey,repeatIntervalMs)){
+  if(!buttonHold.isEmpty()){
+   if(gameController.perform(buttonHold)){buttonHoldTarget=key;buttonHoldAction=GameController::buttonAction(buttonHold,"Release");}
+   else {actionStatus=gameController.error();emit changed();}
+  }else if(!holdCommands.isEmpty()){if(runner.beginDwellHold(holdCommands))heldDwellTarget=key;}else activate(key);
+  dwell.consume(key,clock.elapsed());
+ }
  return dwell.progress(clock.elapsed(),duration,repeatIntervalMs);
 }
 void Controller::clickCommand(QString key){activate(key);dwell.consume(key,clock.elapsed());}
 void Controller::activate(QString key){
+ endButtonHold();
+ runner.endDwellHold();heldDwellTarget.clear();
+ if(key=="CycleKeyMode"||key=="CycleButtonMode"){performAction(key);return;}
  if(key=="Settings"){emit settingsRequested();return;}
  if(key=="Speak"){speak();return;}
  if(key=="StopSpeech"){stopSpeech();return;}
@@ -295,7 +332,7 @@ void Controller::activate(QString key){
  if(key=="Recover"){recover();return;}
  if(key=="Connect"){connectDesktop();return;}
  if(key=="Tobii"){connectTobii();return;}
- if(key=="CancelTarget"){targeting=false;runner.cancel();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.cancel();emit changed();return;}
+ if(key=="CancelTarget"){targeting=false;runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.cancel();emit changed();return;}
  if(paused)return;
  if(key.startsWith("suggest:")){
   bool valid=false;int i=key.mid(8).toInt(&valid);if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()||(!runner.textOnly&&!ready()))return;
@@ -307,12 +344,23 @@ void Controller::activate(QString key){
  bool valid=false;int i=key.mid(4).toInt(&valid);auto keys=layout["keys"].toList();if(!valid||i<0||i>=keys.size())return;
  const auto unavailable=keys[i].toMap()["unavailableReason"].toString();
  if(!unavailable.isEmpty()){actionStatus=unavailable;emit changed();return;}
+ const auto fixedMode=keys[i].toMap()["mode"].toString();
+ const auto keyMode=fixedMode.isEmpty()?keyModeValue:fixedMode;
+ const auto buttonMode=fixedMode.isEmpty()?buttonModeValue:fixedMode;
  auto commands=keys[i].toMap()["commands"].toList();bool ok=false;commands=mapped(commands,ok);
  if(!ok){emit changed();return;}
  // Navigation, sleep, and scratchpad clearing work without a portal session.
- bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="NextSuggestions"||value=="PreviousSuggestions"||GameController::supports(value))))needsOutput=true;}
+ bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="CycleButtonMode"||value=="CycleKeyMode"||value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="NextSuggestions"||value=="PreviousSuggestions"||GameController::supports(value))))needsOutput=true;}
  if(needsOutput&&!runner.textOnly&&!ready()){actionStatus="Authorize desktop control before sending input";emit changed();return;}
- runner.start(commands);emit changed();
+ if(!runner.textOnly&&commands.size()==1){
+  auto cmd=commands.front().toMap();
+  const auto button=cmd["tag"]=="Action"?GameController::buttonAction(cmd["text"].toString(),buttonMode=="Toggle"?"Toggle":"Tap"):QString();
+  if(!button.isEmpty()){cmd["text"]=button;commands={cmd};}
+ }
+ if(keyMode=="Toggle"&&!runner.textOnly&&!ActionRunner::dwellKey(commands).first.isEmpty())
+  runner.toggleDwellKey(commands);
+ else runner.start(commands);
+ emit changed();
 }
 void Controller::openLayout(QString name,bool backReturnsHere){
  if(name.endsWith(".xml"))name.chop(4);
@@ -339,7 +387,7 @@ void Controller::openLayout(QString name,bool backReturnsHere){
   compiled["keys"]=keys;
  }
  const bool textOnly=compiled["simulatekeystrokes"].toString().compare("false",Qt::CaseInsensitive)==0;
- runner.cancel(textOnly==runner.textOnly);gameController.reset();activeJoystick=-1;runner.textOnly=textOnly;runner.capsLock=false;pointer.cancel();dwell.reset();
+ runner.cancel(textOnly==runner.textOnly);endButtonHold();gameController.reset();activeJoystick=-1;runner.textOnly=textOnly;runner.capsLock=false;pointer.cancel();dwell.reset();
  if(backReturnsHere&&!layoutName.isEmpty()&&layoutName!=name){backStack<<layoutName;if(backStack.size()>64)backStack.removeFirst();}
  layout=compiled;layoutName=name;updateSuggestions();emit layoutChanged();emit changed();
 }
@@ -358,6 +406,18 @@ void Controller::joystick(int index,double x,double y,bool active){
  }
 }
 bool Controller::performAction(QString action){
+ if(action=="CycleButtonMode"){
+  endButtonHold();gameController.reset();activeJoystick=-1;
+  buttonModeValue=buttonModeValue=="Tap"?"Repeat":buttonModeValue=="Repeat"?"Hold":buttonModeValue=="Hold"?"Toggle":"Tap";
+  actionStatus="Button mode: "+buttonModeValue;emit changed();return true;
+ }
+ if(action=="CycleKeyMode"){
+  runner.endDwellHold();heldDwellTarget.clear();
+  runner.releaseToggledKeys();
+  keyModeValue=keyModeValue=="Tap"?"Repeat":keyModeValue=="Repeat"?"Hold":keyModeValue=="Hold"?"Toggle":"Tap";
+  repeatLettersOnHover=repeatPunctuationOnHover=repeatBackspaceOnHover=repeatArrowsOnHover=false;
+  actionStatus="Key mode: "+keyModeValue;emit changed();return true;
+ }
  if(GameController::supports(action))return runner.textOnly?true:gameController.perform(action);
  if(action=="MouseMagnifier"){
   setMagnifierEnabled(!magnifierEnabled);actionStatus=magnifierEnabled?"Magnifier enabled: target selection will request desktop capture":"Magnifier disabled";emit changed();return true;
@@ -417,7 +477,7 @@ void Controller::receiveMagnifierFrame(QImage image){
  if(!targeting||paused||!capturePending)return;
  auto screen=QGuiApplication::primaryScreen();
  if(image.isNull()||!screen||QGuiApplication::screens().size()!=1||qAbs(double(image.width())/image.height()-double(screen->size().width())/screen->size().height())>.01){
-  clearCapture();runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();actionStatus="Capture does not match the single display; target selection cancelled";emit changed();return;
+  clearCapture();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();actionStatus="Capture does not match the single display; target selection cancelled";emit changed();return;
  }
  capturedImage=image;captureSize=image.size();capturePending=false;magnifierReady=true;
  activeZoom=qBound(2,magnifierZoom,8);activeZoomDurationMs=qBound(500,zoomDurationMs,5000);
@@ -446,7 +506,7 @@ void Controller::setMagnifierEnabled(bool enabled){
  ProfileStore store(configFile("profile.json"));auto saved=store.load().values;
  saved["magnifierEnabled"]=enabled;QString error;
  if(!store.save(saved,error))profileStatus="Could not remember magnifier state. "+error;
- if(!enabled&&(capturePending||magnifierReady)){clearCapture();runner.cancel();gameController.reset();activeJoystick=-1;pointer.cancel();}
+ if(!enabled&&(capturePending||magnifierReady)){clearCapture();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}
  emit changed();
 }
 void Controller::updateText(QString text){

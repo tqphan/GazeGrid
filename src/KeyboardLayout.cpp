@@ -1,4 +1,6 @@
 #include "KeyboardLayout.h"
+#include "ActionRunner.h"
+#include "GameController.h"
 #include <QSet>
 #include <cmath>
 namespace {
@@ -58,8 +60,19 @@ QVariantMap KeyboardLayout::fromXml(const QVariantMap &root){
             QVariantList commands;
             static const QSet<QString> commandTags{"Action","Text","KeyDown","KeyUp","KeyToggle","Wait","ChangeKeyboard"};
             for(auto c:n["children"].toList()){auto child=c.toMap();if(commandTags.contains(child["tag"].toString()))commands<<child;}
+            QString mode;
+            if(attr.contains("mode")){
+                const auto value=attr["mode"].toString().trimmed().toLower();
+                const QMap<QString,QString> modes{{"tap","Tap"},{"repeat","Repeat"},{"hold","Hold"},{"toggle","Toggle"}};
+                if(!modes.contains(value))return {{"error","Key mode must be Tap, Repeat, Hold or Toggle"}};
+                mode=modes.value(value);
+                const auto command=commands.size()==1?commands.front().toMap():QVariantMap();
+                const bool button=command["tag"]=="Action"&&!GameController::buttonAction(command["text"].toString(),"Press").isEmpty();
+                if(tag!="DynamicKey"||(!button&&ActionRunner::dwellKey(commands).first.isEmpty()))
+                    return {{"error","Key mode requires a single non-modifier keyboard key or digital gamepad button"}};
+            }
             int dwell=attr.value("completiontimes",0).toString().split(',').first().toInt();
-            keys<<QVariantMap{{"suggestionCount",suggestions},{"row",row},{"col",col},{"width",width},{"height",height},{"kind",tag},{"label",field(n,"Label")},{"shiftLabel",field(n,"ShiftDownLabel")},{"symbol",field(n,"Symbol").trimmed()},{"style",style},{"commands",commands},{"dwell",dwell}};
+            keys<<QVariantMap{{"mode",mode},{"suggestionCount",suggestions},{"row",row},{"col",col},{"width",width},{"height",height},{"kind",tag},{"label",field(n,"Label")},{"shiftLabel",field(n,"ShiftDownLabel")},{"symbol",field(n,"Symbol").trimmed()},{"style",style},{"commands",commands},{"dwell",dwell}};
         }
     }
     layout["layoutMode"]=canvas?"canvas":"grid";layout["rows"]=rows;layout["cols"]=cols;layout["keys"]=keys;return layout;

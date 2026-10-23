@@ -20,7 +20,8 @@
 <DynamicKey row="2" col="7"><Label>Back</Label><Action>GamepadBackTap</Action></DynamicKey>
 <DynamicKey row="2" col="8"><Label>Start</Label><Action>GamepadStartTap</Action></DynamicKey>
 <DynamicKey row="3" col="0" width="3"><Label>Release all</Label><Action>GamepadReset</Action></DynamicKey>
-<DynamicKey row="3" col="3" width="3"><Label>Guide</Label><Action>GamepadGuideTap</Action></DynamicKey>
+<DynamicKey row="3" col="3"><Label>Guide</Label><Action>GamepadGuideTap</Action></DynamicKey>
+<DynamicKey row="3" col="4" width="2"><Label>Button mode</Label><Action>CycleButtonMode</Action></DynamicKey>
 <DynamicKey row="3" col="6" width="3"><Label>Pause</Label><Action>Sleep</Action></DynamicKey>
 <DynamicKey row="3" col="9" width="3"><Label>Return</Label><Action>BackFromKeyboard</Action></DynamicKey>
 </Content></Keyboard>

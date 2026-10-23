@@ -16,6 +16,37 @@
 class ControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void cycleButtonModeAction(){
+  Controller c;c.openLayout("game-controller",false);
+  QString modeKey;
+  const auto keys=c.property("layout").toMap()["keys"].toList();
+  for(int i=0;i<keys.size();++i){
+   const auto commands=keys[i].toMap()["commands"].toList();
+   if(commands.size()==1&&commands.front().toMap()["text"]=="CycleButtonMode")modeKey=QString("key:%1").arg(i);
+  }
+  QVERIFY(!modeKey.isEmpty());
+  for(const QString expected:{"Repeat","Hold","Toggle","Tap"}){
+   c.clickCommand(modeKey);QTRY_VERIFY(!c.executingCommands());
+   QCOMPARE(c.buttonMode(),expected);QCOMPARE(c.keyMode(),QString("Tap"));
+  }
+  c.setProperty("dwellMs",10);
+  c.hover("");c.hover(modeKey);QTest::qWait(20);c.hover(modeKey);
+  QTRY_VERIFY(!c.executingCommands());QCOMPARE(c.buttonMode(),QString("Repeat"));
+  for(int i=0;i<4;++i){QTest::qWait(20);c.hover(modeKey);}
+  QCOMPARE(c.buttonMode(),QString("Repeat"));
+  c.clickCommand("CycleButtonMode");QCOMPARE(c.buttonMode(),QString("Hold"));
+ }
+ void cycleKeyModeAction(){
+  Controller c;
+  QCOMPARE(c.keyMode(),QString("Tap"));
+  c.clickCommand("CycleKeyMode");QCOMPARE(c.keyMode(),QString("Repeat"));
+  c.clickCommand("CycleKeyMode");QCOMPARE(c.keyMode(),QString("Hold"));
+  c.clickCommand("CycleKeyMode");QCOMPARE(c.keyMode(),QString("Toggle"));
+  c.clickCommand("CycleKeyMode");QCOMPARE(c.keyMode(),QString("Tap"));
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","CycleKeyMode"}}}));
+  QTRY_VERIFY(!c.executingCommands());QCOMPARE(c.keyMode(),QString("Repeat"));
+ }
+
  void controllerLayoutAndConversationSafety(){
   Controller c;c.openLayout("game-controller",false);
   QCOMPARE(c.property("layoutName").toString(),QString("game-controller"));
@@ -302,9 +333,22 @@ private slots:
   QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),QByteArray("{broken"));file.close();QVERIFY(file.remove());
  }
  void visualPreferencesPersistAndReset(){
-  {Controller controller;controller.setProperty("keyboardScale",125);controller.setProperty("highContrast",true);controller.setProperty("shortLabelScale",125);controller.setProperty("longLabelScale",150);QVERIFY(controller.savePreferences());}
-  {Controller controller;QCOMPARE(controller.keyboardScale(),125);QVERIFY(controller.property("highContrast").toBool());QCOMPARE(controller.property("shortLabelScale").toInt(),125);QCOMPARE(controller.property("longLabelScale").toInt(),150);
-   controller.resetPreferences();QCOMPARE(controller.keyboardScale(),100);QVERIFY(!controller.property("highContrast").toBool());QCOMPARE(controller.property("shortLabelScale").toInt(),150);QCOMPARE(controller.property("longLabelScale").toInt(),100);}
+  {Controller controller;controller.setProperty("keyboardTheme","ocean");controller.setProperty("keyboardScale",125);controller.setProperty("shortLabelScale",125);controller.setProperty("longLabelScale",150);QVERIFY(controller.savePreferences());}
+  {Controller controller;QCOMPARE(controller.property("keyboardTheme").toString(),QString("ocean"));QCOMPARE(controller.keyboardScale(),125);QCOMPARE(controller.property("shortLabelScale").toInt(),125);QCOMPARE(controller.property("longLabelScale").toInt(),150);
+   controller.resetPreferences();QCOMPARE(controller.property("keyboardTheme").toString(),QString("system"));QCOMPARE(controller.keyboardScale(),100);QCOMPARE(controller.property("shortLabelScale").toInt(),150);QCOMPARE(controller.property("longLabelScale").toInt(),100);}
+ }
+ void legacyHighContrastMigratesToTheme(){
+  const auto path=QDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).filePath("profile.json");
+  QVERIFY(QDir().mkpath(QFileInfo(path).absolutePath()));
+  QFile file(path);auto values=ProfileStore::defaults();
+  values["highContrast"]=true;values["keyboardTheme"]="ocean";
+  QVERIFY(file.open(QIODevice::WriteOnly));file.write(QJsonDocument(values).toJson());file.close();
+  {Controller controller;QCOMPARE(controller.property("keyboardTheme").toString(),QString("high-contrast"));QVERIFY(controller.savePreferences());}
+  QVERIFY(file.open(QIODevice::ReadOnly));values=QJsonDocument::fromJson(file.readAll()).object();file.close();
+  QVERIFY(!values.contains("highContrast"));QCOMPARE(values["keyboardTheme"].toString(),QString("high-contrast"));
+  {Controller controller;QCOMPARE(controller.property("keyboardTheme").toString(),QString("high-contrast"));
+   controller.setProperty("keyboardTheme","paper");QVERIFY(controller.savePreferences());}
+  {Controller controller;QCOMPARE(controller.property("keyboardTheme").toString(),QString("paper"));controller.resetPreferences();}
  }
  void magnifierToggleAndZoomPreferences(){
   {Controller controller;QVERIFY(!controller.property("magnifierEnabled").toBool());

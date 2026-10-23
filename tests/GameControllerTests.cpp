@@ -7,6 +7,28 @@
 class GameControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void buttonModes(){
+  for(const QString source:{"GamepadATap","GamepadDpadUpToggle","GamepadButton32Press"}){
+   const auto press=GameController::buttonAction(source,"Press");
+   QVERIFY(!press.isEmpty());
+   GameController pad;QList<int> events;
+   pad.output=[&](int,int,int value){events<<value;return true;};
+   QVERIFY(pad.perform(GameController::buttonAction(source,"Tap")));
+   QTest::qWait(130);QCOMPARE(events,QList<int>({1,0}));
+   events.clear();QVERIFY(pad.perform(press));QTest::qWait(130);
+   QVERIFY(pad.held(source));QCOMPARE(events,QList<int>({1}));
+   QVERIFY(pad.perform(GameController::buttonAction(source,"Release")));
+   QVERIFY(!pad.held(source));
+   QVERIFY(pad.perform(GameController::buttonAction(source,"Toggle")));
+   QVERIFY(pad.held(source));
+   QVERIFY(pad.perform(GameController::buttonAction(source,"Toggle")));
+   QVERIFY(!pad.held(source));
+  }
+  for(const QString excluded:{"GamepadARelease","GamepadReset","GamepadLeftTrigger:1","GamepadLeftX:1","Sleep"})
+   QVERIFY(GameController::buttonAction(excluded,"Press").isEmpty());
+  QVERIFY(ActionCatalog::supported("CycleButtonMode"));
+ }
+
  void catalog(){
   for(const auto &action:GameController::actions())QVERIFY(ActionCatalog::supported(action));
   for(const auto &bad:{"GamepadLeftX:nan","GamepadLeftX:1.1","GamepadLeftTrigger:-1","GamepadButton33Tap","GamepadATypo"})QVERIFY(!GameController::supports(bad));

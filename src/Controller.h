@@ -28,6 +28,8 @@ class Controller:public QObject{
  Q_PROPERTY(int gazeIndicatorOpacity MEMBER gazeIndicatorOpacity NOTIFY changed)
  Q_PROPERTY(QString gazeIndicatorColor MEMBER gazeIndicatorColor NOTIFY changed)
  Q_PROPERTY(bool gazeIndicatorMorph MEMBER gazeIndicatorMorph NOTIFY changed)
+ Q_PROPERTY(QString buttonMode READ buttonMode NOTIFY changed)
+ Q_PROPERTY(QString keyMode READ keyMode NOTIFY changed)
  Q_PROPERTY(int repeatIntervalMs MEMBER repeatIntervalMs NOTIFY changed)
  Q_PROPERTY(bool repeatPunctuationOnHover MEMBER repeatPunctuationOnHover NOTIFY changed)
  Q_PROPERTY(bool repeatLettersOnHover MEMBER repeatLettersOnHover NOTIFY changed)
@@ -40,7 +42,7 @@ class Controller:public QObject{
  Q_PROPERTY(int restoreWidth READ restoreWidth WRITE setRestoreWidth NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(int restoreHeight READ restoreHeight WRITE setRestoreHeight NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(int keyboardScale READ keyboardScale WRITE setKeyboardScale NOTIFY geometryPreferencesChanged)
- Q_PROPERTY(bool highContrast MEMBER highContrast NOTIFY changed)
+ Q_PROPERTY(QString keyboardTheme MEMBER keyboardTheme NOTIFY changed)
  Q_PROPERTY(int shortLabelScale MEMBER shortLabelScale NOTIFY changed)
  Q_PROPERTY(int longLabelScale MEMBER longLabelScale NOTIFY changed)
  Q_PROPERTY(bool rememberDesktop MEMBER rememberDesktop NOTIFY changed)
@@ -129,6 +131,8 @@ public:
  Q_INVOKABLE void joystick(int index,double x,double y,bool active);
  Q_INVOKABLE void clickCommand(QString key);
  Q_INVOKABLE double hover(QString key);
+ QString keyMode()const{return keyModeValue;}
+ QString buttonMode()const{return buttonModeValue;}
  Q_INVOKABLE double dwellAt(double x,double y,bool valid);
  Q_INVOKABLE void openLayout(QString name,bool backReturnsHere=true);
  Q_INVOKABLE void recover();
@@ -165,6 +169,10 @@ private:
  QSizeF gazeDisplaySize{1,1};
  int gazeIndicatorSize=18,gazeIndicatorOpacity=100;
  QString gazeIndicatorColor="#00bfff";
+ void endButtonHold();
+ QString buttonModeValue="Tap",buttonHoldTarget,buttonHoldAction;
+ QString keyModeValue="Tap",heldDwellTarget;
+ qint64 lastHoldHover=0;
  int repeatIntervalMs=750;
  bool repeatPunctuationOnHover=false;
  bool repeatLettersOnHover=false;
@@ -205,7 +213,7 @@ private:
  int scalePercent=100;
  int restoreOpacity=100;
  int recoveryCorner=2,recoveryWidth=64,recoveryHeight=64;
- bool highContrast=false;
+ QString keyboardTheme="system";
  int shortLabelScale=150;
  int longLabelScale=100;
  bool rememberDesktop=false;

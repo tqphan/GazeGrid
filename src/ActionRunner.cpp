@@ -61,6 +61,8 @@ bool ActionRunner::start(const QVariantList &commands){
     queue=commands;index=0;waiting=false;running=true;emit stateChanged();timer.start(0);return true;
 }
 void ActionRunner::cancel(bool preserveModifiers){
+    endDwellHold();
+    releaseToggledKeys();
     timer.stop();running=false;waiting=false;queue.clear();index=0;
     const auto copy=held;
     for(const auto &name:copy){
@@ -139,3 +141,71 @@ void ActionRunner::step(){
 
 void ActionRunner::suspend(){if(running){timer.stop();waiting=true;}}
 void ActionRunner::resume(bool success){if(!running||!waiting)return;waiting=false;if(!success){fail("Pointer action failed");return;}timer.start(0);}
+
+QPair<QString,bool> ActionRunner::dwellKey(const QVariantList &commands){
+    if(commands.size()!=1)return {};
+    const auto c=commands.front().toMap();
+    const auto text=c["text"].toString();
+    if(c["tag"]=="Text"&&text.size()==1){
+        return KeyNames::usCharacter(text.front());
+    }
+    if(c["tag"]=="Action"){
+        const auto code=KeyNames::functionKey(text);
+        if(!code.isEmpty()&&!modifierKeys.contains(code))return {code,false};
+    }
+    return {};
+}
+bool ActionRunner::beginDwellHold(const QVariantList &commands){
+    if(running||textOnly)return false;
+    endDwellHold();
+    const auto [name,shift]=dwellKey(commands);
+    if(name.isEmpty()||isHeld(name))return false;
+    if(supportsPhysicalKey&&(!supportsPhysicalKey(name)||(shift&&!supportsPhysicalKey("LSHIFT")))){
+        emit failed("Authorize desktop control for key hold");return false;
+    }
+    dwellShift=shift&&!shifted();
+    if(dwellShift&&!key("LSHIFT",true,true)){dwellShift=false;return false;}
+    if(!key(name,true,true)){endDwellHold();return false;}
+    dwellHeld=name;return true;
+}
+void ActionRunner::endDwellHold(){
+    const auto name=dwellHeld;dwellHeld.clear();
+    if(!name.isEmpty()){
+        key(name,false);
+        const auto copy=latched;
+        for(const auto &modifier:copy)key(modifier,false);
+    }
+    if(dwellShift){dwellShift=false;key("LSHIFT",false);}
+}
+
+bool ActionRunner::toggleDwellKey(const QVariantList &commands){
+    if(running||textOnly)return false;
+    const auto [name,shift]=dwellKey(commands);
+    if(name.isEmpty())return false;
+    if(toggledKeys.contains(name)){
+        if(!key(name,false)){fail("Could not release toggled key");return false;}
+        toggledKeys.remove(name);shiftedToggles.remove(name);
+        if(shiftedToggles.isEmpty()&&toggleOwnShift){
+            toggleOwnShift=false;
+            if(!key("LSHIFT",false)){fail("Could not release toggle Shift");return false;}
+        }
+        return true;
+    }
+    if(isHeld(name))return false;
+    if(supportsPhysicalKey&&(!supportsPhysicalKey(name)||(shift&&!supportsPhysicalKey("LSHIFT")))){
+        emit failed("Authorize desktop control for key toggle");return false;
+    }
+    if(shift&&!shifted()){
+        if(!key("LSHIFT",true,true)){fail("Could not press toggle Shift");return false;}
+        toggleOwnShift=true;
+    }
+    if(!key(name,true,true)){fail("Could not press toggled key");return false;}
+    toggledKeys.insert(name);
+    if(shift)shiftedToggles.insert(name);
+    return true;
+}
+void ActionRunner::releaseToggledKeys(){
+    const auto copy=toggledKeys;toggledKeys.clear();shiftedToggles.clear();
+    for(const auto &name:copy)key(name,false);
+    if(toggleOwnShift){toggleOwnShift=false;key("LSHIFT",false);}
+}

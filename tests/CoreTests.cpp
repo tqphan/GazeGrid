@@ -24,6 +24,86 @@ class CoreTests:public QObject{
  Q_OBJECT
 static QVariantMap cmd(QString tag,QString text){return {{"tag",tag},{"text",text}};}
 private slots:
+ void fixedXmlKeyModes(){
+  QTemporaryDir dir;
+  auto compile=[&](QString mode,QString command){
+   QFile file(dir.filePath("mode.xml"));
+   if(!file.open(QIODevice::WriteOnly))return QVariantMap{{"error","test file"}};
+   file.write(("<Keyboard><Grid><Rows>1</Rows><Cols>1</Cols></Grid><Content><DynamicKey row=\"0\" col=\"0\" "+mode+">"+command+"</DynamicKey></Content></Keyboard>").toUtf8());
+   file.close();return KeyboardLayout::fromXml(KeyboardPack::load(file.fileName()));
+  };
+  for(const QString mode:{"Tap","Repeat","Hold","Toggle"}){
+   for(const QString command:{"<Action>GamepadATap</Action>","<Text>a</Text>","<Action>Space</Action>"}){
+    const auto layout=compile("mode=\""+mode.toLower()+"\"",command);
+    QVERIFY2(!layout.contains("error"),qPrintable(layout["error"].toString()));
+    QCOMPARE(layout["keys"].toList().front().toMap()["mode"].toString(),mode);
+   }
+  }
+  QVERIFY(compile("mode=\"typo\"","<Action>GamepadATap</Action>").contains("error"));
+  for(const QString command:{"<Action>LShift</Action>","<Action>GamepadLeftX:1</Action>","<Action>GamepadARelease</Action>","<Text>word</Text>","<Action>GamepadATap</Action><Wait>10</Wait>"}){
+   QVERIFY(compile("mode=\"Hold\"",command).contains("error"));
+  }
+  const auto inherited=compile("","<Action>GamepadATap</Action>");
+  QVERIFY(!inherited.contains("error"));
+  QVERIFY(inherited["keys"].toList().front().toMap()["mode"].toString().isEmpty());
+ }
+
+ void toggleKeyLifecycle(){
+  ActionRunner r;QStringList events;
+  r.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+  r.supportsPhysicalKey=[](QString){return true;};
+  QVERIFY(r.toggleDwellKey({cmd("Text","a")}));
+  r.endDwellHold();QVERIFY(r.isHeld("A"));
+  QVERIFY(r.toggleDwellKey({cmd("Action","Tab")}));
+  QVERIFY(r.toggleDwellKey({cmd("Text","a")}));
+  QVERIFY(!r.isHeld("A"));QVERIFY(r.isHeld("TAB"));
+  r.releaseToggledKeys();QVERIFY(r.heldKeys().isEmpty());
+  QCOMPARE(events,QStringList({"A+","TAB+","A-","TAB-"}));
+  events.clear();
+  QVERIFY(r.toggleDwellKey({cmd("Text","!")}));
+  QVERIFY(r.toggleDwellKey({cmd("Text","?")}));
+  QVERIFY(r.toggleDwellKey({cmd("Text","!")}));
+  QVERIFY(r.isHeld("LSHIFT"));
+  QVERIFY(r.toggleDwellKey({cmd("Text","?")}));
+  QVERIFY(r.heldKeys().isEmpty());
+  QVERIFY(r.toggleDwellKey({cmd("Text","!")}));
+  r.cancel(true);QVERIFY(r.heldKeys().isEmpty());
+  QVERIFY(!r.toggleDwellKey({cmd("Action","LShift")}));
+  r.supportsPhysicalKey=[](QString){return false;};
+  QVERIFY(!r.toggleDwellKey({cmd("Text","a")}));
+  QVERIFY(r.heldKeys().isEmpty());
+ }
+
+ void dwellHoldPhysicalLifecycle(){
+  ActionRunner r;QStringList events;
+  r.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+  r.supportsPhysicalKey=[](QString){return true;};
+  for(const QString text:{"a","7","!","."," ","\t","\n"}){
+   QVERIFY(r.beginDwellHold({cmd("Text",text)}));
+   QVERIFY(!r.heldKeys().isEmpty());
+   r.endDwellHold();QVERIFY(r.heldKeys().isEmpty());
+  }
+  events.clear();
+  QVERIFY(r.beginDwellHold({cmd("Text","!")}));
+  QCOMPARE(events,QStringList({"LSHIFT+","1+"}));
+  r.cancel(true);
+  QCOMPARE(events,QStringList({"LSHIFT+","1+","1-","LSHIFT-"}));
+  for(const QString action:{"Left","Right","Up","Down","BackOne","Enter","Space","Tab","Escape","Delete","Insert","Home","End","PgUp","PgDn","F1","F12","F24","PrintScreen","Pause","A","0","SEMICOLON"}){
+   QVERIFY(r.beginDwellHold({cmd("Action",action)}));
+   r.cancel();QVERIFY(r.heldKeys().isEmpty());
+  }
+  for(const QString modifier:{"LShift","RShift","LCtrl","RCtrl","LMenu","RMenu","LWin","RWin"}){
+   QVERIFY(ActionRunner::dwellKey({cmd("Action",modifier)}).first.isEmpty());
+   QVERIFY(!r.beginDwellHold({cmd("Action",modifier)}));
+   QVERIFY(r.heldKeys().isEmpty());
+  }
+  QVERIFY(!r.beginDwellHold({cmd("Text","word")}));
+  QVERIFY(!r.beginDwellHold({cmd("Action","Sleep")}));
+  r.textOnly=true;QVERIFY(!r.beginDwellHold({cmd("Text","a")}));
+  r.textOnly=false;r.supportsPhysicalKey=[](QString){return false;};
+  QVERIFY(!r.beginDwellHold({cmd("Text","a")}));QVERIFY(r.heldKeys().isEmpty());
+ }
+
  void pointDwellToleratesJitterAcrossGridBoundaries(){
   PointDwell dwell;
   QVERIFY(!dwell.update({39,39},0,250,20));
@@ -390,7 +470,7 @@ private slots:
  void invalidPreferencesAreRejected(){
   QTemporaryDir dir;ProfileStore store(dir.filePath("profile.json"));QString error;
   const auto defaults=ProfileStore::defaults();QVERIFY(store.save(defaults,error));
-  const QList<QPair<QString,QJsonValue>> invalid{{"version",2},{"dwellMs",249},{"dwellMs",3001},{"dwellMs",750.5},{"dwellMs","750"},{"literal",1},{"learning","false"},{"keyboardScale",49},{"keyboardScale",151},{"keyboardScale",100.5},{"highContrast","yes"},{"enlargeShortLabels","yes"},{"shortLabelScale",49},{"shortLabelScale",201},{"shortLabelScale",100.5},{"shortLabelScale","100"},{"liveZoom","true"},{"progressiveZoom","true"},{"targetDwellEnabled","true"},{"targetStartDwellMs",249},{"targetStartDwellMs",3001},{"targetStartDwellMs",750.5},{"targetStartDwellMs","750"},{"targetConfirmDwellMs",249},{"targetConfirmDwellMs",3001},{"targetDwellRadius",9},{"targetDwellRadius",101},{"targetDwellRadius",40.5},{"targetDwellRadius","40"},{"zoomDurationMs",499},{"zoomDurationMs",5001},{"zoomDurationMs",1500.5},{"zoomDurationMs","1500"},{"magnifierZoom",1},{"magnifierZoom",9},{"magnifierZoom",4.5},{"magnifierZoom","4"},{"longLabelScale",49},{"longLabelScale",201},{"longLabelScale",100.5},{"longLabelScale","100"},{"rememberDesktop","yes"},{"startLayout","../other"},{"startLayout",""}};
+  const QList<QPair<QString,QJsonValue>> invalid{{"version",2},{"dwellMs",249},{"dwellMs",3001},{"dwellMs",750.5},{"dwellMs","750"},{"literal",1},{"learning","false"},{"keyboardScale",49},{"keyboardScale",151},{"keyboardScale",100.5},{"keyboardTheme","unknown"},{"keyboardTheme",42},{"highContrast","yes"},{"enlargeShortLabels","yes"},{"shortLabelScale",49},{"shortLabelScale",201},{"shortLabelScale",100.5},{"shortLabelScale","100"},{"liveZoom","true"},{"progressiveZoom","true"},{"targetDwellEnabled","true"},{"targetStartDwellMs",249},{"targetStartDwellMs",3001},{"targetStartDwellMs",750.5},{"targetStartDwellMs","750"},{"targetConfirmDwellMs",249},{"targetConfirmDwellMs",3001},{"targetDwellRadius",9},{"targetDwellRadius",101},{"targetDwellRadius",40.5},{"targetDwellRadius","40"},{"zoomDurationMs",499},{"zoomDurationMs",5001},{"zoomDurationMs",1500.5},{"zoomDurationMs","1500"},{"magnifierZoom",1},{"magnifierZoom",9},{"magnifierZoom",4.5},{"magnifierZoom","4"},{"longLabelScale",49},{"longLabelScale",201},{"longLabelScale",100.5},{"longLabelScale","100"},{"rememberDesktop","yes"},{"startLayout","../other"},{"startLayout",""}};
   for(const auto &entry:invalid){auto values=defaults;values[entry.first]=entry.second;QVERIFY(!store.save(values,error));QVERIFY(!error.isEmpty());QCOMPARE(store.load().values,defaults);}
  }
  void newerPreferencesArePreservedUntilReset(){
@@ -657,7 +737,7 @@ private slots:
  }
  void explicitActivationDoesNotFireAgain(){Dwell d;d.consume("Pause",0);for(int t=25;t<1500;t+=25)QVERIFY(!d.update("Pause",t,500));d.update("",1500,500);QVERIFY(!d.update("Pause",1550,500));}
  void changingTargetCancels(){Dwell d;d.update("a",0,150);d.update("a",100,150);QVERIFY(!d.update("b",160,150));QVERIFY(!d.update("b",260,150));QVERIFY(d.update("b",310,150));}
- void packLoadsAndLinksResolve(){auto r=KeyboardPack::audit(PACK_PATH);QCOMPARE(r["fileCount"].toInt(),30);QCOMPARE(r["keyCount"].toInt(),756);QVERIFY2(r["errors"].toStringList().isEmpty(),qPrintable(r["errors"].toStringList().join('\n')));}
+ void packLoadsAndLinksResolve(){auto r=KeyboardPack::audit(PACK_PATH);QCOMPARE(r["fileCount"].toInt(),30);QCOMPARE(r["keyCount"].toInt(),757);QVERIFY2(r["errors"].toStringList().isEmpty(),qPrintable(r["errors"].toStringList().join('\n')));}
  void textPreservesWhitespaceAndOrder(){
   QTemporaryDir dir;QFile f(dir.filePath("test.xml"));QVERIFY(f.open(QIODevice::WriteOnly));f.write("<Keyboard><DynamicKey row=\"2\"><KeyDown>LSHIFT</KeyDown><Text>&#9;</Text><Wait>50</Wait><KeyUp>LSHIFT</KeyUp></DynamicKey></Keyboard>");f.close();
   auto r=KeyboardPack::load(f.fileName());auto key=r["children"].toList()[0].toMap();QCOMPARE(key["attributes"].toMap()["row"].toString(),QString("2"));

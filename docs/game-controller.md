@@ -3,8 +3,18 @@
 Open **Gamepad** from either game toolbar, or choose **Virtual Game Controller**
 in the keyboard selector. Both circular joystick keys respond continuously to gaze
 or mouse hover. The center 15% is a dead zone; moving farther out increases the
-axis value. Leaving a joystick centers it. LB, RB and D-pad keys toggle held
-buttons; use **Release all** to clear them. Face buttons tap for 100 ms.
+axis value. Leaving a joystick centers it. **Button mode** cycles independently
+through **Tap → Repeat → Hold → Toggle**, with a text badge showing the current mode.
+It applies to all single digital button keys, including LB, RB and the D-pad.
+Tap pulses for 100 ms; Repeat taps while dwelling at the configured repeat interval;
+Hold presses after dwell and releases when mouse or gaze leaves; Toggle stays pressed
+until selected again. Clicks tap except in Toggle mode. **Release all**, pause,
+tracking loss, layout changes and changing button modes release buttons.
+Analog sticks and trigger axes retain their existing controls.
+
+Custom keys can use `<Action>CycleButtonMode</Action>`. The action is also available
+in Settings → Gaze & dwell. Button mode starts at Tap each launch.
+Explicit Release actions and multi-command macros retain their original behavior.
 
 This implements virtual output only, using the standard Linux gamepad mapping:
 https://kernel.org/doc/html/latest/input/gamepad.html
@@ -60,3 +70,29 @@ Place this in a keyboard's Content, using normal grid or canvas geometry:
 dwell activation. Looking away centers the stick so users can safely select
 another action. Use discrete axis actions when a stick must stay deflected while
 selecting other keys.
+
+## Fixed XML modes
+
+Set `mode` on a `DynamicKey` to override the current cycle mode for that key:
+
+```xml
+<DynamicKey row="0" col="0" mode="Hold">
+  <Label>A</Label>
+  <Action>GamepadATap</Action>
+</DynamicKey>
+<DynamicKey row="0" col="1" mode="Toggle">
+  <Label>LB</Label>
+  <Action>GamepadLeftShoulderToggle</Action>
+</DynamicKey>
+```
+
+Allowed values are `Tap`, `Repeat`, `Hold`, and `Toggle` (case-insensitive).
+Omit the attribute to follow the cycle mode. An explicit mode takes precedence
+over the button action suffix and the cycle state. Explicit Release actions,
+analog axes, modifiers and macros do not accept this attribute.
+
+The same attribute works for physical keyboard keys, for example
+`<DynamicKey row="0" col="2" mode="Repeat"><Label>Space</Label><Action>Space</Action></DynamicKey>`.
+Fixed Tap also ignores legacy per-category repeat settings. Hold and Repeat apply
+to dwell; clicking taps except in Toggle mode. Normal pause and release safeguards
+still apply, including releasing held buttons when changing cycle modes.

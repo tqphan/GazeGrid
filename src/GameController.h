@@ -11,6 +11,7 @@ public:
     ~GameController() override;
     static bool supports(const QString &action);
     static QStringList actions();
+    static QString buttonAction(const QString &action,const QString &mode);
     bool held(const QString &action) const;
     bool perform(const QString &action);
     bool stick(const QString &name,double x,double y);

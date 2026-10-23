@@ -20,6 +20,12 @@ bool parseButton(QString action,int &code,QString &mode){if(!action.startsWith("
 }
 GameController::~GameController(){closeDevice();}
 bool GameController::supports(const QString &action){int code;double value;QString mode;return action=="GamepadReset"||parseAxis(action,code,value)||parseButton(action,code,mode);}
+QString GameController::buttonAction(const QString &action,const QString &mode){
+    int code;QString original;
+    if(!parseButton(action.trimmed(),code,original)||original=="Release")return {};
+    if(mode!="Tap"&&mode!="Press"&&mode!="Toggle"&&mode!="Release")return {};
+    return action.trimmed().chopped(original.size())+mode;
+}
 bool GameController::held(const QString &action)const{int code;QString mode;return parseButton(action,code,mode)&&buttons.value(code)!=0;}
 QStringList GameController::actions(){QStringList list{"GamepadReset"};for(auto it=buttonCodes().begin();it!=buttonCodes().end();++it)for(const auto &suffix:{"Press","Release","Toggle","Tap"})list<<"Gamepad"+it.key()+suffix;for(auto it=axisCodes.begin();it!=axisCodes.end();++it)list<<"Gamepad"+it.key()+":0";return list;}
 void GameController::closeDevice(){if(fd>=0){ioctl(fd,UI_DEV_DESTROY);::close(fd);fd=-1;}buttons.clear();axes.clear();generations.clear();}

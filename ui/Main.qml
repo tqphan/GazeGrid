@@ -27,7 +27,20 @@ Window {
   controller.joystick(-1,0,0,false);controller.hover("");controller.dwellAt(0,0,false);root.progress=0;root.targetProgress=0}
  property bool gazeValid: false
  property point gaze: Qt.point(-1,-1)
- property color dwellColor:controller.highContrast?"#ffff00":Kirigami.Theme.highlightColor
+ readonly property var themeIds:["system","midnight","ocean","forest","paper","high-contrast"]
+ readonly property var themeNames:["System","Midnight","Ocean","Forest","Warm Paper","High Contrast"]
+ readonly property var themePalettes:({
+  "high-contrast":{background:"#000000",key:"#000000",text:"#ffffff",border:"#ffffff",accent:"#ffff00"},
+  midnight:{background:"#111827",key:"#1f2937",text:"#f3f4f6",border:"#64748b",accent:"#c4b5fd"},
+  ocean:{background:"#082f49",key:"#0c4a6e",text:"#f0f9ff",border:"#38bdf8",accent:"#67e8f9"},
+  forest:{background:"#102b24",key:"#1b4332",text:"#f0fdf4",border:"#6b9e80",accent:"#a7f3d0"},
+  paper:{background:"#e9dfcd",key:"#fff8eb",text:"#3d3026",border:"#95816b",accent:"#92400e"}
+ })
+ readonly property var keyboardPalette:themePalettes[controller.keyboardTheme]||null
+ readonly property color keyboardBackground:keyboardPalette?keyboardPalette.background:Kirigami.Theme.backgroundColor
+ readonly property color keyboardForeground:keyboardPalette?keyboardPalette.text:Kirigami.Theme.textColor
+ readonly property color keyboardBorder:keyboardPalette?keyboardPalette.border:Kirigami.Theme.disabledTextColor
+ property color dwellColor:keyboardPalette?keyboardPalette.accent:Kirigami.Theme.highlightColor
  // Geometry is supplied by the platform adapter; Wayland does not expose reliable global window positions.
  property real screenLeft: 0
  property real screenTop: 0
@@ -98,7 +111,7 @@ Window {
    root.progress=controller.hover(target)
   }
  }
- Rectangle {anchors.fill:parent;visible:!root.minimizedRecovery;color:controller.highContrast?"black":Kirigami.Theme.backgroundColor}
+ Rectangle {anchors.fill:parent;visible:!root.minimizedRecovery;color:root.keyboardBackground}
  Repeater {
   id:keys
   model:controller.layout.keys || []
@@ -119,6 +132,14 @@ Window {
    property string command:"key:"+index
    property string modifier:controller.modifierName(modelData.commands || [])
    property string modifierState:modifier?(controller.modifierStates[modifier] || ""):""
+   property bool cycleButtonModeKey: {
+    const commands=modelData.commands || []
+    return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="CycleButtonMode"
+   }
+   property bool cycleKeyModeKey: {
+    const commands=modelData.commands || []
+    return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="CycleKeyMode"
+   }
    property bool magnifierKey: {
     const commands=modelData.commands || []
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="MouseMagnifier"
@@ -139,20 +160,20 @@ Window {
    property string unavailableReason:modelData.unavailableReason || ""
    property string label:root.minimizedRecovery?["↘","↙","↗","↖"][controller.restoreCorner]:controller.shifted&&modelData.shiftLabel?modelData.shiftLabel:modelData.label
    property real symbolMargin:controller.layout.symbolmargin!==undefined?Math.max(0,Number(controller.layout.symbolmargin)):12
-   property color foreground:controller.highContrast?"white":Kirigami.Theme.textColor
+   property color foreground:root.keyboardForeground
    x:modelData.col*root.width/controller.layout.cols
    y:modelData.row*root.height/controller.layout.rows
    width:modelData.width*root.width/controller.layout.cols
    height:modelData.height*root.height/controller.layout.rows
-   color:controller.highContrast?"black":Kirigami.Theme.backgroundColor
+   color:root.keyboardPalette?root.keyboardPalette.key:Kirigami.Theme.backgroundColor
    // Flatten the restore button before applying opacity to its overlapping visuals.
    layer.enabled:root.minimizedRecovery
    opacity:(enabled?1:0.35)*(root.minimizedRecovery?controller.restoreOpacity/100:1)
    Kirigami.Theme.colorSet:Kirigami.Theme.Button
    Kirigami.Theme.inherit:false
-   border.width:root.minimizedRecovery?0:1;border.color:Kirigami.Theme.disabledTextColor
+   border.width:root.minimizedRecovery?0:1;border.color:root.keyboardBorder
    property bool active:enabled&&(root.usingGaze ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
-   Rectangle {anchors.fill:parent;color:Kirigami.Theme.highlightColor;opacity:key.active?0.18:0}
+   Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:key.active?0.18:0}
    Rectangle {
     anchors.fill:parent;anchors.margins:2
     visible:key.gamepadPressed||key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)
@@ -172,7 +193,7 @@ Window {
      anchors.horizontalCenter:parent.horizontalCenter
      // NoIcon is the pack's X symbol, not an instruction to hide the image.
      visible:!root.minimizedRecovery&&key.modelData.symbol!==""
-     width:Math.max(1,Math.min(key.width-2*key.symbolMargin,key.height-2*key.symbolMargin-(key.label?keyLabel.implicitHeight+4:0)))
+     width:Math.max(1,Math.min(key.width-2*key.symbolMargin,key.height-2*key.symbolMargin-(key.label?keyLabel.implicitHeight+4:0)-(modeBadge.visible?modeBadge.height+4:0)))
      height:width
      source:visible?"image://symbols/"+key.modelData.symbol+"/"+encodeURIComponent(key.foreground):""
      sourceSize.width:width*root.screen.devicePixelRatio;sourceSize.height:height*root.screen.devicePixelRatio
@@ -187,6 +208,24 @@ Window {
      font.pixelSize:Math.max(16,Math.min(40,key.height*.32))*(text.length<=3?controller.shortLabelScale:controller.longLabelScale)/100
      minimumPixelSize:8;fontSizeMode:Text.HorizontalFit
      horizontalAlignment:Text.AlignHCenter;anchors.horizontalCenter:parent.horizontalCenter
+    }
+    Rectangle {
+     id:modeBadge
+     objectName:"keyModeBadge:"+key.index
+     visible:(key.cycleKeyModeKey||key.cycleButtonModeKey)&&!root.minimizedRecovery
+     anchors.horizontalCenter:parent.horizontalCenter
+     width:Math.max(1,Math.min(key.width-12,modeBadgeText.implicitWidth+16))
+     height:Math.max(16,Math.min(26,key.height*.22))
+     radius:height/2
+     color:"transparent";border.width:1;border.color:key.foreground
+     Text {
+      id:modeBadgeText
+      anchors.fill:parent;anchors.leftMargin:6;anchors.rightMargin:6
+      text:key.cycleButtonModeKey?controller.buttonMode:controller.keyMode;color:key.foreground
+      font.pixelSize:Math.max(10,Math.min(16,key.height*.16));font.bold:true
+      minimumPixelSize:8;fontSizeMode:Text.Fit
+      horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
+     }
     }
    }
    Text {
@@ -226,8 +265,8 @@ Window {
       property string command:"suggest:"+index
       property bool active:key.enabled&&hasPrediction&&(root.usingGaze ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
       onHasPredictionChanged:if(!hasPrediction&&root.hovered==="suggest:"+index)root.hovered=""
-      width:key.predictionWidth;height:key.height;color:"transparent";border.color:Kirigami.Theme.disabledTextColor
-      Rectangle {anchors.fill:parent;color:Kirigami.Theme.highlightColor;opacity:predictionSlot.active?0.18:0}
+      width:key.predictionWidth;height:key.height;color:"transparent";border.color:root.keyboardBorder
+      Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:predictionSlot.active?0.18:0}
       Text {anchors.fill:parent;anchors.margins:4;text:predictionSlot.predictionText;color:key.foreground;font.pixelSize:Math.min(24,key.height*.28);fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
       MouseArea {objectName:"predictionMouseArea:"+index;anchors.fill:parent;hoverEnabled:true;enabled:predictionSlot.hasPrediction;onEntered:root.hovered="suggest:"+index;onExited:if(root.hovered==="suggest:"+index)root.hovered="";onClicked:controller.clickCommand("suggest:"+index)}
       Rectangle {objectName:"predictionProgress:"+index;anchors.bottom:parent.bottom;height:5;width:parent.width*(predictionSlot.active?root.progress:0);color:root.dwellColor}
@@ -236,7 +275,7 @@ Window {
    }
    Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(key.active?root.progress:0);color:root.dwellColor}
    Accessible.role:Accessible.Button
-   Accessible.description:key.sleepKey?(controller.paused?"Pause on":"Pause off"):key.magnifierKey?(controller.magnifierEnabled?"Magnifier on":"Magnifier off"):key.modifier?(key.modifierState==="locked"?"Locked until selected again":key.modifierState==="latched"?"Latched for the next key":"Off. Select once to latch, twice to lock."):""
+   Accessible.description:key.cycleButtonModeKey?"Button mode: "+controller.buttonMode:key.cycleKeyModeKey?"Key mode: "+controller.keyMode:key.sleepKey?(controller.paused?"Pause on":"Pause off"):key.magnifierKey?(controller.magnifierEnabled?"Magnifier on":"Magnifier off"):key.modifier?(key.modifierState==="locked"?"Locked until selected again":key.modifierState==="latched"?"Latched for the next key":"Off. Select once to latch, twice to lock."):""
    Accessible.name:key.sleepKey?(controller.paused?"Resume input":"Pause input"):root.minimizedRecovery?"Restore keyboard":key.unavailableReason?key.unavailableReason:(key.label||key.modelData.symbol)
    Accessible.onPressAction:controller.clickCommand(key.command)
   }
@@ -289,8 +328,27 @@ Window {
   id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1000,root.screenWidth);height:Math.min(720,root.screenHeight-60);title:"OptiKey settings";color:Kirigami.Theme.backgroundColor
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
   property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Shortcuts","Look to scroll"]
-  property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","preferences-desktop-keyboard-shortcuts"]
+  property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","preferences-desktop-keyboard-shortcuts","transform-move"]
   onClosing:controller.clickCommand("CancelTarget")
+  component SettingSlider:ColumnLayout {
+   property string label
+   property string displayValue
+   property alias from:control.from
+   property alias to:control.to
+   property alias stepSize:control.stepSize
+   property alias value:control.value
+   signal moved()
+   Layout.fillWidth:true;spacing:2
+   RowLayout {
+    Layout.fillWidth:true
+    Desktop.Label {text:label;Layout.fillWidth:true;wrapMode:Text.Wrap}
+    Desktop.Label {text:displayValue;font.bold:true;horizontalAlignment:Text.AlignRight}
+   }
+   Desktop.Slider {
+    id:control;Layout.fillWidth:true;Accessible.name:label
+    onMoved:parent.moved()
+   }
+  }
   component Tool:Desktop.Button {
    property string command:""
    focusPolicy:Qt.NoFocus
@@ -302,14 +360,17 @@ Window {
   RowLayout {
    anchors.fill:parent;spacing:0
    Rectangle {
-    Layout.preferredWidth:190;Layout.fillHeight:true
+    Layout.preferredWidth:210;Layout.fillHeight:true
     color:Kirigami.Theme.backgroundColor
     Kirigami.Theme.colorSet:Kirigami.Theme.View
     Kirigami.Theme.inherit:false
-    ListView {
+    ColumnLayout {
+     anchors.fill:parent;anchors.margins:Kirigami.Units.largeSpacing;spacing:Kirigami.Units.largeSpacing
+     Kirigami.Heading {text:"Settings";level:1;Layout.topMargin:8;Layout.leftMargin:8}
+     ListView {
      id:settingsCategory;objectName:"settingsCategory"
-     anchors.fill:parent;anchors.margins:6;clip:true
-     model:settings.categoryNames;currentIndex:0
+     Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:4
+     model:settings.categoryNames;currentIndex:1
      Accessible.name:"Settings categories"
      onCurrentIndexChanged:if(settingsScroll.contentItem)settingsScroll.contentItem.contentY=0
      delegate:Desktop.ItemDelegate {
@@ -321,20 +382,24 @@ Window {
       onClicked:settingsCategory.currentIndex=index
      }
     }
+    }
    }
    Kirigami.Separator {Layout.fillHeight:true}
    ColumnLayout {
-    Layout.fillWidth:true;Layout.fillHeight:true;Layout.margins:16;spacing:12
-    Kirigami.Heading {text:settings.categoryNames[settingsCategory.currentIndex];level:1;Layout.fillWidth:true}
-    Desktop.Label {text:controller.paused?"Input is paused. Use the keyboard’s Sleep key to resume.":"Input is active.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+    Layout.fillWidth:true;Layout.fillHeight:true;Layout.margins:Kirigami.Units.largeSpacing*2;spacing:Kirigami.Units.largeSpacing
+    RowLayout {
+     Layout.fillWidth:true;Layout.bottomMargin:4
+     Kirigami.Heading {text:settings.categoryNames[settingsCategory.currentIndex];level:1;Layout.fillWidth:true}
+     Desktop.Label {text:controller.paused?"Input paused":"Input active"}
+    }
    Desktop.ScrollView {
-    id:settingsScroll;Layout.fillWidth:true;Layout.fillHeight:true;contentWidth:availableWidth
+    id:settingsScroll;Layout.fillWidth:true;Layout.fillHeight:true;contentWidth:availableWidth;clip:true;ScrollBar.horizontal.policy:ScrollBar.AlwaysOff
     ColumnLayout {
      width:settingsScroll.availableWidth;spacing:12
      Desktop.GroupBox {
       title:settings.categoryNames[0];visible:settingsCategory.currentIndex==0;Layout.fillWidth:true
       ColumnLayout {
-       anchors.fill:parent;spacing:10
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Desktop.Label {text:!root.gazeEnabled?"Gaze off":root.gazeValid?"Gaze: receiving":"Gaze unavailable — mouse dwell active";Layout.fillWidth:true;wrapMode:Text.Wrap}
        Desktop.Label {text:"Desktop control: "+controller.portalStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
        Desktop.Label {text:"Last action: "+controller.actionStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
@@ -351,7 +416,7 @@ Window {
      Desktop.GroupBox {
       title:settings.categoryNames[1];visible:settingsCategory.currentIndex==1;Layout.fillWidth:true
       ColumnLayout {
-       anchors.fill:parent;spacing:10
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        RowLayout {
         Desktop.Label {text:"Keyboard"}
         Desktop.ComboBox {
@@ -362,106 +427,136 @@ Window {
         }
        }
        Desktop.CheckBox {id:includeHidden;text:"Include layouts hidden by the XML pack"}
-       Kirigami.Heading {text:"Appearance";level:3;Layout.topMargin:12}
-       RowLayout {Desktop.Label {text:"Keyboard height: "+controller.keyboardScale+"%"} Desktop.Slider {from:50;to:150;stepSize:5;value:controller.keyboardScale;Layout.fillWidth:true;onMoved:controller.keyboardScale=value}}
-       Desktop.CheckBox {text:"High contrast (white keys on black)";checked:controller.highContrast;onToggled:controller.highContrast=checked}
-       RowLayout {Desktop.Label {text:"Short key label size: "+controller.shortLabelScale+"%"} Desktop.Slider {from:50;to:200;stepSize:5;value:controller.shortLabelScale;Layout.fillWidth:true;onMoved:controller.shortLabelScale=value}}
-       RowLayout {Desktop.Label {text:"Long key label size: "+controller.longLabelScale+"%"} Desktop.Slider {from:50;to:200;stepSize:5;value:controller.longLabelScale;Layout.fillWidth:true;onMoved:controller.longLabelScale=value}}
-       Desktop.Label {text:"Short labels have 3 characters or fewer. Text shrinks to fit each key.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+      }
+     }
+     Desktop.GroupBox {
+      title:"Appearance";      visible:settingsCategory.currentIndex==1;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
+       Desktop.Label {text:"Keyboard theme"}
+       Desktop.ComboBox {
+        objectName:"keyboardThemeSelector";Layout.fillWidth:true
+        model:root.themeNames
+        currentIndex:Math.max(0,root.themeIds.indexOf(controller.keyboardTheme))
+        onActivated:controller.keyboardTheme=root.themeIds[currentIndex]
+        Accessible.name:"Keyboard theme"
+       }
+       SettingSlider {label:"Keyboard height";displayValue:controller.keyboardScale+"%";from:50;to:150;stepSize:5;value:controller.keyboardScale;onMoved:controller.keyboardScale=value}
+       SettingSlider {label:"Short key labels";displayValue:controller.shortLabelScale+"%";from:50;to:200;stepSize:5;value:controller.shortLabelScale;onMoved:controller.shortLabelScale=value}
+       SettingSlider {label:"Long key labels";displayValue:controller.longLabelScale+"%";from:50;to:200;stepSize:5;value:controller.longLabelScale;onMoved:controller.longLabelScale=value}
        Desktop.CheckBox {text:"Temporarily hide keyboard during mouse actions";checked:controller.hideKeyboardDuringMouseActions;onToggled:controller.hideKeyboardDuringMouseActions=checked}
-       Desktop.Label {text:"Restores the keyboard after the action finishes or is canceled. Target selection and Cancel remain available.";wrapMode:Text.Wrap;Layout.fillWidth:true}
-       Kirigami.Heading {text:"Restore button";level:3;Layout.topMargin:12}
+      }
+     }
+     Desktop.GroupBox {
+      title:"Restore button";      visible:settingsCategory.currentIndex==1;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        RowLayout {
         Desktop.Label {text:"Restore button corner"}
         Desktop.ComboBox {model:["Top left","Top right","Bottom left","Bottom right"];currentIndex:controller.restoreCorner;onActivated:controller.restoreCorner=currentIndex}
        }
-       RowLayout {
-        Desktop.Label {text:"Restore button width: "+controller.restoreWidth+" px"}
-        Desktop.Slider {from:40;to:128;stepSize:8;value:controller.restoreWidth;Layout.fillWidth:true;onMoved:controller.restoreWidth=value}
-       }
-       RowLayout {
-        Desktop.Label {text:"Restore button height: "+controller.restoreHeight+" px"}
-        Desktop.Slider {from:40;to:128;stepSize:8;value:controller.restoreHeight;Layout.fillWidth:true;onMoved:controller.restoreHeight=value}
-       }
-       RowLayout {Desktop.Label {text:"Restore button opacity: "+controller.restoreOpacity+"%"} Desktop.Slider {from:10;to:100;stepSize:5;value:controller.restoreOpacity;Layout.fillWidth:true;onMoved:controller.restoreOpacity=value}}
+       SettingSlider {label:"Restore button width";displayValue:controller.restoreWidth+" px";from:40;to:128;stepSize:8;value:controller.restoreWidth;onMoved:controller.restoreWidth=value}
+       SettingSlider {label:"Restore button height";displayValue:controller.restoreHeight+" px";from:40;to:128;stepSize:8;value:controller.restoreHeight;onMoved:controller.restoreHeight=value}
+       SettingSlider {label:"Restore button opacity";displayValue:controller.restoreOpacity+"%";from:10;to:100;stepSize:5;value:controller.restoreOpacity;onMoved:controller.restoreOpacity=value}
       }
      }
      Desktop.GroupBox {
       title:settings.categoryNames[2];visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
       ColumnLayout {
-       anchors.fill:parent;spacing:10
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Desktop.CheckBox {text:"Enable gaze input";checked:root.gazeEnabled;enabled:!root.gazeCheck;focusPolicy:Qt.NoFocus;onToggled:controller.setGazeEnabled(checked)}
        Tool {id:tobii;text:"Connect eye tracker";command:"Tobii"}
-       Kirigami.Heading {text:"Gaze smoothing";level:3;Layout.topMargin:8}
+      }
+     }
+     Desktop.GroupBox {
+      title:"Gaze smoothing";      visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        RowLayout {
         Desktop.Label {text:"Gaze smoothing"}
         Desktop.ComboBox {model:["0 — Off","1 — Low","2 — Medium","3 — High","4 — Extreme"];currentIndex:controller.gazeSmoothingLevel;onActivated:controller.gazeSmoothingLevel=currentIndex}
        }
        Desktop.CheckBox {text:"Smooth when changing gaze target";checked:controller.smoothWhenChangingGazeTarget;enabled:controller.gazeSmoothingLevel>0;onToggled:controller.smoothWhenChangingGazeTarget=checked}
-       Desktop.Label {text:"Higher levels reduce jitter but respond more slowly.";wrapMode:Text.Wrap;Layout.fillWidth:true}
-       Kirigami.Heading {text:"Gaze indicator";level:3;Layout.topMargin:12}
-       RowLayout {Desktop.Label {text:"Size: "+controller.gazeIndicatorSize+" px"} Desktop.Slider {from:4;to:120;stepSize:1;value:controller.gazeIndicatorSize;Layout.fillWidth:true;onMoved:controller.gazeIndicatorSize=value}}
-       RowLayout {Desktop.Label {text:"Opacity: "+controller.gazeIndicatorOpacity+"%"} Desktop.Slider {from:5;to:100;stepSize:5;value:controller.gazeIndicatorOpacity;Layout.fillWidth:true;onMoved:controller.gazeIndicatorOpacity=value}}
+      }
+     }
+     Desktop.GroupBox {
+      title:"Gaze indicator";      visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
+       SettingSlider {label:"Size";displayValue:controller.gazeIndicatorSize+" px";from:4;to:120;stepSize:1;value:controller.gazeIndicatorSize;onMoved:controller.gazeIndicatorSize=value}
+       SettingSlider {label:"Opacity";displayValue:controller.gazeIndicatorOpacity+"%";from:5;to:100;stepSize:5;value:controller.gazeIndicatorOpacity;onMoved:controller.gazeIndicatorOpacity=value}
        RowLayout {
         Desktop.Label {text:"Color"}
         Rectangle {width:24;height:24;radius:12;color:controller.gazeIndicatorColor;opacity:controller.gazeIndicatorOpacity/100}
         Desktop.TextField {text:controller.gazeIndicatorColor;placeholderText:"#RRGGBB";Accessible.name:"Gaze indicator color, hexadecimal RGB";validator:RegularExpressionValidator {regularExpression:/#[0-9a-fA-F]{6}/} onEditingFinished:{if(acceptableInput)controller.gazeIndicatorColor=text}}
        }
        Desktop.CheckBox {text:"Morph with gaze acceleration and direction";checked:controller.gazeIndicatorMorph;onToggled:controller.gazeIndicatorMorph=checked}
-       Desktop.Label {text:"Stretches along gaze movement as acceleration increases, then returns to a solid circle.";wrapMode:Text.Wrap;Layout.fillWidth:true}
-       Kirigami.Heading {text:"Keyboard selection";level:3;Layout.topMargin:12}
+      }
+     }
+     Desktop.GroupBox {
+      title:"Keyboard selection";      visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
+       Tool {text:"Button mode: "+controller.buttonMode+" (cycle)";command:"CycleButtonMode"}
+       Tool {text:"Key mode: "+controller.keyMode+" (cycle)";command:"CycleKeyMode"}
+       Desktop.Label {text:"Tap → Repeat → Hold → Toggle. Hold presses after dwell and releases when mouse or gaze leaves. Toggle keeps a key pressed until selected again. Applies to all physical keyboard keys except modifiers (Shift, Ctrl, Alt and Super/Windows).";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Desktop.CheckBox {text:"Cycle modifiers while hovering";checked:controller.cycleModifiersOnHover;onToggled:controller.cycleModifiersOnHover=checked}
-       Desktop.Label {text:"Keep hovering over Shift, Ctrl, Alt, or Win to cycle through latched, locked, and off at the repeat rate.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Desktop.CheckBox {text:"Repeat letters while hovering";checked:controller.repeatLettersOnHover;onToggled:controller.repeatLettersOnHover=checked}
        Desktop.CheckBox {text:"Repeat punctuation while hovering";checked:controller.repeatPunctuationOnHover;onToggled:controller.repeatPunctuationOnHover=checked}
        Desktop.CheckBox {text:"Repeat Backspace while hovering";checked:controller.repeatBackspaceOnHover;onToggled:controller.repeatBackspaceOnHover=checked}
        Desktop.CheckBox {text:"Repeat arrow keys while hovering";checked:controller.repeatArrowsOnHover;onToggled:controller.repeatArrowsOnHover=checked}
-       Desktop.Label {text:"The first activation uses keyboard dwell. Further activations use the repeat rate. Move away to stop.";wrapMode:Text.Wrap;Layout.fillWidth:true}
-       RowLayout {
-        Desktop.Label {text:"Repeat rate: "+(1000/controller.repeatIntervalMs).toFixed(1)+" / sec ("+controller.repeatIntervalMs+" ms)"}
-        Desktop.Slider {from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;Layout.fillWidth:true;enabled:controller.repeatPunctuationOnHover||controller.cycleModifiersOnHover||controller.repeatLettersOnHover||controller.repeatBackspaceOnHover||controller.repeatArrowsOnHover;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
-       }
-       RowLayout {Desktop.Label {text:"Keyboard dwell: "+controller.dwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.dwellMs;Layout.fillWidth:true;onMoved:controller.dwellMs=value}}
+       SettingSlider {label:"Repeat rate";displayValue:(1000/controller.repeatIntervalMs).toFixed(1)+" / sec ("+controller.repeatIntervalMs+" ms)";from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;enabled:controller.buttonMode==="Repeat"||controller.keyMode==="Repeat"||controller.repeatPunctuationOnHover||controller.cycleModifiersOnHover||controller.repeatLettersOnHover||controller.repeatBackspaceOnHover||controller.repeatArrowsOnHover;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
+       SettingSlider {label:"Keyboard dwell";displayValue:controller.dwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.dwellMs;onMoved:controller.dwellMs=value}
 
       }
      }
      Desktop.GroupBox {
       title:"Zoom behavior";visible:settingsCategory.currentIndex==3;Layout.fillWidth:true
       ColumnLayout {
-       anchors.fill:parent;spacing:10
-       RowLayout {Desktop.Label {text:"Magnifier zoom: "+controller.magnifierZoom+"×"} Desktop.Slider {from:2;to:8;stepSize:1;value:controller.magnifierZoom;Layout.fillWidth:true;onMoved:controller.magnifierZoom=value}}
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
+       SettingSlider {label:"Magnifier zoom";displayValue:controller.magnifierZoom+"×";from:2;to:8;stepSize:1;value:controller.magnifierZoom;onMoved:controller.magnifierZoom=value}
        Desktop.CheckBox {text:"Progressive zoom";checked:controller.progressiveZoom;onToggled:controller.progressiveZoom=checked}
-       RowLayout {Desktop.Label {text:"Zoom duration: "+(controller.zoomDurationMs/1000).toFixed(1)+" s"} Desktop.Slider {from:500;to:5000;stepSize:100;value:controller.zoomDurationMs;enabled:controller.progressiveZoom;Layout.fillWidth:true;onMoved:controller.zoomDurationMs=value}}
-       Kirigami.Heading {text:"Target selection";level:3;Layout.topMargin:12}
+       SettingSlider {label:"Zoom duration";displayValue:(controller.zoomDurationMs/1000).toFixed(1)+" s";from:500;to:5000;stepSize:100;value:controller.zoomDurationMs;enabled:controller.progressiveZoom;onMoved:controller.zoomDurationMs=value}
+      }
+     }
+     Desktop.GroupBox {
+      title:"Target selection";      visible:settingsCategory.currentIndex==3;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Desktop.CheckBox {text:"Select pointer targets by dwell";checked:controller.targetDwellEnabled;onToggled:controller.targetDwellEnabled=checked}
-       RowLayout {Desktop.Label {text:"Start zoom / target dwell: "+controller.targetStartDwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.targetStartDwellMs;enabled:controller.targetDwellEnabled;Layout.fillWidth:true;onMoved:controller.targetStartDwellMs=value}}
-       RowLayout {Desktop.Label {text:"Confirm zoomed target dwell: "+controller.targetConfirmDwellMs+" ms"} Desktop.Slider {from:250;to:3000;stepSize:50;value:controller.targetConfirmDwellMs;enabled:controller.targetDwellEnabled;Layout.fillWidth:true;onMoved:controller.targetConfirmDwellMs=value}}
-       RowLayout {Desktop.Label {text:"Target dwell movement tolerance: "+controller.targetDwellRadius+" px"} Desktop.Slider {from:10;to:100;stepSize:5;value:controller.targetDwellRadius;enabled:controller.targetDwellEnabled;Layout.fillWidth:true;onMoved:controller.targetDwellRadius=value}}
+       SettingSlider {label:"Start zoom / target dwell";displayValue:controller.targetStartDwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.targetStartDwellMs;enabled:controller.targetDwellEnabled;onMoved:controller.targetStartDwellMs=value}
+       SettingSlider {label:"Confirm zoomed target dwell";displayValue:controller.targetConfirmDwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.targetConfirmDwellMs;enabled:controller.targetDwellEnabled;onMoved:controller.targetConfirmDwellMs=value}
+       SettingSlider {label:"Target dwell movement tolerance";displayValue:controller.targetDwellRadius+" px";from:10;to:100;stepSize:5;value:controller.targetDwellRadius;enabled:controller.targetDwellEnabled;onMoved:controller.targetDwellRadius=value}
       }
      }
      Desktop.GroupBox {
       title:settings.categoryNames[4];visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
       ColumnLayout {
-       anchors.fill:parent;spacing:10
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Desktop.CheckBox {text:"Literal keys (bypass platform mappings)";checked:controller.literal;onToggled:controller.literal=checked}
-       Kirigami.Heading {text:"Word prediction";level:3;Layout.topMargin:8}
+      }
+     }
+     Desktop.GroupBox {
+      title:"Word prediction";      visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Desktop.Label {text:"Prediction style"}
        Desktop.ComboBox {
         objectName:"predictionModeSelector";Layout.fillWidth:true
-        model:["Context-aware (recommended)","Common words","Off"]
+        model:["Context-aware","Common words","Off"]
         currentIndex:["context","frequency","off"].indexOf(controller.predictionMode)
         onActivated:controller.predictionMode=["context","frequency","off"][currentIndex]
         Accessible.name:"Prediction style"
        }
-       Desktop.Label {
-        text:controller.predictionMode==="context"?"Uses the preceding words to suggest what fits your sentence. Works offline from the first launch.":controller.predictionMode==="frequency"?"Suggests common English words without using the preceding words.":"Word suggestions are hidden."
-        wrapMode:Text.Wrap;Layout.fillWidth:true
-       }
        Desktop.CheckBox {objectName:"predictNextWordToggle";text:"Suggest the next word after a space";enabled:controller.predictionMode!=="off";checked:controller.predictNextWord;onToggled:controller.predictNextWord=checked}
        Desktop.CheckBox {text:"Use and learn personal words locally";checked:controller.learning;onToggled:controller.learning=checked}
-       Desktop.Label {text:"Personalization is optional. Turn it off to stop learning and ignore saved personal words. Reset learned words deletes them. Save preferences to keep these choices.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Desktop.Button {text:"Reset learned words";onClicked:controller.resetLearning()}
-       Kirigami.Heading {text:"Speech";level:3;Layout.topMargin:8}
+      }
+     }
+     Desktop.GroupBox {
+      title:"Speech";      visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Flow {Layout.fillWidth:true;spacing:8
         Tool {id:speakButton;text:"Speak";command:"Speak"}
         Tool {id:stopSpeechButton;text:"Stop speech";command:"StopSpeech"}
@@ -473,20 +568,17 @@ Window {
      Desktop.GroupBox {
       title:settings.categoryNames[5];visible:settingsCategory.currentIndex==5;Layout.fillWidth:true
       ColumnLayout {
-       anchors.fill:parent;spacing:10
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Tool {id:authorize;text:"Connect desktop control";command:"Connect"}
        Desktop.CheckBox {text:"Remember desktop-control permission, if supported";checked:controller.rememberDesktop;onToggled:controller.rememberDesktop=checked}
-       Desktop.Label {text:"When saved, this also connects keyboard and mouse control automatically at startup. The desktop may still ask for permission.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Desktop.Button {text:"Disconnect and forget desktop permission";onClicked:controller.forgetDesktopPermission()}
-       Desktop.Label {text:"Screenshot access is separate. Approve the first magnifier capture; supported desktops remember that approval for OptiKey until it is revoked.";wrapMode:Text.Wrap;Layout.fillWidth:true}
       }
      }
      Desktop.GroupBox {
       title:settings.categoryNames[6];visible:settingsCategory.currentIndex==6;Layout.fillWidth:true
       ColumnLayout {
-       anchors.fill:parent;spacing:10
-       Desktop.Label {text:"Linux shortcut mappings — source XML stays unchanged"}
-       Desktop.Label {text:"Each override has match (the exact signature shown in Settings → Status), description, and commands [{tag, text}]. Unmapped Windows combinations require an override or Literal keys.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
+       Desktop.Label {text:"Linux shortcut mappings"}
        Desktop.ScrollView {Layout.fillWidth:true;Layout.preferredHeight:180;Desktop.TextArea {id:mappingEditor;text:controller.mappingJson;wrapMode:Text.Wrap;font.family:"monospace";selectByMouse:true}}
        Desktop.Button {text:"Save mappings";onClicked:controller.saveMappings(mappingEditor.text)}
        Desktop.Label {text:controller.actionStatus;wrapMode:Text.Wrap;Layout.fillWidth:true}
@@ -495,23 +587,22 @@ Window {
      Desktop.GroupBox {
       title:settings.categoryNames[7];visible:settingsCategory.currentIndex==7;Layout.fillWidth:true
       ColumnLayout {
-       anchors.fill:parent;spacing:10
-       Desktop.Label {text:"Select a centre with LookToScroll, then look away from it to scroll. Greater distance scrolls faster.";wrapMode:Text.Wrap;Layout.fillWidth:true}
-       RowLayout {Desktop.Label {text:"Scroll speed: "+controller.scrollSpeed+"%"} Desktop.Slider {from:10;to:300;stepSize:10;value:controller.scrollSpeed;Layout.fillWidth:true;onMoved:controller.scrollSpeed=value}}
-       RowLayout {Desktop.Label {text:"Centre dead zone: "+controller.scrollDeadzone+" px"} Desktop.Slider {from:10;to:200;stepSize:5;value:controller.scrollDeadzone;Layout.fillWidth:true;onMoved:controller.scrollDeadzone=value}}
-       Desktop.Label {text:"Scrolling stops within the dead zone. Increase it to allow more gaze movement around the centre.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
+       SettingSlider {label:"Scroll speed";displayValue:controller.scrollSpeed+"%";from:10;to:300;stepSize:10;value:controller.scrollSpeed;onMoved:controller.scrollSpeed=value}
+       SettingSlider {label:"Centre dead zone";displayValue:controller.scrollDeadzone+" px";from:10;to:200;stepSize:5;value:controller.scrollDeadzone;onMoved:controller.scrollDeadzone=value}
        RowLayout {Desktop.Label {text:"Direction"} Desktop.ComboBox {model:["Both axes","Vertical only","Horizontal only"];currentIndex:controller.scrollAxis;onActivated:controller.scrollAxis=currentIndex}}
       }
      }
     }
    }
-   Desktop.Label {text:"Changes apply immediately. Save preferences to keep them after restart.";wrapMode:Text.Wrap;Layout.fillWidth:true}
    Desktop.Label {text:controller.profileStatus;visible:text.length>0;wrapMode:Text.Wrap;Layout.fillWidth:true}
-   Flow {
-    Layout.fillWidth:true;spacing:8
-    Desktop.Button {text:"Save preferences";icon.name:"document-save";ToolTip.text:"Save preferences and startup keyboard";ToolTip.visible:hovered;onClicked:controller.savePreferences()}
-    Desktop.Button {text:"Reset preferences";icon.name:"edit-undo";onClicked:controller.resetPreferences()}
-    Desktop.Button {text:"Close";icon.name:"window-close";onClicked:settings.close()}
+   Kirigami.Separator {Layout.fillWidth:true}
+   RowLayout {
+    Layout.fillWidth:true;spacing:12
+    Desktop.Button {text:"Reset preferences";onClicked:controller.resetPreferences()}
+    Item {Layout.fillWidth:true}
+    Desktop.Button {text:"Close";onClicked:settings.close()}
+    Desktop.Button {text:"Save preferences";icon.name:"document-save";highlighted:true;onClicked:controller.savePreferences()}
    }
   }
  }

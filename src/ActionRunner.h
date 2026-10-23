@@ -30,6 +30,11 @@ public:
     static QString validate(const QVariantList &commands,bool unicodeText=false);
     static QString signature(const QVariantList &commands);
     bool shifted()const;
+    static QPair<QString,bool> dwellKey(const QVariantList &commands);
+    bool beginDwellHold(const QVariantList &commands);
+    void endDwellHold();
+    bool toggleDwellKey(const QVariantList &commands);
+    void releaseToggledKeys();
 signals:
     void stateChanged();
     void failed(QString message);
@@ -47,4 +52,8 @@ private:
     bool running=false,waiting=false;
     QTimer timer;
     QSet<QString> held,transient,latched;
+    QString dwellHeld;
+    bool dwellShift=false;
+    QSet<QString> toggledKeys, shiftedToggles;
+    bool toggleOwnShift=false;
 };

@@ -46,11 +46,8 @@
       <KeyGroup>Suggestion</KeyGroup>
     </SuggestionRow>
     <DynamicKey>
-      <Symbol>ConversationIcon</Symbol>
-      <KeyDown>LWIN</KeyDown>
-      <Text>c</Text>
-      <KeyUp>LWIN</KeyUp>
-      <Action>ClearScratchpad</Action>
+      <Symbol>LayersIcon</Symbol>
+      <Action>CycleKeyMode</Action>
       <KeyGroup>Exit</KeyGroup>
     </DynamicKey>
     <DynamicKey>

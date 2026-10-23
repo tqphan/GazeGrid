@@ -29,7 +29,7 @@ Standalone portal output uses US physical keycodes. Experimental KWin input-meth
 
 ## Diagnostics and tests
 
-Preferences now use a versioned `profile.json` under the application configuration directory (`runtime/config/OptiKey/OptiKey-Pro/` with `run.sh`). In Settings, choose **Save preferences and startup keyboard** to persist dwell time, keyboard height, high contrast, literal-key mode, local-learning preference, and the currently selected keyboard. The interface and keyboard follow the system light/dark theme; high contrast is an explicit override. The XML is unchanged, and minimized recovery layouts use a borderless restore button flush with the selected screen corner. Its width, height, and opacity (10–100%) are configurable under Settings → Keyboard → Restore button. Changes take effect immediately; saving is explicit. **Reset preferences** restores defaults and leaves input paused. Reset does not delete learned words or shortcut mappings; learned words have their own reset control.
+Preferences now use a versioned `profile.json` under the application configuration directory (`runtime/config/OptiKey/OptiKey-Pro/` with `run.sh`). In Settings, choose **Save preferences and startup keyboard** to persist dwell time, keyboard height, keyboard theme, literal-key mode, local-learning preference, and the currently selected keyboard. Settings → Keyboard → Appearance offers System, Midnight, Ocean, Forest, Warm Paper, and High Contrast keyboard themes. System follows the desktop light/dark theme. The settings interface follows the desktop theme. The XML is unchanged, and minimized recovery layouts use a borderless restore button flush with the selected screen corner. Its width, height, and opacity (10–100%) are configurable under Settings → Keyboard → Restore button. Changes take effect immediately; saving is explicit. **Reset preferences** restores defaults and leaves input paused. Reset does not delete learned words or shortcut mappings; learned words have their own reset control.
 
 Writes are atomic and retain a validated `.bak` recovery copy. If the main profile is corrupt, startup uses that copy or defaults and reports recovery in Settings. Profiles from newer versions are preserved and cannot be overwritten without an explicit reset. This fresh format does not import the prototype's QSettings file or legacy OptiKey settings.
 
@@ -215,3 +215,18 @@ pack directory and select it in Settings → Keyboard after restarting. Placemen
 is configured through XML; there is no drag-and-drop layout editor.
 
 Virtual controller output and gaze/mouse joystick keys are available from the game toolbar’s **Gamepad** key. See [controller actions and setup](docs/game-controller.md).
+
+Key mode can be cycled through **Tap → Repeat → Hold → Toggle** in **Settings → Gaze & dwell**.
+Custom keyboard keys can use `<Action>CycleKeyMode</Action>`.
+The mode covers all physical keyboard keys except modifiers (Shift, Ctrl, Alt and Super/Windows).
+Hold sends a physical key-down after the dwell delay and releases when mouse or gaze
+leaves the key; pause, tracking loss and layout changes also release it.
+Toggle keeps a key pressed until selected again; changing modes, pausing, tracking loss
+and layout changes release toggled keys. Desktop authorization is required for Hold and Toggle. Conversation keyboards retain text entry.
+Repeat uses the configured repeat interval; Hold uses the destination application's
+normal held-key behavior. Clicking a key taps it except in Toggle mode, where it toggles the key. The mode starts at Tap each launch.
+
+Individual keys can override the cycle state using `<DynamicKey mode="Hold" ...>`.
+Use `Tap`, `Repeat`, `Hold`, or `Toggle`; omit `mode` to follow the cycle.
+This works for keyboard keys and digital gamepad buttons.
+See [fixed XML modes](docs/game-controller.md#fixed-xml-modes) for examples.

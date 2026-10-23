@@ -24,7 +24,7 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
     return {{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",false},{"repeatPunctuationOnHover",false},{"repeatIntervalMs",750},{"repeatLettersOnHover",false},{"repeatBackspaceOnHover",false},{"repeatArrowsOnHover",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"literal",false},{"learning",false},{"predictionMode","context"},{"predictNextWord",true},
-            {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"highContrast",false},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
+            {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"keyboardTheme","system"},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
     static const QRegularExpression layout("^[A-Za-z0-9_-]+$");
@@ -54,6 +54,7 @@ bool ProfileStore::valid(const QJsonObject &v){
         &&(!v.contains("predictionMode")||(v["predictionMode"].isString()&&QStringList{"context","frequency","off"}.contains(v["predictionMode"].toString())))
         &&(!v.contains("predictNextWord")||v["predictNextWord"].isBool())
         &&(!v.contains("keyboardScale")||(v["keyboardScale"].isDouble()&&v["keyboardScale"].toDouble()==v["keyboardScale"].toInt()&&v["keyboardScale"].toInt()>=50&&v["keyboardScale"].toInt()<=150))
+        &&(!v.contains("keyboardTheme")||(v["keyboardTheme"].isString()&&QStringList{"system","midnight","ocean","forest","paper","high-contrast"}.contains(v["keyboardTheme"].toString())))
         &&(!v.contains("highContrast")||v["highContrast"].isBool())
         &&(!v.contains("liveZoom")||v["liveZoom"].isBool())
         &&(!v.contains("progressiveZoom")||v["progressiveZoom"].isBool())
