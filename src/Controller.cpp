@@ -33,6 +33,8 @@ Controller::Controller(){
  connect(&speech,&SpeechOutput::status,this,[this](QString message){actionStatus=message;emit changed();});
  clock.start();auto profile=ProfileStore(configFile("profile.json")).load();
  gazeEnabled=profile.values["gazeEnabled"].toBool(false);
+ predictionModeValue=profile.values["predictionMode"].toString("context");
+ nextWordEnabled=profile.values["predictNextWord"].toBool(true);
  dwellMs=profile.values["dwellMs"].toInt();literal=profile.values["literal"].toBool();learning=profile.values["learning"].toBool();profileStatus=profile.message;
  scalePercent=profile.values["keyboardScale"].toInt(100);highContrast=profile.values["highContrast"].toBool();
  shortLabelScale=profile.values.value("shortLabelScale").toInt(profile.values.value("enlargeShortLabels").toBool(true)?150:100);
@@ -69,6 +71,7 @@ Controller::Controller(){
   if(!item.contains("error")&&item["hidefromkeyboardmenu"].toString().compare("true",Qt::CaseInsensitive)!=0)menuLayoutNames<<name;
  }
  QFile words(":/resources/EnglishUS.dic");if(words.open(QIODevice::ReadOnly)){dictionary=QString::fromUtf8(words.readAll()).remove(QChar(0xfeff)).split('\n',Qt::SkipEmptyParts);for(auto &word:dictionary)word=word.trimmed();dictionary.sort(Qt::CaseInsensitive);}
+ WordPrediction::prepare(dictionary);
  QFile learned(configFile("learned.json"));if(learned.open(QIODevice::ReadOnly)){auto obj=QJsonDocument::fromJson(learned.readAll()).object();for(auto it=obj.begin();it!=obj.end();++it)frequencies[it.key()]=qBound(0,it.value().toInt(),1000000);}
  QString mappingError;QFile mappings(configFile("linux-mappings.json"));
  if(mappings.exists()){
@@ -135,7 +138,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatPunctuationOnHover",repeatPunctuationOnHover},{"repeatIntervalMs",repeatIntervalMs},{"repeatLettersOnHover",repeatLettersOnHover},{"repeatBackspaceOnHover",repeatBackspaceOnHover},{"repeatArrowsOnHover",repeatArrowsOnHover},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatPunctuationOnHover",repeatPunctuationOnHover},{"repeatIntervalMs",repeatIntervalMs},{"repeatLettersOnHover",repeatLettersOnHover},{"repeatBackspaceOnHover",repeatBackspaceOnHover},{"repeatArrowsOnHover",repeatArrowsOnHover},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"highContrast",highContrast},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -145,7 +148,7 @@ void Controller::resetPreferences(){
  if(!paused)togglePause();
  setMagnifierEnabled(false);
  setGazeEnabled(false);
- dwellMs=values["dwellMs"].toInt();literal=false;learning=false;backStack.clear();
+ dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";nextWordEnabled=true;backStack.clear();
  repeatIntervalMs=750;
  repeatPunctuationOnHover=false;
  repeatLettersOnHover=false;
@@ -367,8 +370,9 @@ bool Controller::performAction(QString action){
   scratchpad.truncate(end);updateSuggestions();return true;
  }
  if(action=="NextSuggestions"||action=="PreviousSuggestions"){
+  if(sensitiveInput){suggestions.clear();emit changed();return true;}
   int pageSize=4;for(const auto &v:layout["keys"].toList()){auto k=v.toMap();if(k["kind"]=="SuggestionRow")pageSize=qMax(1,k.value("suggestionCount",k["width"].toInt()/2).toInt());}
-  const auto all=WordPrediction::suggest(scratchpad,dictionary,frequencies,1000);
+  const auto all=predictionSuggestions(1000);
   int next=suggestionOffset+(action=="NextSuggestions"?pageSize:-pageSize);
   if(next>=0&&next<all.size())suggestionOffset=next;
   suggestions=all.mid(suggestionOffset,pageSize);emit changed();return true;
@@ -450,9 +454,25 @@ void Controller::updateText(QString text){
  for(auto ch:text){if(ch=='\b'){if(!scratchpad.isEmpty()){QTextBoundaryFinder boundary(QTextBoundaryFinder::Grapheme,scratchpad);boundary.toEnd();scratchpad.truncate(qMax(0,boundary.toPreviousBoundary()));}}else{if(ch.isSpace()&&learning){QString word=WordPrediction::completedWord(scratchpad);if(!word.isEmpty()&&word.size()<64)frequencies[word]=qMin(1000000,frequencies.value(word)+1);}scratchpad+=ch;}}
  if(scratchpad.size()>4096)scratchpad=scratchpad.right(4096);updateSuggestions();
 }
+QStringList Controller::predictionSuggestions(int limit)const{
+ if(sensitiveInput||predictionModeValue=="off"||(!nextWordEnabled&&WordPrediction::prefix(scratchpad).isEmpty()))return {};
+ return WordPrediction::suggest(scratchpad,dictionary,learning?frequencies:QMap<QString,int>{},limit,predictionModeValue=="context");
+}
+void Controller::setPredictionMode(QString mode){
+ if(!QStringList{"context","frequency","off"}.contains(mode)||predictionModeValue==mode)return;
+ predictionModeValue=mode;dwell.reset();updateSuggestions();
+}
+void Controller::setPredictNextWord(bool enabled){
+ if(nextWordEnabled==enabled)return;
+ nextWordEnabled=enabled;dwell.reset();updateSuggestions();
+}
+void Controller::setLearning(bool enabled){
+ if(learning==enabled)return;
+ learning=enabled;dwell.reset();updateSuggestions();
+}
 void Controller::updateSuggestions(){
  suggestionOffset=0;
- suggestions=WordPrediction::suggest(scratchpad,dictionary,frequencies);emit changed();
+ suggestions=predictionSuggestions();emit changed();
 }
 void Controller::resetLearning(){frequencies.clear();QFile::remove(configFile("learned.json"));updateSuggestions();}
 void Controller::speak(){if(!sensitiveInput)speech.speak(scratchpad);}

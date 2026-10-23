@@ -1,5 +1,10 @@
 #include "WordPrediction.h"
 #include <algorithm>
+#include <cmath>
+#include <QFile>
+#include <QHash>
+#include <QSet>
+#include <QRegularExpression>
 namespace {
 bool letter(QChar ch){return (ch>='a'&&ch<='z')||(ch>='A'&&ch<='Z');}
 bool wordCharacter(QChar ch){return letter(ch)||ch=='\'';}
@@ -21,23 +26,129 @@ QString WordPrediction::completedWord(const QString &text){
  while(word.endsWith('\''))word.chop(1);
  return word.size()<64?word.toLower():QString();
 }
-QStringList WordPrediction::suggest(const QString &text,const QStringList &dictionary,const QMap<QString,int> &frequencies,int limit){
- const auto current=prefix(text);if(current.isEmpty()||limit<=0)return {};
- QStringList matches;
- for(const auto &word:dictionary){
-  if(!word.startsWith(current,Qt::CaseInsensitive)||word.size()<=current.size())continue;
-  if(!std::all_of(word.begin(),word.end(),wordCharacter))continue;
-  QString suffix=word.mid(current.size()).toLower();
-  // Preserve what was already typed and continue deliberate ALL CAPS prefixes.
-  if(current.size()>1&&current==current.toUpper())suffix=suffix.toUpper();
-  matches<<current+suffix;
+namespace {
+struct Distribution {
+ QHash<QString,double> counts;
+ double total=0;
+};
+struct Model {
+ QHash<QString,double> prior;
+ QHash<QString,Distribution> contexts;
+ Model(){
+  QFile file(":/resources/prediction/english-v1.bin");
+  if(!file.open(QIODevice::ReadOnly))qFatal("Bundled English prediction model is missing");
+  const auto data=qUncompress(file.readAll());
+  const auto lines=data.split('\n');
+  if(lines.isEmpty()||lines.front()!="optikey-prediction-v1")qFatal("Invalid English prediction model");
+  for(const auto &line:lines){
+   const auto fields=line.split('\t');
+   if(fields.size()==3&&fields[0]=="u")prior.insert(QString::fromUtf8(fields[1]),fields[2].toDouble());
+   else if((fields.size()==4&&fields[0]=="b")||(fields.size()==5&&fields[0]=="t")||(fields.size()==6&&fields[0]=="q")){
+    QString context=QString::fromUtf8(fields[1]);
+    for(int i=2;i<fields.size()-2;++i)context+=' '+QString::fromUtf8(fields[i]);
+    auto &distribution=contexts[context];
+    const double count=fields.back().toDouble();
+    distribution.counts.insert(QString::fromUtf8(fields[fields.size()-2]),count);
+    distribution.total+=count;
+   }
+  }
  }
- matches.removeDuplicates();
- std::sort(matches.begin(),matches.end(),[&](const QString &a,const QString &b){
-  const int fa=frequencies.value(a.toLower()),fb=frequencies.value(b.toLower());
-  if(fa!=fb)return fa>fb;
-  if(a.size()!=b.size())return a.size()<b.size();
-  return a.compare(b,Qt::CaseInsensitive)<0;
+};
+const Model &model(){static const Model value;return value;}
+struct Candidate {QString word;double prior;};
+struct Index {
+ QList<Candidate> sorted,frequent;
+ QHash<QString,double> byWord;
+};
+const Index &vocabulary(const QStringList &dictionary){
+ static thread_local QStringList previous;
+ static thread_local Index index;
+ if(previous!=dictionary||index.sorted.isEmpty()){
+  previous=dictionary;index={};
+  for(auto word:dictionary){
+   word=word.toLower();
+   if(word.isEmpty()||!letter(word.front())||!std::all_of(word.begin(),word.end(),wordCharacter)||index.byWord.contains(word))continue;
+   const double prior=model().prior.value(word,1e-10);
+   index.byWord.insert(word,prior);index.sorted.append({word,prior});
+  }
+  std::sort(index.sorted.begin(),index.sorted.end(),[](const Candidate &a,const Candidate &b){return a.word<b.word;});
+  index.frequent=index.sorted;
+  std::sort(index.frequent.begin(),index.frequent.end(),[](const Candidate &a,const Candidate &b){return a.prior!=b.prior?a.prior>b.prior:a.word<b.word;});
+ }
+ return index;
+}
+}
+void WordPrediction::prepare(const QStringList &dictionary){vocabulary(dictionary);}
+QStringList WordPrediction::suggest(const QString &text,const QStringList &dictionary,const QMap<QString,int> &frequencies,int limit,bool useContext){
+ if(limit<=0||text.isEmpty())return {};
+ const auto current=prefix(text);
+ // Never offer an insertion inside numbers/unsupported alphabets or directly
+ // after punctuation (accepting a prediction appends text, not a separator).
+ if(current.isEmpty()&&!text.back().isSpace())return {};
+ const auto &language=model();
+ const auto &index=vocabulary(dictionary);
+ const auto &words=index.sorted;
+ const auto lower=current.toLower();
+ auto context=text.left(text.size()-current.size()).toLower();
+ const int boundary=context.lastIndexOf(QRegularExpression("[.!?;:\\n]"));
+ context=context.mid(boundary+1);
+ static const QRegularExpression token("[a-z]+(?:'[a-z]+)*|[^\\s,a-z'\\\"]+");
+ QStringList history{"<s>","<s>","<s>"};
+ auto tokens=token.globalMatch(context);
+ while(tokens.hasNext())history<<tokens.next().captured();
+ const QString previous=history.last(),two=history[history.size()-2]+' '+previous;
+ const auto bi=useContext?language.contexts.constFind(previous):language.contexts.cend();
+ const auto tri=useContext?language.contexts.constFind(two):language.contexts.cend();
+ const auto four=useContext?language.contexts.constFind(history[history.size()-3]+' '+two):language.contexts.cend();
+ const bool sentenceStart=history.size()==3;
+ struct Result {QString word;double score;};
+ QList<Result> ranked;
+
+ auto add=[&](const QString &word,double prior){
+  if(!word.startsWith(lower)||(!lower.isEmpty()&&word==lower))return;
+  double probability=prior;
+  if(bi!=language.contexts.cend())probability=(bi->counts.value(word)+200*probability)/(bi->total+200);
+  if(tri!=language.contexts.cend())probability=(tri->counts.value(word)+20*probability)/(tri->total+20);
+  if(four!=language.contexts.cend())probability=(four->counts.value(word)+10*probability)/(four->total+10);
+  // Bounded personalization: even a million observations cannot overpower
+  // strong context by more than a factor of two.
+  const double boost=1+std::min(1.0,std::log1p(std::max(0,frequencies.value(word)))/std::log(101.0));
+  ranked.append({word,probability*boost});
+ };
+ if(lower.isEmpty()){
+  // All words absent from these contexts share the same backoff multiplier.
+  // The most frequent limit words plus context/learned words therefore contain
+  // the exact top limit, without scanning the dictionary after every space.
+  QSet<QString> candidates;
+  for(int i=0;i<std::min(std::max(limit,128),int(index.frequent.size()));++i)candidates.insert(index.frequent[i].word);
+  for(auto distribution:{bi,tri,four})if(distribution!=language.contexts.cend())
+   for(auto it=distribution->counts.cbegin();it!=distribution->counts.cend();++it)if(index.byWord.contains(it.key()))candidates.insert(it.key());
+  for(auto it=frequencies.cbegin();it!=frequencies.cend();++it)if(index.byWord.contains(it.key()))candidates.insert(it.key());
+  for(const auto &word:candidates)add(word,index.byWord.value(word));
+ }else{
+  const auto begin=std::lower_bound(words.cbegin(),words.cend(),lower,[](const Candidate &a,const QString &b){return a.word<b;});
+  for(auto it=begin;it!=words.cend()&&it->word.startsWith(lower);++it)add(it->word,it->prior);
+ }
+ // Names and other personal vocabulary need not already be in the dictionary.
+ for(auto it=frequencies.cbegin();it!=frequencies.cend();++it){
+  const auto word=it.key().toLower();
+  if(it.value()>0&&!word.isEmpty()&&letter(word.front())&&std::all_of(word.begin(),word.end(),wordCharacter)&&!index.byWord.contains(word))add(word,1e-7);
+ }
+ const int count=std::min(limit,int(ranked.size()));
+ std::partial_sort(ranked.begin(),ranked.begin()+count,ranked.end(),[](const Result &a,const Result &b){
+  if(a.score!=b.score)return a.score>b.score;
+  return a.word<b.word;
  });
- return matches.mid(0,limit);
+ QStringList result;
+ for(int i=0;i<count;++i){
+  auto word=ranked[i].word;
+  if(!current.isEmpty()){
+   auto suffix=word.mid(current.size());
+   if(current.size()>1&&current==current.toUpper())suffix=suffix.toUpper();
+   word=current+suffix;
+  }else if(sentenceStart)word[0]=word[0].toUpper();
+  if(word=="i"||word.startsWith("i'"))word[0]='I';
+  result<<word;
+ }
+ return result;
 }

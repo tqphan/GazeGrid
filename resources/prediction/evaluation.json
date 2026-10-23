@@ -1,0 +1,15 @@
+{
+  "cold_initialization_ms": 1143.463595,
+  "completion_events": 3052,
+  "learning": false,
+  "new_keystrokes_saved_percent": 56.089202344293234,
+  "new_top3_two_letters_percent": 77.75229357798165,
+  "next_word_events": 3354,
+  "next_word_top3_percent": 38.25283243887895,
+  "old_keystrokes_saved_percent": 23.353531340021853,
+  "old_top3_two_letters_percent": 27.228047182175622,
+  "sentences": 500,
+  "warm_p95_ms": 3.470523,
+  "model_sha256": "fd4304a86585e55fa9d41304078df6039745710b9ef5e0b6a1c8783ab44f84fb",
+  "build": "Local x86-64 Debug build; timings are machine-specific"
+}

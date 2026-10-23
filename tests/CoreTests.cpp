@@ -164,14 +164,51 @@ private slots:
   QCOMPARE(WordPrediction::completedWord("hello "),QString());
   QCOMPARE(WordPrediction::completedWord("hello !"),QString());
  }
- void predictionRanksLearnedWordsAndMatchesTypedCase(){
-  const QStringList words{"Help","hello","HELLO","helmet","he","héllo"};
-  QCOMPARE(WordPrediction::suggest("he",words,{}),QStringList({"help","hello","helmet"}));
-  QCOMPARE(WordPrediction::suggest("he",words,{{"helmet",12}}).first(),QString("helmet"));
-  QCOMPARE(WordPrediction::suggest("HE",words,{}).first(),QString("HELP"));
-  QCOMPARE(WordPrediction::suggest("He",words,{}).first(),QString("Help"));
+ void predictionRanksFrequencyAndPreservesCase(){
+  const QStringList words{"Help","hello","HELLO","helmet","héllo"};
+  const auto ranked=WordPrediction::suggest("he",words,{});
+  QCOMPARE(ranked.size(),3);QVERIFY(ranked.indexOf("help")<ranked.indexOf("helmet"));
+  QCOMPARE(WordPrediction::suggest("HE",words,{}).first(),ranked.first().toUpper());
+  auto title=ranked.first();title[0]=title[0].toUpper();
+  QCOMPARE(WordPrediction::suggest("He",words,{}).first(),title);
   QCOMPARE(WordPrediction::suggest("he",words,{},1).size(),1);
   QVERIFY(WordPrediction::suggest("he",words,{},0).isEmpty());
+  QVERIFY(WordPrediction::suggest("123he",words,{}).isEmpty());
+  QVERIFY(WordPrediction::suggest("hé",words,{}).isEmpty());
+  QVERIFY(WordPrediction::suggest("",words,{}).isEmpty());
+ }
+ void predictionOptionsValidateAndChangeRanking(){
+  auto defaults=ProfileStore::defaults();
+  QCOMPARE(defaults["predictionMode"].toString(),QString("context"));QVERIFY(defaults["predictNextWord"].toBool());
+  auto legacy=defaults;legacy.remove("predictionMode");legacy.remove("predictNextWord");QVERIFY(ProfileStore::valid(legacy));
+  for(const QString mode:{"context","frequency","off"}){auto values=defaults;values["predictionMode"]=mode;QVERIFY(ProfileStore::valid(values));}
+  for(const QJsonValue invalid:{QJsonValue("unknown"),QJsonValue(1),QJsonValue(false)}){auto values=defaults;values["predictionMode"]=invalid;QVERIFY(!ProfileStore::valid(values));}
+  auto invalid=defaults;invalid["predictNextWord"]=1;QVERIFY(!ProfileStore::valid(invalid));
+  const QStringList words{"you","the","light","table"};
+  QCOMPARE(WordPrediction::suggest("turn on the ",words,{},4,true).first(),QString("light"));
+  QCOMPARE(WordPrediction::suggest("turn on the ",words,{},4,false),WordPrediction::suggest("thank ",words,{},4,false));
+ }
+ void predictionWorksBeforeLearning(){
+  QFile file(":/resources/EnglishUS.dic");QVERIFY(file.open(QIODevice::ReadOnly));
+  auto words=QString::fromUtf8(file.readAll()).remove(QChar(0xfeff)).split('\n',Qt::SkipEmptyParts);
+  for(auto &word:words)word=word.trimmed();
+  QCOMPARE(WordPrediction::suggest("th",words,{}).first(),QString("the"));
+  QCOMPARE(WordPrediction::suggest("thank ",words,{}).first(),QString("you"));
+  QCOMPARE(WordPrediction::suggest("please turn on the ",words,{}).first(),QString("light"));
+  QCOMPARE(WordPrediction::suggest("thank ",words,{},1000).mid(0,8),WordPrediction::suggest("thank ",words,{}));
+  QVERIFY(WordPrediction::suggest("I would like to dr",words,{},3).contains("drink"));
+  QVERIFY(WordPrediction::suggest("I want to eat br",words,{},3).contains("bread"));
+  QVERIFY(WordPrediction::suggest("thank y",words,{},3).contains("you"));
+  QVERIFY(!WordPrediction::suggest("thank you",words,{},3).contains("you"));
+  // A single unusual selection, or an enormous old count, cannot replace the
+  // clearly more likely default. Personal vocabulary remains completable.
+  QCOMPARE(WordPrediction::suggest("th",words,{{"thy",1000000}}).first(),QString("the"));
+  QCOMPARE(WordPrediction::suggest("zorb",words,{{"zorbella",1}}).first(),QString("zorbella"));
+  const auto fresh=WordPrediction::suggest("Finished. th",words,{});
+  QCOMPARE(fresh,WordPrediction::suggest("th",words,{}));
+  const auto next=WordPrediction::suggest("Finished. ",words,{});
+  QVERIFY(!next.isEmpty());QVERIFY(next.first().front().isUpper());
+  QVERIFY(WordPrediction::suggest("Finished.",words,{}).isEmpty());
  }
  void progressiveZoomFollowsCurrentPoint(){
   const QSize image(1000,800);const QRect original(0,0,1000,800);

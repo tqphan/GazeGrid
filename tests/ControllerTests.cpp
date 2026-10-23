@@ -45,6 +45,52 @@ private slots:
   c.clickCommand(findKey("Action","PreviousSuggestions"));QTRY_VERIFY(!c.executingCommands());
   QCOMPARE(c.property("suggestions").toStringList(),first.mid(0,6));
  }
+ void predictionsInsertCompletionsAndNextWordsWithoutLearning(){
+  Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+  c.setProperty("learning",false);
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank "}}}));QTRY_VERIFY(!c.executingCommands());
+  QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
+  c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
+  QCOMPARE(c.property("scratchpad").toString(),QString("thank you "));
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","ClearScratchpad"}}}));QTRY_VERIFY(!c.executingCommands());
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank y"}}}));QTRY_VERIFY(!c.executingCommands());
+  QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
+  c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
+  QCOMPARE(c.property("scratchpad").toString(),QString("thank you "));
+  c.inputContextChanged(true,true);
+  c.openLayout("keyboard-conversation-fullscreen",false);
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","NextSuggestions"}}}));QTRY_VERIFY(!c.executingCommands());
+  QVERIFY(c.property("suggestions").toStringList().isEmpty());
+ }
+ void predictionOptionsApplyImmediatelyAndPersist(){
+  ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
+  auto legacy=ProfileStore::defaults();legacy.remove("predictionMode");legacy.remove("predictNextWord");QVERIFY(store.save(legacy,error));
+  {
+   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+   QCOMPARE(c.predictionMode(),QString("context"));QVERIFY(c.predictNextWord());
+   auto type=[&](QString text){QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text",text}}}));QTRY_VERIFY(!c.executingCommands());};
+   type("thank ");QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
+   c.setPredictNextWord(false);QVERIFY(c.property("suggestions").toStringList().isEmpty());
+   type("y");QVERIFY(!c.property("suggestions").toStringList().isEmpty());
+   c.setPredictionMode("off");QVERIFY(c.property("suggestions").toStringList().isEmpty());
+   QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","NextSuggestions"}}}));QTRY_VERIFY(!c.executingCommands());
+   QVERIFY(c.property("suggestions").toStringList().isEmpty());
+   c.setPredictionMode("invalid");QCOMPARE(c.predictionMode(),QString("off"));
+   c.setPredictionMode("frequency");QVERIFY(!c.property("suggestions").toStringList().isEmpty());
+   c.setLearning(true);QVERIFY(c.savePreferences());
+  }
+  {
+   Controller c;QCOMPARE(c.predictionMode(),QString("frequency"));QVERIFY(!c.predictNextWord());QVERIFY(c.learningEnabled());
+   c.openLayout("keyboard-conversation-fullscreen",false);
+   QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","zorbella "}}}));QTRY_VERIFY(!c.executingCommands());
+   QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","ClearScratchpad"}},QVariantMap{{"tag","Text"},{"text","zorb"}}}));QTRY_VERIFY(!c.executingCommands());
+   QVERIFY(c.property("suggestions").toStringList().contains("zorbella"));
+   c.setLearning(false);QVERIFY(!c.property("suggestions").toStringList().contains("zorbella"));
+   c.setLearning(true);QVERIFY(c.property("suggestions").toStringList().contains("zorbella"));
+   c.resetLearning();QVERIFY(!c.property("suggestions").toStringList().contains("zorbella"));
+   c.resetPreferences();QCOMPARE(c.predictionMode(),QString("context"));QVERIFY(c.predictNextWord());QVERIFY(!c.learningEnabled());
+  }
+ }
  void gazePreferenceLoadsSavesAndResets(){
   ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
   auto values=ProfileStore::defaults();QVERIFY(!values["gazeEnabled"].toBool());

@@ -55,7 +55,9 @@ class Controller:public QObject{
  Q_PROPERTY(QString mappingJson READ mappingJson NOTIFY changed)
  Q_PROPERTY(QString scratchpad MEMBER scratchpad NOTIFY changed)
  Q_PROPERTY(QStringList suggestions MEMBER suggestions NOTIFY changed)
- Q_PROPERTY(bool learning MEMBER learning NOTIFY changed)
+ Q_PROPERTY(bool learning READ learningEnabled WRITE setLearning NOTIFY changed)
+ Q_PROPERTY(QString predictionMode READ predictionMode WRITE setPredictionMode NOTIFY changed)
+ Q_PROPERTY(bool predictNextWord READ predictNextWord WRITE setPredictNextWord NOTIFY changed)
  Q_PROPERTY(bool hideKeyboardDuringMouseActions MEMBER hideKeyboardDuringMouseActions NOTIFY changed)
  Q_PROPERTY(bool keyboardTemporarilyHidden READ keyboardTemporarilyHidden NOTIFY changed)
  Q_PROPERTY(bool targeting MEMBER targeting NOTIFY changed)
@@ -131,6 +133,12 @@ public:
  Q_INVOKABLE void openLayout(QString name,bool backReturnsHere=true);
  Q_INVOKABLE void recover();
  Q_INVOKABLE void targetAt(double x,double y);
+ bool learningEnabled()const{return learning;}
+ void setLearning(bool enabled);
+ QString predictionMode()const{return predictionModeValue;}
+ void setPredictionMode(QString mode);
+ bool predictNextWord()const{return nextWordEnabled;}
+ void setPredictNextWord(bool enabled);
  Q_INVOKABLE void resetLearning();
  Q_INVOKABLE void speak();
  Q_INVOKABLE void stopSpeech();
@@ -205,6 +213,8 @@ private:
  qint64 lastGazeSample=0;
  QVariantMap layout;QString layoutName;QStringList layoutNames,menuLayoutNames,backStack;
  int suggestionOffset=0;
+ QString predictionModeValue="context";bool nextWordEnabled=true;
+ QStringList predictionSuggestions(int limit=8)const;
  QString scratchpad;QStringList suggestions,dictionary;QMap<QString,int> frequencies;
  QJsonObject mappingProfile;
 };

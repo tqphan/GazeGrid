@@ -444,7 +444,22 @@ Window {
       ColumnLayout {
        anchors.fill:parent;spacing:10
        Desktop.CheckBox {text:"Literal keys (bypass platform mappings)";checked:controller.literal;onToggled:controller.literal=checked}
-       Desktop.CheckBox {text:"Learn word frequencies locally";checked:controller.learning;onToggled:controller.learning=checked}
+       Kirigami.Heading {text:"Word prediction";level:3;Layout.topMargin:8}
+       Desktop.Label {text:"Prediction style"}
+       Desktop.ComboBox {
+        objectName:"predictionModeSelector";Layout.fillWidth:true
+        model:["Context-aware (recommended)","Common words","Off"]
+        currentIndex:["context","frequency","off"].indexOf(controller.predictionMode)
+        onActivated:controller.predictionMode=["context","frequency","off"][currentIndex]
+        Accessible.name:"Prediction style"
+       }
+       Desktop.Label {
+        text:controller.predictionMode==="context"?"Uses the preceding words to suggest what fits your sentence. Works offline from the first launch.":controller.predictionMode==="frequency"?"Suggests common English words without using the preceding words.":"Word suggestions are hidden."
+        wrapMode:Text.Wrap;Layout.fillWidth:true
+       }
+       Desktop.CheckBox {objectName:"predictNextWordToggle";text:"Suggest the next word after a space";enabled:controller.predictionMode!=="off";checked:controller.predictNextWord;onToggled:controller.predictNextWord=checked}
+       Desktop.CheckBox {text:"Use and learn personal words locally";checked:controller.learning;onToggled:controller.learning=checked}
+       Desktop.Label {text:"Personalization is optional. Turn it off to stop learning and ignore saved personal words. Reset learned words deletes them. Save preferences to keep these choices.";wrapMode:Text.Wrap;Layout.fillWidth:true}
        Desktop.Button {text:"Reset learned words";onClicked:controller.resetLearning()}
        Kirigami.Heading {text:"Speech";level:3;Layout.topMargin:8}
        Flow {Layout.fillWidth:true;spacing:8
