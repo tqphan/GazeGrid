@@ -6,6 +6,7 @@
 #include "KeyboardPack.h"
 #include "KeyboardLayout.h"
 #include "ActionRunner.h"
+#include "ActionCatalog.h"
 #include "KeyNames.h"
 #include "ProfileStore.h"
 #include "PointerActions.h"
@@ -24,6 +25,27 @@ class CoreTests:public QObject{
  Q_OBJECT
 static QVariantMap cmd(QString tag,QString text){return {{"tag",tag},{"text",text}};}
 private slots:
+ void conversationSpeakLabels(){
+  const auto layout=KeyboardLayout::fromXml(KeyboardPack::load(QStringLiteral(PACK_PATH)+"/keyboard-conversation-fullscreen.xml"));
+  QVERIFY(!layout.contains("error"));
+  const QStringList expected{"suction","index","thumb","rotate","slide","shoulders","headrest","button","butt","earbud","deflate","inflate"};
+  QStringList spoken;
+  ActionRunner runner;
+  runner.supportsAction=ActionCatalog::supported;
+  runner.speakLabel=[&](QString label){spoken<<label;};
+  QSignalSpy committed(&runner,&ActionRunner::textCommitted);
+  QSignalSpy failed(&runner,&ActionRunner::failed);
+  for(const auto &entry:layout["keys"].toList()){
+   const auto key=entry.toMap();
+   if(!expected.contains(key["label"].toString().trimmed()))continue;
+   const auto commands=key["commands"].toList();
+   QCOMPARE(commands.size(),1);
+   QCOMPARE(commands.first().toMap()["text"].toString(),QString("SpeakLabel"));
+   QVERIFY(runner.start(commands));QTRY_VERIFY(!runner.busy());
+  }
+  QCOMPARE(spoken,expected);
+  QCOMPARE(committed.count(),0);QCOMPARE(failed.count(),0);
+ }
  void fixedXmlKeyModes(){
   QTemporaryDir dir;
   auto compile=[&](QString mode,QString command){

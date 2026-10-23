@@ -59,7 +59,10 @@ QVariantMap KeyboardLayout::fromXml(const QVariantMap &root){
             for(auto it=attr.begin();it!=attr.end();++it)style[it.key()]=it.value();
             QVariantList commands;
             static const QSet<QString> commandTags{"Action","Text","KeyDown","KeyUp","KeyToggle","Wait","ChangeKeyboard"};
-            for(auto c:n["children"].toList()){auto child=c.toMap();if(commandTags.contains(child["tag"].toString()))commands<<child;}
+            for(auto c:n["children"].toList()){auto child=c.toMap();if(commandTags.contains(child["tag"].toString())){
+                if(child["tag"]=="Action"&&child["text"].toString().trimmed()=="SpeakLabel")child["label"]=field(n,"Label");
+                commands<<child;
+            }}
             QString mode;
             if(attr.contains("mode")){
                 const auto value=attr["mode"].toString().trimmed().toLower();

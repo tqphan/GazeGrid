@@ -33,39 +33,27 @@
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>suction</Label>
-      <Text>suction</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label> index </Label>
-      <Text>index</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label> thumb </Label>
-      <Text>thumb</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>rotate</Label>
-      <Text>rotate</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label> slide </Label>
-      <Text>slide</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>shoulders</Label>
-      <Text>shoulders</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey>
       <Symbol>NoIcon</Symbol>
@@ -79,39 +67,27 @@
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>headrest</Label>
-      <Text>headrest</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>button</Label>
-      <Text>button</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label> butt </Label>
-      <Text>butt</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>earbud</Label>
-      <Text>earbud</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>deflate</Label>
-      <Text>deflate</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>inflate</Label>
-      <Text>inflate</Text>
-      <Action>Speak</Action>
-      <Action>ClearScratchpad</Action>
+      <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey>
       <Symbol>NoIcon</Symbol>

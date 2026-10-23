@@ -128,6 +128,10 @@ void ActionRunner::step(){
         static const QSet<QString> modifiers{"LSHIFT","RSHIFT","LCONTROL","RCONTROL","LMENU","RMENU","LWIN","RWIN"};
         if(modifiers.contains(name))ok=queue.size()==1?cycleModifier(name):key(name,!isHeld(name),true);
         else if(!name.isEmpty()){ok=tap(name);if(ok&&name=="BACK"&&!shortcutHeld())emit textCommitted("\b");}
+        else if(value=="SpeakLabel"){
+            ok=bool(speakLabel);
+            if(ok)speakLabel(command["label"].toString().trimmed());
+        }
         else ok=performAction&&performAction(value);
     }
     if(!running)return; // A navigation/pause action may cancel the runner.

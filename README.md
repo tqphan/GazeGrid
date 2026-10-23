@@ -230,3 +230,7 @@ Individual keys can override the cycle state using `<DynamicKey mode="Hold" ...>
 Use `Tap`, `Repeat`, `Hold`, or `Toggle`; omit `mode` to follow the cycle.
 This works for keyboard keys and digital gamepad buttons.
 See [fixed XML modes](docs/game-controller.md#fixed-xml-modes) for examples.
+
+Custom keys can use `<Label>headrest</Label><Action>SpeakLabel</Action>` to speak
+their label directly without entering text or changing the scratchpad. Leading and
+trailing label whitespace is ignored. `<Action>Speak</Action>` speaks the scratchpad.

@@ -101,6 +101,7 @@ Controller::Controller(){
  connect(&gameController,&GameController::changed,this,&Controller::changed);
  connect(&gameController,&GameController::failed,this,[this](QString error){activeJoystick=-1;actionStatus=error;emit changed();});
  runner.performAction=[this](QString action){return performAction(action);};
+ runner.speakLabel=[this](QString label){if(!sensitiveInput)speech.speak(label);};
  runner.supportsAction=ActionCatalog::supported;
  runner.navigate=[this](QString name,bool back){openLayout(name,back);};
  connect(&runner,&ActionRunner::failed,this,[this](QString m){endButtonHold();gameController.reset();activeJoystick=-1;actionStatus=m.contains("Gamepad")&&!gameController.error().isEmpty()?gameController.error():m;emit changed();});
@@ -350,7 +351,7 @@ void Controller::activate(QString key){
  auto commands=keys[i].toMap()["commands"].toList();bool ok=false;commands=mapped(commands,ok);
  if(!ok){emit changed();return;}
  // Navigation, sleep, and scratchpad clearing work without a portal session.
- bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="CycleButtonMode"||value=="CycleKeyMode"||value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="NextSuggestions"||value=="PreviousSuggestions"||GameController::supports(value))))needsOutput=true;}
+ bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="CycleButtonMode"||value=="CycleKeyMode"||value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="SpeakLabel"||value=="NextSuggestions"||value=="PreviousSuggestions"||GameController::supports(value))))needsOutput=true;}
  if(needsOutput&&!runner.textOnly&&!ready()){actionStatus="Authorize desktop control before sending input";emit changed();return;}
  if(!runner.textOnly&&commands.size()==1){
   auto cmd=commands.front().toMap();

@@ -14,6 +14,7 @@ public:
     std::function<bool()> canCommitText;
     std::function<bool(QString)> supportsPhysicalKey;
     std::function<bool(QString)> performAction;
+    std::function<void(QString)> speakLabel;
     std::function<bool(QString)> supportsAction;
     std::function<void(QString,bool)> navigate;
     bool textOnly=false; // Conversation keyboards never send desktop input.

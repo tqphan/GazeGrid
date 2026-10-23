@@ -184,7 +184,7 @@ Window {
    Text {
     anchors.fill:parent;anchors.margins:12;visible:key.modelData.kind==="Scratchpad"
     text:controller.scratchpad;color:key.foreground;wrapMode:Text.Wrap
-    font.pixelSize:24;verticalAlignment:Text.AlignVCenter
+    font.pixelSize:24;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
    }
    Column {
     anchors.centerIn:parent;spacing:4
