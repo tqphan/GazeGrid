@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build the bundled model; downloads are deliberately separate from normal builds.
 
-python3 tools/build_prediction_model.py --sentences /tmp/optikey-eng.tsv.bz2 \
-  --frequencies /tmp/optikey-frequencies.txt --evaluation build/prediction-heldout.jsonl
+python3 tools/build_prediction_model.py --sentences /tmp/gazegrid-eng.tsv.bz2 \
+  --frequencies /tmp/gazegrid-frequencies.txt --evaluation build/prediction-heldout.jsonl
 """
 import argparse
 import bz2
@@ -67,7 +67,7 @@ def main():
                     history.append(word)
     frequency_total = sum(frequency.values())
     corpus_total = sum(unigram.values())
-    rows = ['optikey-prediction-v1']
+    rows = ['gazegrid-prediction-v1']
     for word in sorted(vocabulary):
         probability = .8 * frequency[word] / frequency_total + .2 * unigram[word] / corpus_total
         rows.append(f'u\t{word}\t{max(probability, 1e-10):.9g}')

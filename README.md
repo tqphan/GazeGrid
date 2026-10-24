@@ -1,6 +1,8 @@
-# OptiKey Pro — Linux prototype
+# GazeGrid — Linux prototype
 
-Qt 6 Quick/QML and C++20 implementation in its own sibling project. The original OptiKey repository is unchanged. This is the initial integration prototype, not the completed Pro rewrite.
+Qt 6 Quick/QML and C++20 implementation in its own sibling project. The original OptiKey repository is unchanged. This is the initial integration prototype, not the completed rewrite.
+
+The application and build target are GazeGrid (`gazegrid`), with desktop ID `org.gazegrid.GazeGrid`. Runtime overrides use the `GAZEGRID_` prefix.
 
 ## Build and run on this machine
 
@@ -25,11 +27,11 @@ The default SDK is the exact user-supplied `stream_engine_linux_3.0.4.6031` dire
 - **Magnetic cursor** follows valid gaze while Gaze is enabled. **Look to scroll** selects an anchor, then scrolls in either axis beyond a 50-pixel deadzone, with the original default medium-speed calculation. Looking over the keyboard or opening Settings suppresses scrolling. The Look to scroll key stays highlighted while active. Brief tracking loss pauses scrolling for up to 750 ms; fresh gaze resumes it without accumulated movement. Longer tracking loss, cancellation, or pause stops it. Magnetic cursor stops immediately on tracking loss. Settings → Look to scroll offers speed (10–300%, default 100%), centre dead zone (10–200 pixels, default 50), and direction (both axes, vertical only, or horizontal only). Changes apply immediately; Save preferences keeps them after restart. Advanced scroll-area bounds and its overlay remain pending.
 - **Speak** and **Stop speech** use an owned Speech Dispatcher connection on a worker thread. Stop cancels this app’s speech, and failures are reported without blocking typing. Prediction uses a bundled offline English frequency and context model, ready on first launch. It ranks completions using the preceding three words and offers next-word suggestions after a space. Optional local learning gives personal words a bounded boost; it is not required for useful defaults. Model attribution, rebuilding, and evaluation are documented in [resources/prediction/README.md](resources/prediction/README.md). Live voice and prediction usability acceptance remain pending.
 
-Standalone portal output uses US physical keycodes. Experimental KWin input-method mode also supports native Unicode text commits. **Magnifier** highlights when enabled, automatically remembers its state between launches, and enables magnified target selection using the desktop Screenshot portal. Set zoom from 2× to 8× (default 4×) in **Settings → Magnifier**, then save preferences. Enable **Progressive zoom** in the same settings category to grow magnification from 1× to the selected zoom over 0.5–5 seconds (default 1.5 seconds). During the animation, zoom stays focused on the initially selected target; gaze and pointer movement do not steer it. The view holds still for precise selection after the animation finishes. Leave it off for immediate magnification. This uses one screenshot per target, with no live screen-sharing session. To use it: select a pointer action, dwell on an approximate point, approve capture if prompted, then dwell on the precise point after zoom finishes. No physical mouse click is needed. **Select pointer targets by dwell** is enabled by default in **Settings → Magnifier**, with separate start (750 ms) and confirmation (1000 ms) sliders and a movement tolerance slider (40 px). Both gaze and pointer hover work; a ring shows dwell progress. Save preferences to retain changes. Capture cancellation cancels the action. OptiKey registers its application identity before normal portal use so supported desktops can remember screenshot approval for this app. Screenshot approval is managed by the desktop and can be revoked; it does not use the keyboard/mouse restore token. This currently requires one display; native KDE capture and precise-click acceptance passed; live gaze acceptance remains pending. Unknown actions are rejected before any part of their macro executes. Absolute pointer targeting requires one EIS display region. Successful XML loading or action dispatch does not establish full pack compatibility. No existing plugins or legacy settings are loaded.
+Standalone portal output uses US physical keycodes. Experimental KWin input-method mode also supports native Unicode text commits. **Magnifier** highlights when enabled, automatically remembers its state between launches, and enables magnified target selection using the desktop Screenshot portal. Set zoom from 2× to 8× (default 4×) in **Settings → Magnifier**, then save preferences. Enable **Progressive zoom** in the same settings category to grow magnification from 1× to the selected zoom over 0.5–5 seconds (default 1.5 seconds). During the animation, zoom stays focused on the initially selected target; gaze and pointer movement do not steer it. The view holds still for precise selection after the animation finishes. Leave it off for immediate magnification. This uses one screenshot per target, with no live screen-sharing session. To use it: select a pointer action, dwell on an approximate point, approve capture if prompted, then dwell on the precise point after zoom finishes. No physical mouse click is needed. **Select pointer targets by dwell** is enabled by default in **Settings → Magnifier**, with separate start (750 ms) and confirmation (1000 ms) sliders and a movement tolerance slider (40 px). Both gaze and pointer hover work; a ring shows dwell progress. Save preferences to retain changes. Capture cancellation cancels the action. GazeGrid registers its application identity before normal portal use so supported desktops can remember screenshot approval for this app. Screenshot approval is managed by the desktop and can be revoked; it does not use the keyboard/mouse restore token. This currently requires one display; native KDE capture and precise-click acceptance passed; live gaze acceptance remains pending. Unknown actions are rejected before any part of their macro executes. Absolute pointer targeting requires one EIS display region. Successful XML loading or action dispatch does not establish full pack compatibility. No existing plugins or legacy settings are loaded.
 
 ## Diagnostics and tests
 
-Preferences now use a versioned `profile.json` under the application configuration directory (`runtime/config/OptiKey/OptiKey-Pro/` with `run.sh`). In Settings, choose **Save preferences and startup keyboard** to persist dwell time, keyboard height, keyboard theme, literal-key mode, local-learning preference, and the currently selected keyboard. Settings → Keyboard → Appearance offers System, Midnight, Ocean, Forest, Warm Paper, and High Contrast keyboard themes. System follows the desktop light/dark theme. The settings interface follows the desktop theme. The XML is unchanged, and minimized recovery layouts use a borderless restore button flush with the selected screen corner. Its width, height, and opacity (10–100%) are configurable under Settings → Keyboard → Restore button. Changes take effect immediately; saving is explicit. **Reset preferences** restores defaults and leaves input paused. Reset does not delete learned words or shortcut mappings; learned words have their own reset control.
+Preferences now use a versioned `profile.json` under the application configuration directory (`runtime/config/GazeGrid/GazeGrid/` with `run.sh`). In Settings, choose **Save preferences and startup keyboard** to persist dwell time, keyboard height, keyboard theme, literal-key mode, local-learning preference, and the currently selected keyboard. Settings → Keyboard → Appearance offers System, Midnight, Ocean, Forest, Warm Paper, and High Contrast keyboard themes. System follows the desktop light/dark theme. The settings interface follows the desktop theme. The XML is unchanged, and minimized recovery layouts use a borderless restore button flush with the selected screen corner. Its width, height, and opacity (10–100%) are configurable under Settings → Keyboard → Restore button. Changes take effect immediately; saving is explicit. **Reset preferences** restores defaults and leaves input paused. Reset does not delete learned words or shortcut mappings; learned words have their own reset control.
 
 Writes are atomic and retain a validated `.bak` recovery copy. If the main profile is corrupt, startup uses that copy or defaults and reports recovery in Settings. Profiles from newer versions are preserved and cannot be overwritten without an explicit reset. This fresh format does not import the prototype's QSettings file or legacy OptiKey settings.
 
@@ -52,9 +54,9 @@ recording individual gaze coordinates or requesting desktop authorization.
 
 `--validate-keyboards` verifies XML parsing, geometry, command syntax and local navigation targets. It reports per-layout actions, unsupported actions, symbols and attribute names, preserving command order and Text whitespace. Implementation categories are not an action compatibility certification; `behavioralParityVerified` remains false.
 
-`--smoke` displays the panel briefly and closes it. Set `OPTIKEY_SCREENSHOT` to a file path to capture the panel itself.
+`--smoke` displays the panel briefly and closes it. Set `GAZEGRID_SCREENSHOT` to a file path to capture the panel itself.
 
-`--portal-check` opens a permission session and waits for usable libei devices without emitting input. `--input-check` opens a separate disposable receiver after authorization, waits for receiver focus, and sends `optikey` plus Enter. It reports receipt and closes. Click the receiver if KDE does not activate it automatically. Do not switch focus during this short test. The check also clicks the XML q key and verifies that the receiver keeps focus and receives q. It stops if the receiver loses focus. Passing does not establish browser/XWayland compatibility.
+`--portal-check` opens a permission session and waits for usable libei devices without emitting input. `--input-check` opens a separate disposable receiver after authorization, waits for receiver focus, and sends `gazegrid` plus Enter. It reports receipt and closes. Click the receiver if KDE does not activate it automatically. Do not switch focus during this short test. The check also clicks the XML q key and verifies that the receiver keeps focus and receives q. It stops if the receiver loses focus. Passing does not establish browser/XWayland compatibility.
 
 See `docs/host-acceptance.md` for observed results and outstanding gates, and `docs/OptiKey-Pro-modernization-plan.md` for the agreed decisions.
 
@@ -69,10 +71,9 @@ Settings can opt into remembering desktop-control permission where the portal su
 ## Experimental Plasma input method
 
 `--input-method` must be launched by KWin with its inherited Wayland socket.
-CMake generates `build/org.optikey.Pro.InputMethod.desktop` pointing to this build;
-the build does not automatically install or select it. On this machine the entry
-has been registered in the user application directory and Plasma’s cache refreshed,
-but Plasma Keyboard is still selected.
+CMake generates `build/org.gazegrid.GazeGrid.InputMethod.desktop` pointing to this build;
+the build does not automatically install or select it. The renamed entry must be
+registered before it can be selected in Plasma’s virtual keyboard settings.
 
 Run `python3 tests/native_input_method.py` to check 22 top/bottom placement-button
 clicks, focus retention, Unicode commits, Backspace, Return and password-field
@@ -93,12 +94,12 @@ require standalone mode and are labeled unavailable in Plasma mode.
 Pointer actions and held physical shortcuts still require desktop authorization.
 Real-session focus/recovery, GTK/browser/XWayland compatibility, and gaze
 acceptance remain outstanding. Selectable registration alone does not establish
-that OptiKey is ready to replace Plasma Keyboard.
+that GazeGrid is ready to replace Plasma Keyboard.
 
-Click the OptiKey system tray icon, or choose **Settings…** from its menu, to open
+Click the GazeGrid system tray icon, or choose **Settings…** from its menu, to open
 Settings. Authorize, Tobii, recovery, gaze, and speech controls are
 available there in every category. There is no separate controls window.
-Opening Settings keeps the keyboard’s current pause state. Closing Settings keeps OptiKey
+Opening Settings keeps the keyboard’s current pause state. Closing Settings keeps GazeGrid
 running. Choose **Quit OptiKey** in Settings or the tray menu to exit.
 The keyboard's Settings command and `--settings` also open the same window.
 Settings controls use pointer clicks; gaze hit testing remains on the keyboard

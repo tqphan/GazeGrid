@@ -103,7 +103,7 @@ exit as well as the receiver's pass marker. All five build regression suites pas
 
 The validated desktop entry now launches the project `run.sh`, retaining local
 preferences/cache behavior. It is installed at
-`~/.local/share/applications/org.optikey.Pro.InputMethod.desktop`, and
+`~/.local/share/applications/org.gazegrid.GazeGrid.InputMethod.desktop`, and
 `kbuildsycoca6 --noincremental` succeeded. The existing kwinrc selection remains
 `/usr/share/applications/org.kde.plasma.keyboard.desktop` with mode 1.
 Real-session application compatibility and gaze acceptance remain outstanding.

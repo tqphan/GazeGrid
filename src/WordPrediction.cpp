@@ -39,7 +39,7 @@ struct Model {
   if(!file.open(QIODevice::ReadOnly))qFatal("Bundled English prediction model is missing");
   const auto data=qUncompress(file.readAll());
   const auto lines=data.split('\n');
-  if(lines.isEmpty()||lines.front()!="optikey-prediction-v1")qFatal("Invalid English prediction model");
+  if(lines.isEmpty()||lines.front()!="gazegrid-prediction-v1")qFatal("Invalid English prediction model");
   for(const auto &line:lines){
    const auto fields=line.split('\t');
    if(fields.size()==3&&fields[0]=="u")prior.insert(QString::fromUtf8(fields[1]),fields[2].toDouble());

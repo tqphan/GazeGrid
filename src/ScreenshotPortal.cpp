@@ -24,7 +24,7 @@ void ScreenshotPortal::cancel(){
 void ScreenshotPortal::capture(){
  cancel();const auto epoch=generation;auto bus=QDBusConnection::sessionBus();
  if(!bus.isConnected()){emit failed("Desktop screenshot portal is unavailable");return;}
- QString token="optikey_magnifier_"+QUuid::createUuid().toString(QUuid::Id128);
+ QString token="gazegrid_magnifier_"+QUuid::createUuid().toString(QUuid::Id128);
  QString sender=bus.baseService().mid(1);sender.replace('.','_');
  requestPath="/org/freedesktop/portal/desktop/request/"+sender+"/"+token;
  if(!bus.connect(service,requestPath,requestInterface,"Response",this,SLOT(response(uint,QVariantMap)))){

@@ -584,7 +584,7 @@ int main(int argc,char **argv){
  QTemporaryDir dir;if(!dir.isValid())return 1;
  qputenv("XDG_CONFIG_HOME",dir.path().toUtf8());
  qputenv("QT_QPA_PLATFORM","offscreen");
- QGuiApplication app(argc,argv);app.setOrganizationName("OptiKeyTests");app.setApplicationName("Controller");
+ QGuiApplication app(argc,argv);app.setOrganizationName("GazeGridTests");app.setApplicationName("Controller");
  ControllerTests tests;return QTest::qExec(&tests,argc,argv);
 }
 #include "ControllerTests.moc"

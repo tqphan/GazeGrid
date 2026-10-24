@@ -26,7 +26,7 @@
 #include "KeyboardLayout.h"
 #include "SymbolProvider.h"
 #include "PointerCheck.h"
-#ifdef OPTIKEY_LINUX
+#ifdef GAZEGRID_LINUX
 #include <LayerShellQt/Window>
 #include "PlasmaInputMethod.h"
 #endif
@@ -66,7 +66,7 @@ int main(int argc,char **argv){
  for(int i=1;i<argc;++i){QString arg=argv[i];diagnose|=arg=="--diagnose";audit|=arg=="--validate-keyboards";smoke|=arg=="--smoke";portalCheck|=arg=="--portal-check";inputCheck|=arg=="--input-check";inputTarget|=arg=="--input-target";pointerCheck|=arg=="--pointer-check";pointerTarget|=arg=="--pointer-target";}
  if(diagnose||audit)qputenv("QT_QPA_PLATFORM","offscreen");
  QQuickWindow::setDefaultAlphaBuffer(true);
- QApplication app(argc,argv);app.setOrganizationName("OptiKey");app.setApplicationName("OptiKey-Pro");app.setDesktopFileName("org.optikey.Pro");
+ QApplication app(argc,argv);app.setOrganizationName("GazeGrid");app.setApplicationName("GazeGrid");app.setApplicationDisplayName("GazeGrid");app.setDesktopFileName("org.gazegrid.GazeGrid");
  if(app.arguments().contains("--editor")){
   KeyboardEditor editor;
   int index=app.arguments().indexOf("--editor");
@@ -74,7 +74,7 @@ int main(int argc,char **argv){
   editor.show();return app.exec();
  }
  const bool magnifierCheck=app.arguments().contains("--magnifier-check");pointerCheck|=magnifierCheck;
- if(app.arguments().contains("--input-method-check")&&qgetenv("OPTIKEY_ISOLATED_IM_TEST")!="1"){
+ if(app.arguments().contains("--input-method-check")&&qgetenv("GAZEGRID_ISOLATED_IM_TEST")!="1"){
   QTextStream(stderr)<<"Run tests/native_input_method.py to isolate the native input check\n";return 2;
  }
  if(app.arguments().contains("--input-method-target")){
@@ -83,7 +83,7 @@ int main(int argc,char **argv){
   auto target=targetEngine.rootObjects().front();QTimer poll;
   QObject::connect(&poll,&QTimer::timeout,&app,[&]{
    if(target->property("focusLost").toBool()){QTextStream(stderr)<<"Native receiver lost focus\n";app.exit(2);return;}
-   if(target->property("privateComplete").toBool()&&target->property("receivedText").toString()==QString::fromUtf8("OptiKey é€😀\n")){
+   if(target->property("privateComplete").toBool()&&target->property("receivedText").toString()==QString::fromUtf8("GazeGrid é€😀\n")){
    QTextStream(stdout)<<"PASS: native Unicode commit, Backspace, Return and private field reached the Qt receiver"<<Qt::endl;app.quit();
   }});poll.start(100);QTimer::singleShot(20000,&app,[&]{QTextStream(stderr)<<"Native input-method receiver timed out\n";app.exit(2);});return app.exec();
  }
@@ -120,13 +120,13 @@ int main(int argc,char **argv){
   if(app.arguments().contains("--input-method-check"))QTextStream(stderr)<<"Native input-method interfaces bound"<<Qt::endl;
  }
  // Register before any portal request so remembered screenshot approval belongs
- // to OptiKey rather than an unidentified host application. Older portals may
+ // to GazeGrid rather than an unidentified host application. Older portals may
  // not implement Registry; their normal permission dialogs remain available.
  bool registerIdentity=!smoke;
  for(const auto &arg:app.arguments())if(arg.endsWith("-check"))registerIdentity=false;
  if(registerIdentity){
   auto registration=QDBusMessage::createMethodCall("org.freedesktop.portal.Desktop","/org/freedesktop/portal/desktop","org.freedesktop.host.portal.Registry","Register");
-  registration.setArguments({QString("org.optikey.Pro"),QVariantMap{}});
+  registration.setArguments({QString("org.gazegrid.GazeGrid"),QVariantMap{}});
   QDBusConnection::sessionBus().call(registration,QDBus::Block,2000);
  }
  Controller controller;
@@ -163,7 +163,7 @@ int main(int argc,char **argv){
        QTextStream(stderr)<<"Native placement check: "<<(sensitive?"bottom":"top")<<" (11 UI clicks)"<<Qt::endl;
        QVariantList commands;
        if(sensitive)commands={QVariantMap{{"tag","Text"},{"text","secret42"}}};
-       else commands={QVariantMap{{"tag","Text"},{"text",QString::fromUtf8("OptiKey é€😀X")}},QVariantMap{{"tag","Action"},{"text","Backspace"}},QVariantMap{{"tag","Text"},{"text","\n"}}};
+       else commands={QVariantMap{{"tag","Text"},{"text",QString::fromUtf8("GazeGrid é€😀X")}},QVariantMap{{"tag","Action"},{"text","Backspace"}},QVariantMap{{"tag","Text"},{"text","\n"}}};
        if(!controller.executeCommands(commands)){QTextStream(stderr)<<"Native check could not start\n";app.exit(2);}
        return;
       }
@@ -226,15 +226,15 @@ int main(int argc,char **argv){
  if(!settings)return 1;
  settings->setTransientParent(nullptr);
  app.setQuitOnLastWindowClosed(false);
- QSystemTrayIcon tray(QIcon::fromTheme("input-keyboard",QIcon(":/resources/optikey-tray.svg")));
- tray.setToolTip("OptiKey Pro");
+ QSystemTrayIcon tray(QIcon::fromTheme("input-keyboard",QIcon(":/resources/gazegrid-tray.svg")));
+ tray.setToolTip("GazeGrid");
  QMenu trayMenu;
  auto openSettings=trayMenu.addAction(QIcon::fromTheme("configure"),"Settings…");
  QObject::connect(openSettings,&QAction::triggered,&controller,[&]{controller.activate("Settings");});
  auto openEditor=trayMenu.addAction("Keyboard editor…");
  QObject::connect(openEditor,&QAction::triggered,&app,[]{QProcess::startDetached(QCoreApplication::applicationFilePath(),{"--editor"});});
  trayMenu.addSeparator();
- auto quitAction=trayMenu.addAction(QIcon::fromTheme("application-exit"),"Quit OptiKey");
+ auto quitAction=trayMenu.addAction(QIcon::fromTheme("application-exit"),"Quit GazeGrid");
  QObject::connect(quitAction,&QAction::triggered,&app,&QApplication::quit);
  tray.setContextMenu(&trayMenu);
  QObject::connect(&tray,&QSystemTrayIcon::activated,&controller,[&](QSystemTrayIcon::ActivationReason reason){
@@ -282,15 +282,15 @@ int main(int argc,char **argv){
   }
   window->setScreen(screen);window->resize(width,height);
   window->setProperty("screenWidth",size.width());window->setProperty("screenHeight",size.height());window->setProperty("logicalX",x);window->setProperty("logicalY",y);
-#ifdef OPTIKEY_LINUX
+#ifdef GAZEGRID_LINUX
   if(QGuiApplication::platformName().startsWith("wayland")){
    if(inputMethod&&!inputMethod->attachPanel(window,top||fullScreen)){QTextStream(stderr)<<"Unable to assign keyboard surface role\n";app.exit(2);return;}
-   if(!inputMethod||top||fullScreen){auto layer=LayerShellQt::Window::get(window);layer->setScope("optikey-pro-keyboard");layer->setScreen(screen);layer->setLayer((minimized||fullScreen)?LayerShellQt::Window::LayerOverlay:LayerShellQt::Window::LayerTop);
+   if(!inputMethod||top||fullScreen){auto layer=LayerShellQt::Window::get(window);layer->setScope("gazegrid-keyboard");layer->setScreen(screen);layer->setLayer((minimized||fullScreen)?LayerShellQt::Window::LayerOverlay:LayerShellQt::Window::LayerTop);
    layer->setAnchors(minimized?LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft:LayerShellQt::Window::Anchors(top?LayerShellQt::Window::AnchorTop:LayerShellQt::Window::AnchorBottom));
    layer->setMargins(minimized?QMargins(x,y,0,0):top?QMargins(0,offset,0,0):QMargins(0,0,0,-offset));layer->setDesiredSize(QSize(width,height));
    layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);layer->setActivateOnShow(false);layer->setExclusiveZone(inputMethod||minimized||fullScreen?-1:0);
    }
-   if(target){target->setScreen(screen);target->resize(size);auto overlay=LayerShellQt::Window::get(target);overlay->setScope("optikey-pro-target");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setExclusiveZone(-1);}
+   if(target){target->setScreen(screen);target->resize(size);auto overlay=LayerShellQt::Window::get(target);overlay->setScope("gazegrid-target");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setExclusiveZone(-1);}
   }else
 #endif
   {window->setPosition(screen->geometry().topLeft()+QPoint(x,y));}
@@ -644,7 +644,7 @@ int main(int argc,char **argv){
       // Send only after the disposable receiver reports keyboard focus.
       auto layout=KeyboardLayout::fromXml(KeyboardPack::load(QStringLiteral(DEFAULT_PACK_PATH)+"/keyboard-alphabet-14x4-bottom.xml"));
       QVariantList sequence;
-      for(auto letter:QString("optikey")){
+      for(auto letter:QString("gazegrid")){
        bool found=false;
        for(auto v:layout["keys"].toList()){auto key=v.toMap();if(key["label"].toString()==QString(letter)){sequence+=key["commands"].toList();found=true;break;}}
        if(!found){app.exit(4);return;}
@@ -656,8 +656,8 @@ int main(int argc,char **argv){
     if(obj.contains("text")){
      received+=obj["text"].toString();
      if(obj["key"].toInt()==Qt::Key_Return){
-      bool passed=received=="optikey\r";
-      QTextStream(stdout)<<(passed?"PASS: imported XML actions delivered optikey + Enter to separate Wayland receiver":"FAIL: unexpected input sequence")<<Qt::endl;
+      bool passed=received=="gazegrid\r";
+      QTextStream(stdout)<<(passed?"PASS: imported XML actions delivered gazegrid + Enter to separate Wayland receiver":"FAIL: unexpected input sequence")<<Qt::endl;
       if(!passed){app.exit(5);return;}
       if(!controller.output()->absoluteAvailable()){QTextStream(stdout)<<"Click/focus check unavailable: no unique absolute EIS region"<<Qt::endl;app.exit(6);return;}
       clickStage=true;
@@ -689,7 +689,7 @@ int main(int argc,char **argv){
  if(!diagnosticMode&&controller.property("rememberDesktop").toBool())
   QTimer::singleShot(0,&controller,&Controller::connectDesktop);
  if(smoke)QTimer::singleShot(1500,&app,[&]{
-  auto output=qEnvironmentVariable("OPTIKEY_SCREENSHOT");
+  auto output=qEnvironmentVariable("GAZEGRID_SCREENSHOT");
   auto captureWindow=args.contains("--settings")?window->findChild<QQuickWindow*>("settingsWindow"):window;
   if(!output.isEmpty()&&(!captureWindow||!captureWindow->grabWindow().save(output))){QTextStream(stderr)<<"Screenshot failed"<<Qt::endl;app.exit(3);return;}
   app.quit();

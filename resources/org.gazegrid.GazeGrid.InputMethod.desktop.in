@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=OptiKey Pro
+Name=GazeGrid
 Comment=Gaze-controlled keyboard and native text input
-Exec=@OPTIKEY_EXECUTABLE@ --input-method
+Exec=@GAZEGRID_EXECUTABLE@ --input-method
 Type=Application
 Icon=input-keyboard-virtual
 NoDisplay=true

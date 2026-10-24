@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=OptiKey Pro
+Name=GazeGrid
 Comment=Gaze-controlled keyboard and pointer
-Exec=@OPTIKEY_EXECUTABLE@
+Exec=@GAZEGRID_EXECUTABLE@
 Icon=input-keyboard
 Terminal=false
 Categories=Utility;Accessibility;

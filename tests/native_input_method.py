@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise OptiKey on a private, headless KWin compositor; never the user's session."""
+"""Exercise GazeGrid on a private, headless KWin compositor; never the user's session."""
 import os
 from pathlib import Path
 import shlex
@@ -13,8 +13,8 @@ parser.add_argument("--late-start", action="store_true", help="Start the keyboar
 args = parser.parse_args()
 
 root = Path(__file__).resolve().parents[1]
-binary = root / "build/optikey-pro"
-with tempfile.TemporaryDirectory(prefix="optikey-native-im-") as directory:
+binary = root / "build/gazegrid"
+with tempfile.TemporaryDirectory(prefix="gazegrid-native-im-") as directory:
     work = Path(directory)
     for name in ("config", "cache", "runtime"):
         (work / name).mkdir(mode=0o700)
@@ -29,9 +29,9 @@ with tempfile.TemporaryDirectory(prefix="optikey-native-im-") as directory:
         env.pop(name, None)
     env.update(XDG_RUNTIME_DIR=str(work / "runtime"), XDG_CONFIG_HOME=str(work / "config"),
                XDG_CACHE_HOME=str(work / "cache"), QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software",
-               KWIN_COMPOSE="Q", OPTIKEY_ISOLATED_IM_TEST="1", QT_QPA_PLATFORMTHEME="generic")
+               KWIN_COMPOSE="Q", GAZEGRID_ISOLATED_IM_TEST="1", QT_QPA_PLATFORMTHEME="generic")
     command = ["dbus-run-session", "--", "kwin_wayland", "--virtual", "--width", "1024", "--height", "768",
-               "--socket", "optikey-test", "--no-lockscreen", "--no-global-shortcuts", "--no-kactivities",
+               "--socket", "gazegrid-test", "--no-lockscreen", "--no-global-shortcuts", "--no-kactivities",
                "--inputmethod", str(work / "keyboard"), "--exit-with-session", str(work / "receiver")]
     # Use a file: portal services may inherit stdout after KWin exits, so a
     # PIPE would keep communicate() waiting for unrelated service lifetimes.

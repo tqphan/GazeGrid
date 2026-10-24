@@ -7,7 +7,7 @@ Window {
  id: root
  objectName: "keyboardWindow"
  width: 1100; height: 370; visible: false
- title: "OptiKey Pro"
+ title: "GazeGrid"
  // Keep the native surface translucent for its entire lifetime.
  color:"transparent"
  flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
@@ -342,7 +342,7 @@ Window {
   }
  }
  Window {
-  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1000,root.screenWidth);height:Math.min(720,root.screenHeight-60);title:"OptiKey settings";color:Kirigami.Theme.backgroundColor
+  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1000,root.screenWidth);height:Math.min(720,root.screenHeight-60);title:"GazeGrid settings";color:Kirigami.Theme.backgroundColor
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
   property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Shortcuts","Look to scroll"]
   property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","preferences-desktop-keyboard-shortcuts","transform-move"]
@@ -427,7 +427,7 @@ Window {
        Text {visible:text.length>0;text:controller.heldKeys.length?"Held: "+controller.heldKeys.join(", "):"";color:Kirigami.Theme.neutralTextColor}
        Text {visible:text.length>0;text:controller.heldPointerButtons.length?"Mouse held: "+controller.heldPointerButtons.join(", "):"";color:Kirigami.Theme.neutralTextColor}
        Tool {id:recover;text:"Home / recover";command:"Recover"}
-       Desktop.Button {text:"Quit OptiKey";icon.name:"application-exit";onClicked:Qt.quit()}
+       Desktop.Button {text:"Quit GazeGrid";icon.name:"application-exit";onClicked:Qt.quit()}
       }
      }
      Desktop.GroupBox {
@@ -590,7 +590,7 @@ Window {
         Tool {id:speakButton;text:"Speak";command:"Speak"}
         Tool {id:stopSpeechButton;text:"Stop speech";command:"StopSpeech"}
        }
-       Desktop.Label {text:"Scratchpad (text typed by OptiKey only)"}
+       Desktop.Label {text:"Scratchpad (text typed by GazeGrid only)"}
        Desktop.TextArea {text:controller.scratchpad;readOnly:true;Layout.fillWidth:true;Layout.preferredHeight:70;wrapMode:Text.Wrap}
       }
      }

@@ -4,6 +4,6 @@
 
 // Keep application data separate without hiding the desktop theme configuration.
 inline QString appConfigDirectory() {
- const auto overridePath=qEnvironmentVariable("OPTIKEY_CONFIG_DIR");
+ const auto overridePath=qEnvironmentVariable("GAZEGRID_CONFIG_DIR");
  return overridePath.isEmpty()?QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation):overridePath;
 }
