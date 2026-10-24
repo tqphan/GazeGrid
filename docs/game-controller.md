@@ -9,7 +9,10 @@ It applies to all single digital button keys, including LB, RB and the D-pad.
 Tap pulses for 100 ms; Repeat taps while dwelling at the configured repeat interval;
 Hold presses after dwell and releases when mouse or gaze leaves; Toggle stays pressed
 until selected again. Clicks tap except in Toggle mode. **Release all**, pause,
-tracking loss, layout changes and changing button modes release buttons.
+tracking loss and changing button modes release buttons. Layout changes release buttons
+unless **Preserve toggled keys between layouts** is enabled; only toggled digital
+buttons persist, while momentary presses and analog axes reset. Entering conversation
+mode always releases buttons.
 Analog sticks and trigger axes retain their existing controls.
 
 Custom keys can use `<Action>CycleButtonMode</Action>`. The action is also available

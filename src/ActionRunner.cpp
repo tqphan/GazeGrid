@@ -60,13 +60,13 @@ bool ActionRunner::start(const QVariantList &commands){
     }
     queue=commands;index=0;waiting=false;running=true;emit stateChanged();timer.start(0);return true;
 }
-void ActionRunner::cancel(bool preserveModifiers){
+void ActionRunner::cancel(bool preserveModifiers,bool preserveToggles){
     endDwellHold();
-    releaseToggledKeys();
+    if(!preserveToggles)releaseToggledKeys();
     timer.stop();running=false;waiting=false;queue.clear();index=0;
     const auto copy=held;
     for(const auto &name:copy){
-        if(preserveModifiers&&modifierKeys.contains(name)&&!transient.contains(name))continue;
+        if(!transient.contains(name)&&((preserveModifiers&&modifierKeys.contains(name))||(preserveToggles&&!modifierKeys.contains(name))))continue;
         held.remove(name);latched.remove(name);
         if(!textOnly&&sendKey)sendKey(name,false);
     }

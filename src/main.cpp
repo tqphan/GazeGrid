@@ -22,6 +22,7 @@
 #include <QDBusMessage>
 #include "Controller.h"
 #include "KeyboardPack.h"
+#include "KeyboardEditor.h"
 #include "KeyboardLayout.h"
 #include "SymbolProvider.h"
 #include "PointerCheck.h"
@@ -66,6 +67,12 @@ int main(int argc,char **argv){
  if(diagnose||audit)qputenv("QT_QPA_PLATFORM","offscreen");
  QQuickWindow::setDefaultAlphaBuffer(true);
  QApplication app(argc,argv);app.setOrganizationName("OptiKey");app.setApplicationName("OptiKey-Pro");app.setDesktopFileName("org.optikey.Pro");
+ if(app.arguments().contains("--editor")){
+  KeyboardEditor editor;
+  int index=app.arguments().indexOf("--editor");
+  if(index+1<app.arguments().size()&&!app.arguments()[index+1].startsWith("--"))editor.openFile(app.arguments()[index+1]);
+  editor.show();return app.exec();
+ }
  const bool magnifierCheck=app.arguments().contains("--magnifier-check");pointerCheck|=magnifierCheck;
  if(app.arguments().contains("--input-method-check")&&qgetenv("OPTIKEY_ISOLATED_IM_TEST")!="1"){
   QTextStream(stderr)<<"Run tests/native_input_method.py to isolate the native input check\n";return 2;
@@ -224,6 +231,8 @@ int main(int argc,char **argv){
  QMenu trayMenu;
  auto openSettings=trayMenu.addAction(QIcon::fromTheme("configure"),"Settings…");
  QObject::connect(openSettings,&QAction::triggered,&controller,[&]{controller.activate("Settings");});
+ auto openEditor=trayMenu.addAction("Keyboard editor…");
+ QObject::connect(openEditor,&QAction::triggered,&app,[]{QProcess::startDetached(QCoreApplication::applicationFilePath(),{"--editor"});});
  trayMenu.addSeparator();
  auto quitAction=trayMenu.addAction(QIcon::fromTheme("application-exit"),"Quit OptiKey");
  QObject::connect(quitAction,&QAction::triggered,&app,&QApplication::quit);
@@ -330,6 +339,11 @@ int main(int argc,char **argv){
   auto hit=[&](double x,double y){
    QVariant result;
    QMetaObject::invokeMethod(window,"keyAt",Q_RETURN_ARG(QVariant,result),Q_ARG(QVariant,x*window->width()/100),Q_ARG(QVariant,y*window->height()/100));
+   window->setProperty("gazeEnabled",true);window->setProperty("gazeValid",true);
+   window->setProperty("gaze",QPointF(
+    (window->property("logicalX").toDouble()+x*window->width()/100)/window->property("screenWidth").toDouble(),
+    (window->property("logicalY").toDouble()+y*window->height()/100)/window->property("screenHeight").toDouble()));
+   if(window->property("gazeTarget").toString()!=result.toString())return QString("shared hit mismatch");
    return result.toString();
   };
   for(const QSize size:{QSize(1000,600),QSize(700,900)}){
@@ -338,7 +352,22 @@ int main(int argc,char **argv){
     QTextStream(stderr)<<"FAIL: canvas targeting at "<<size.width()<<"x"<<size.height()<<" hits: "<<hit(13,21)<<","<<hit(22,24)<<","<<hit(60,50)<<","<<hit(45,85)<<","<<hit(90,85)<<Qt::endl;return 2;
    }
   }
-  QTextStream(stdout)<<"PASS: fractional canvas geometry, overlap order, gaps, suggestions and resizing"<<Qt::endl;
+  hit(45,85);
+  controller.setProperty("suggestions",QStringList{});
+  if(!window->property("gazeTarget").toString().isEmpty()){
+   QTextStream(stderr)<<"FAIL: shared hit retained an empty suggestion"<<Qt::endl;return 2;
+  }
+  applyGeometry();QCoreApplication::processEvents();
+  hit(22,24);
+  auto replacement=layout["keys"].toList();replacement[1]=key(70,22,5,5,"DynamicKey");layout["keys"]=replacement;
+  controller.setProperty("layout",layout);emit controller.layoutChanged();
+  QCoreApplication::processEvents();
+  if(window->property("gazeTarget").toString()!="key:0"){
+   QTextStream(stderr)<<"FAIL: shared hit did not update after same-size layout replacement"<<Qt::endl;return 2;
+  }
+  window->setProperty("gazeValid",false);
+  if(!window->property("gazeTarget").toString().isEmpty())return 2;
+  QTextStream(stdout)<<"PASS: shared gaze targeting, fractional geometry, overlap order, gaps, suggestions, resizing and layout replacement"<<Qt::endl;
   return 0;
  }
  if(app.arguments().contains("--joystick-mouse-ui-check")||app.arguments().contains("--joystick-mouse-settings-ui-check")){

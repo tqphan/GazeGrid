@@ -31,7 +31,9 @@ class Controller:public QObject{
  Q_PROPERTY(QString buttonMode READ buttonMode NOTIFY changed)
  Q_PROPERTY(QString keyMode READ keyMode NOTIFY changed)
  Q_PROPERTY(int repeatIntervalMs MEMBER repeatIntervalMs NOTIFY changed)
+ Q_PROPERTY(bool preserveTogglesBetweenLayouts MEMBER preserveTogglesBetweenLayouts NOTIFY changed)
  Q_PROPERTY(bool cycleModifiersOnHover MEMBER cycleModifiersOnHover NOTIFY changed)
+ Q_PROPERTY(QString dwellIndicatorStyle MEMBER dwellIndicatorStyle NOTIFY changed)
  Q_PROPERTY(int dwellMs MEMBER dwellMs NOTIFY changed)
  Q_PROPERTY(int restoreCorner READ restoreCorner WRITE setRestoreCorner NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(int restoreOpacity MEMBER restoreOpacity NOTIFY changed)
@@ -77,7 +79,7 @@ class Controller:public QObject{
  Q_PROPERTY(bool zoomAnimating MEMBER zoomAnimating NOTIFY changed)
  Q_PROPERTY(bool capturePending MEMBER capturePending NOTIFY changed)
  Q_PROPERTY(bool magnifierReady MEMBER magnifierReady NOTIFY changed)
- Q_PROPERTY(int magnifierRevision MEMBER magnifierRevision NOTIFY changed)
+ Q_PROPERTY(int magnifierRevision MEMBER magnifierRevision NOTIFY magnifierFrameChanged)
 public:
  Controller();~Controller()override;
  bool isMagnifierEnabled()const{return magnifierEnabled;}
@@ -151,6 +153,7 @@ signals:
  void settingsRequested();
  void changed();
  void gazeEnabledChanged();
+ void magnifierFrameChanged();
  void layoutChanged();
  void gazePoint(double x,double y,bool valid);
 private:
@@ -171,6 +174,7 @@ private:
  QString keyModeValue="Tap",heldDwellTarget;
  qint64 lastHoldHover=0;
  int repeatIntervalMs=750;
+ bool preserveTogglesBetweenLayouts=false;
  bool cycleModifiersOnHover=false;
  bool hideKeyboardDuringMouseActions=false;
  bool gazeIndicatorMorph=false;
@@ -202,6 +206,7 @@ private:
  QString portalStatus="Desktop control disconnected",tobiiStatus="Tobii ready to connect",actionStatus="Choose Authorize to enable desktop output";
  QString profileStatus;
  bool paused=false,literal=false,learning=false,targeting=false,gazeEnabled=false;
+ QString dwellIndicatorStyle="bar";
  int dwellMs=750;
  int scalePercent=100;
  int restoreOpacity=100;

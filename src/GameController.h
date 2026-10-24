@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QMap>
+#include <QSet>
 #include <functional>
 
 // Standard Linux gamepad plus extended joystick axes/buttons.
@@ -15,7 +16,7 @@ public:
     bool held(const QString &action) const;
     bool perform(const QString &action);
     bool stick(const QString &name,double x,double y);
-    void reset();
+    void reset(bool preserveToggles=false);
     QString error() const{return message;}
     // Test/platform boundary: one complete event frame.
     std::function<bool(int,int,int)> output;
@@ -31,4 +32,5 @@ private:
     QString message;
     QMap<int,int> buttons,axes;
     QMap<int,int> generations;
+    QSet<int> toggledButtons;
 };

@@ -20,7 +20,7 @@ public:
     bool textOnly=false; // Conversation keyboards never send desktop input.
     bool capsLock=false;
     bool start(const QVariantList &commands);
-    void cancel(bool preserveModifiers=false);
+    void cancel(bool preserveModifiers=false,bool preserveToggles=false);
     void suspend();
     void resume(bool success);
     bool busy()const{return running;}

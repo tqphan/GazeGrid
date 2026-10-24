@@ -12,6 +12,8 @@ Window {
  color:"transparent"
  flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
  property string hovered: ""
+ property var dwellStyleIds: ["bar","top-bar","fill","outline","ring","pie","collapse"]
+ property var dwellStyleNames: ["Bottom bar","Top bar","Rising fill","Outline","Ring","Pie","Collapse"]
  property real progress: 0
  property bool gazeEnabled: controller.gazeEnabled
  property bool gazeCheck: false
@@ -51,6 +53,13 @@ Window {
  property real targetProgress:0
  property point targetPoint:Qt.point(-1,-1)
  property bool targetPointValid:false
+ // Repeater lifecycle changes must invalidate the shared hit even when the
+ // replacement layout has the same number of keys.
+ property int hitTestRevision: 0
+ readonly property string gazeTarget: {
+  const revision=hitTestRevision
+  return usingGaze ? keyAt(gaze.x*screenWidth-logicalX,gaze.y*screenHeight-logicalY) : ""
+ }
  function keyAt(px,py) {
   for(let i=keys.count-1;i>=0;--i){let item=keys.itemAt(i);if(!item)continue
    if(px>=item.x&&py>=item.y&&px<item.x+item.width&&py<item.y+item.height){
@@ -80,7 +89,7 @@ Window {
      let px=root.gaze.x*root.screenWidth,py=root.gaze.y*root.screenHeight
      let overPanel=root.visible&&px>=root.logicalX&&px<root.logicalX+root.width&&py>=root.logicalY&&py<root.logicalY+root.height
      controller.trackGaze(root.gaze.x,root.gaze.y,!overPanel&&!settings.visible)
-     if(!controller.targeting&&root.visible)target=root.keyAt(px-root.logicalX,py-root.logicalY)
+     if(!controller.targeting&&root.visible)target=root.gazeTarget
     }
    }
    if(controller.targeting){
@@ -114,6 +123,8 @@ Window {
  Rectangle {anchors.fill:parent;visible:!root.minimizedRecovery;color:root.keyboardBackground}
  Repeater {
   id:keys
+  onItemAdded: root.hitTestRevision++
+  onItemRemoved: root.hitTestRevision++
   model:controller.layout.keys || []
   Rectangle {
    id:key
@@ -121,7 +132,10 @@ Window {
    required property var modelData
    required property int index
    property bool keyboardToggled:controller.keyToggled(modelData.commands||[])
-   property bool gamepadPressed:false
+   property bool gamepadPressed: {
+    const commands=modelData.commands||[]
+    return commands.length===1&&commands[0].tag==="Action"&&controller.gamepadHeld(commands[0].text.trim())
+   }
    Connections {target:controller;function onChanged(){
     const commands=key.modelData.commands||[]
     key.keyboardToggled=controller.keyToggled(commands)
@@ -174,7 +188,7 @@ Window {
    Kirigami.Theme.colorSet:Kirigami.Theme.Button
    Kirigami.Theme.inherit:false
    border.width:root.minimizedRecovery?0:1;border.color:root.keyboardBorder
-   property bool active:enabled&&(root.usingGaze ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
+   property bool active:enabled&&(root.usingGaze ? root.gazeTarget===command : root.hovered===command)
    Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:key.active?0.18:0}
    Rectangle {
     anchors.fill:parent;anchors.margins:2
@@ -266,17 +280,17 @@ Window {
       property string predictionText:index<controller.suggestions.length?controller.suggestions[index]:""
       property bool hasPrediction:predictionText.trim().length>0
       property string command:"suggest:"+index
-      property bool active:key.enabled&&hasPrediction&&(root.usingGaze ? root.gazeValid&&root.keyAt(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY)===command : root.hovered===command)
+      property bool active:key.enabled&&hasPrediction&&(root.usingGaze ? root.gazeTarget===command : root.hovered===command)
       onHasPredictionChanged:if(!hasPrediction&&root.hovered==="suggest:"+index)root.hovered=""
       width:key.predictionWidth;height:key.height;color:"transparent";border.color:root.keyboardBorder
       Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:predictionSlot.active?0.18:0}
       Text {anchors.fill:parent;anchors.margins:4;text:predictionSlot.predictionText;color:key.foreground;font.pixelSize:Math.min(24,key.height*.28);fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
       MouseArea {objectName:"predictionMouseArea:"+index;anchors.fill:parent;hoverEnabled:true;enabled:predictionSlot.hasPrediction;onEntered:root.hovered="suggest:"+index;onExited:if(root.hovered==="suggest:"+index)root.hovered="";onClicked:controller.clickCommand("suggest:"+index)}
-      Rectangle {objectName:"predictionProgress:"+index;anchors.bottom:parent.bottom;height:5;width:parent.width*(predictionSlot.active?root.progress:0);color:root.dwellColor}
+      DwellIndicator {objectName:"predictionProgress:"+index;anchors.left:parent.left;anchors.bottom:parent.bottom;width:progress>0?parent.width:0;height:parent.height;progress:predictionSlot.active?root.progress:0;style:controller.dwellIndicatorStyle;color:root.dwellColor}
      }
     }
    }
-   Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*(key.active?root.progress:0);color:root.dwellColor}
+   DwellIndicator {anchors.fill:parent;progress:key.active?root.progress:0;style:controller.dwellIndicatorStyle;color:root.dwellColor}
    Accessible.role:Accessible.Button
    Accessible.description:key.keyboardToggled?"Locked until selected again":key.cycleButtonModeKey?"Button mode: "+controller.buttonMode:key.cycleKeyModeKey?"Key mode: "+controller.keyMode:key.sleepKey?(controller.paused?"Pause on":"Pause off"):key.magnifierKey?(controller.magnifierEnabled?"Magnifier on":"Magnifier off"):key.modifier?(key.modifierState==="locked"?"Locked until selected again":key.modifierState==="latched"?"Latched for the next key":"Off. Select once to latch, twice to lock."):""
    Accessible.name:key.sleepKey?(controller.paused?"Resume input":"Pause input"):root.minimizedRecovery?"Restore keyboard":key.unavailableReason?key.unavailableReason:(key.label||key.modelData.symbol)
@@ -444,6 +458,21 @@ Window {
         onActivated:controller.keyboardTheme=root.themeIds[currentIndex]
         Accessible.name:"Keyboard theme"
        }
+       Desktop.Label {text:"Dwell progress style"}
+       Desktop.ComboBox {
+        objectName:"dwellStyleSelector";Layout.fillWidth:true;model:root.dwellStyleNames
+        currentIndex:Math.max(0,root.dwellStyleIds.indexOf(controller.dwellIndicatorStyle))
+        onActivated:controller.dwellIndicatorStyle=root.dwellStyleIds[currentIndex]
+        Accessible.name:"Dwell progress style"
+       }
+       Rectangle {
+        Layout.fillWidth:true;Layout.preferredHeight:72;color:root.keyboardBackground;border.color:root.keyboardBorder;radius:4
+        Desktop.Label {anchors.centerIn:parent;text:"Dwell preview"}
+        DwellIndicator {
+         id:dwellPreview;anchors.fill:parent;style:controller.dwellIndicatorStyle;color:root.dwellColor
+         NumberAnimation on progress {from:0;to:1;duration:controller.dwellMs;loops:Animation.Infinite;running:settings.visible&&settingsCategory.currentIndex===1}
+        }
+       }
        SettingSlider {label:"Keyboard height";displayValue:controller.keyboardScale+"%";from:50;to:150;stepSize:5;value:controller.keyboardScale;onMoved:controller.keyboardScale=value}
        SettingSlider {label:"Short key labels";displayValue:controller.shortLabelScale+"%";from:50;to:200;stepSize:5;value:controller.shortLabelScale;onMoved:controller.shortLabelScale=value}
        SettingSlider {label:"Long key labels";displayValue:controller.longLabelScale+"%";from:50;to:200;stepSize:5;value:controller.longLabelScale;onMoved:controller.longLabelScale=value}
@@ -503,6 +532,7 @@ Window {
        Tool {text:"Button mode: "+controller.buttonMode+" (cycle)";command:"CycleButtonMode"}
        Tool {text:"Key mode: "+controller.keyMode+" (cycle)";command:"CycleKeyMode"}
        Desktop.Label {text:"Tap → Repeat → Hold → Toggle. Hold presses after dwell and releases when mouse or gaze leaves. Toggle keeps a key pressed until selected again. Applies to all physical keyboard keys except modifiers (Shift, Ctrl, Alt and Super/Windows).";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Desktop.CheckBox {text:"Preserve toggled keys between layouts";checked:controller.preserveTogglesBetweenLayouts;onToggled:controller.preserveTogglesBetweenLayouts=checked}
        Desktop.CheckBox {text:"Cycle modifiers while hovering";checked:controller.cycleModifiersOnHover;onToggled:controller.cycleModifiersOnHover=checked}
        SettingSlider {label:"Repeat rate";displayValue:(1000/controller.repeatIntervalMs).toFixed(1)+" / sec ("+controller.repeatIntervalMs+" ms)";from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
        SettingSlider {label:"Keyboard dwell";displayValue:controller.dwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.dwellMs;onMoved:controller.dwellMs=value}
@@ -622,7 +652,7 @@ Window {
    id:targetCancel;anchors.horizontalCenter:parent.horizontalCenter;y:145;text:"Cancel";focusPolicy:Qt.NoFocus;z:2
    onHoveredChanged:root.hovered=hovered?"CancelTarget":""
    onClicked:controller.clickCommand("CancelTarget")
-   Rectangle {anchors.bottom:parent.bottom;height:5;width:parent.width*root.progress;color:Kirigami.Theme.highlightColor}
+   DwellIndicator {anchors.fill:parent;progress:root.hovered==="CancelTarget"?root.progress:0;style:controller.dwellIndicatorStyle;color:Kirigami.Theme.highlightColor}
   }
   MouseArea {id:targetPointer;objectName:"targetPointer";anchors.fill:parent;hoverEnabled:true;onClicked:mouse=>controller.targetAt(mouse.x/width,mouse.y/height)}
   Canvas {

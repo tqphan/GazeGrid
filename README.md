@@ -10,7 +10,7 @@ cd /home/q/Downloads/OptiKey-Pro
 ./run.sh
 ```
 
-CMake and Ninja are installed locally in `.tools/`. The build uses the host Qt 6 development packages, layer-shell-qt, libei and libspeechd (Speech Dispatcher). Settings also uses the KDE Kirigami and QQC2 desktop-style QML modules, with Qt Widgets providing native desktop control styling. No system helper was installed. `build.sh` also runs the core tests. Runtime settings and caches stay under `runtime/` when using `run.sh`.
+CMake and Ninja are installed locally in `.tools/`. The build uses the host Qt 6 development packages, layer-shell-qt, libei and libspeechd (Speech Dispatcher). Settings also uses the KDE Kirigami and QQC2 desktop-style QML modules, with Qt Widgets providing native desktop control styling. No system helper was installed. `build.sh` defaults to an optimized `RelWithDebInfo` build with debugging symbols and runs the test suite. Use `./build.sh -DCMAKE_BUILD_TYPE=Debug` for an unoptimized debugging build. Runtime settings and caches stay under `runtime/` when using `run.sh`.
 
 The default SDK is the exact user-supplied `stream_engine_linux_3.0.4.6031` directory. Its headers are used for compilation and its x64 shared library is loaded by absolute path at runtime. The sibling 4.24 SDK is not used. SDK files are not copied into this project. The CMake cache variable `TOBII_SDK` allows relocating the same SDK.
 
@@ -109,6 +109,8 @@ Settings uses KDE desktop controls and theme colors, with a left sidebar groupin
 **Desktop access**, and **Shortcuts**. Live gaze, tracker, desktop-control, and last-action
 messages appear under **Status**. Magnifier groups zoom behavior and target dwell controls. Keyboard groups layout, appearance, and restore-button options. Tracker, speech, and desktop connection actions live on their respective pages. Save/reset preferences remain available in every category.
 
+**Keyboard → Appearance → Dwell progress style** offers Bottom bar (default), Top bar, Rising fill, Outline, Ring, and Pie, with an animated preview. Changes apply immediately to keyboard keys, predictions, and the target cancel button. Use **Save preferences and startup keyboard** to retain the style after restart.
+
 Gaze smoothing is available in **Settings → Gaze & dwell**: Off (0), Low (1), Medium (2), High
 (3), and Extreme (4), plus **Smooth when changing gaze target**. Low is the
 prototype's default; target-change smoothing defaults off. Changes apply
@@ -201,8 +203,7 @@ Empty areas do not activate keys. Key contents are clipped to their rectangles.
 Grid layouts retain their existing cell sizing and automatic placement.
 
 See [the complete example](docs/examples/freeform.xml). Copy it into your keyboard
-pack directory and select it in Settings → Keyboard after restarting. Placement
-is configured through XML; there is no drag-and-drop layout editor.
+pack directory and select it in Settings → Keyboard after restarting. Placement can be edited visually with the keyboard editor described below.
 
 Virtual controller output and gaze/mouse joystick keys are available from the game toolbar’s **Gamepad** key. See [controller actions and setup](docs/game-controller.md).
 
@@ -212,7 +213,7 @@ The mode covers all physical keyboard keys except modifiers (Shift, Ctrl, Alt an
 Hold sends a physical key-down after the dwell delay and releases when mouse or gaze
 leaves the key; pause, tracking loss and layout changes also release it.
 Toggle keeps a key pressed until selected again; changing modes, pausing, tracking loss
-and layout changes release toggled keys. Desktop authorization is required for Hold and Toggle. Conversation keyboards retain text entry.
+and layout changes release toggled keys (unless layout persistence is enabled). Desktop authorization is required for Hold and Toggle. Conversation keyboards retain text entry.
 Repeat uses the configured repeat interval; Hold uses the destination application's
 normal held-key behavior. Clicking a key taps it except in Toggle mode, where it toggles the key. The mode starts at Tap each launch.
 
@@ -224,3 +225,41 @@ See [fixed XML modes](docs/game-controller.md#fixed-xml-modes) for examples.
 Custom keys can use `<Label>headrest</Label><Action>SpeakLabel</Action>` to speak
 their label directly without entering text or changing the scratchpad. Leading and
 trailing label whitespace is ignored. `<Action>Speak</Action>` speaks the scratchpad.
+
+Enable **Settings → Gaze & dwell → Preserve toggled keys between layouts** to keep
+toggled keyboard keys and digital gamepad buttons pressed when navigating layouts.
+The setting defaults off and is stored with Save preferences. Hover-held keys,
+momentary button presses and analog axes are released or centered on layout changes.
+Pause, tracking loss, mode changes and entering conversation mode still release toggles.
+
+
+## Keyboard editor
+
+Open **Keyboard editor…** from the tray menu, or launch it directly:
+
+```sh
+./run.sh --editor
+./run.sh --editor docs/examples/freeform.xml
+```
+
+Create a canvas keyboard or open an existing grid/canvas XML layout. Select and
+drag keys to move them; edit X/Y and width/height to resize. Grid movement snaps
+to cells and rejects overlaps. Add, duplicate, and delete keys from the toolbar.
+Edit labels and behavior using the properties panel, then click
+**Apply key changes**. **Add step** offers plain text, physical keys, application/
+mouse/gamepad actions, keyboard navigation, waits, and held/released keys.
+**Add shortcut…** provides Ctrl/Alt/Shift/Super checkboxes and a key picker;
+press/release steps are generated automatically. Reorder or remove steps with
+the list controls. **Appearance** provides an icon picker and Shift label;
+**Position & size** contains precise geometry. No XML editing is required.
+While properties are pending, the canvas waits for Apply or Save. Undo/redo covers
+applied changes. The preview shows key geometry, labels, and icons; it does not
+execute commands.
+It is a layout preview, not a full rendering of the live keyboard theme.
+
+Save validates geometry using the application's layout parser and writes atomically.
+Existing metadata, attributes, command order, and text whitespace are retained;
+XML formatting may change. Command behavior and navigation destinations still need
+pack validation. Save into your keyboard pack directory and restart OptiKey to
+select the layout in Settings. Use **Save as…** to keep the original layout.
+The editor is a separate desktop window and does not request input authorization.

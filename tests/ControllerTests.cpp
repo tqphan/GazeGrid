@@ -16,6 +16,16 @@
 class ControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void preserveTogglePreference(){
+  auto values=ProfileStore::defaults();
+  QCOMPARE(values["preserveTogglesBetweenLayouts"].toBool(),false);
+  values["preserveTogglesBetweenLayouts"]=1;QVERIFY(!ProfileStore::valid(values));
+  {Controller c;c.resetPreferences();QVERIFY(!c.property("preserveTogglesBetweenLayouts").toBool());
+   c.setProperty("preserveTogglesBetweenLayouts",true);QVERIFY(c.savePreferences());}
+  {Controller c;QVERIFY(c.property("preserveTogglesBetweenLayouts").toBool());
+   c.resetPreferences();QVERIFY(!c.property("preserveTogglesBetweenLayouts").toBool());}
+ }
+
  void cycleButtonModeAction(){
   Controller c;c.openLayout("game-controller",false);
   QString modeKey;
@@ -217,6 +227,20 @@ private slots:
   c.resetPreferences();QVERIFY(!c.property("hideKeyboardDuringMouseActions").toBool());
  }
 
+ void dwellIndicatorPreferences(){
+  const QStringList styles{"bar","top-bar","fill","outline","ring","pie","collapse"};
+  for(const auto &style:styles){
+   {Controller c;c.setProperty("dwellIndicatorStyle",style);QVERIFY(c.savePreferences());}
+   {Controller c;QCOMPARE(c.property("dwellIndicatorStyle").toString(),style);}
+  }
+  {Controller c;c.resetPreferences();QCOMPARE(c.property("dwellIndicatorStyle").toString(),QString("bar"));}
+  auto values=ProfileStore::defaults();values.remove("dwellIndicatorStyle");
+  QString error;ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));
+  QVERIFY(store.save(values,error));
+  {Controller c;QCOMPARE(c.property("dwellIndicatorStyle").toString(),QString("bar"));}
+  values["dwellIndicatorStyle"]="unknown";QVERIFY(!store.save(values,error));
+ }
+
  void gazeIndicatorPreferences(){
   {Controller c;c.setProperty("gazeIndicatorSize",42);c.setProperty("gazeIndicatorOpacity",65);c.setProperty("gazeIndicatorColor","#ff1234");c.setProperty("gazeIndicatorMorph",true);QVERIFY(c.savePreferences());}
   {Controller c;QCOMPARE(c.property("gazeIndicatorSize").toInt(),42);QCOMPARE(c.property("gazeIndicatorOpacity").toInt(),65);QCOMPARE(c.property("gazeIndicatorColor").toString(),QString("#ff1234"));QVERIFY(c.property("gazeIndicatorMorph").toBool());c.resetPreferences();QCOMPARE(c.property("gazeIndicatorSize").toInt(),18);QCOMPARE(c.property("gazeIndicatorOpacity").toInt(),100);QCOMPARE(c.property("gazeIndicatorColor").toString(),QString("#00bfff"));QVERIFY(!c.property("gazeIndicatorMorph").toBool());}
@@ -378,7 +402,10 @@ private slots:
   QVERIFY(controller.property("zoomAnimating").toBool());
   const auto initial=controller.magnifierImage().size();QVERIFY(initial.width()>frame.width()*.9);
   controller.targetAt(.5,.5);QVERIFY(controller.property("magnifierReady").toBool()); // No click while the image moves.
+  QSignalSpy generalChanges(&controller,&Controller::changed);
+  QSignalSpy frames(&controller,&Controller::magnifierFrameChanged);
   QTest::qWait(200);const auto middle=controller.magnifierImage().size();
+  QVERIFY(frames.count()>0);QCOMPARE(generalChanges.count(),0);
   QVERIFY(middle.width()<initial.width());QVERIFY(middle.width()>frame.width()/4);
   QTRY_VERIFY(!controller.property("zoomAnimating").toBool());
   QCOMPARE(controller.magnifierImage().size(),QSize(frame.width()/4,frame.height()/4));

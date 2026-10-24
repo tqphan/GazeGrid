@@ -7,6 +7,21 @@
 class GameControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void preserveToggledButtonsOnly(){
+  GameController pad;QMap<int,int> state;
+  pad.output=[&](int,int code,int value){state[code]=value;return true;};
+  QVERIFY(pad.perform("GamepadAToggle"));
+  QVERIFY(pad.perform("GamepadBPress"));
+  QVERIFY(pad.perform("GamepadXTap"));
+  QVERIFY(pad.perform("GamepadLeftX:1"));
+  pad.reset(true);
+  QVERIFY(pad.held("GamepadATap"));QVERIFY(!pad.held("GamepadBTap"));QVERIFY(!pad.held("GamepadXTap"));
+  QCOMPARE(state[ABS_X],0);
+  QTest::qWait(130);QVERIFY(pad.held("GamepadATap"));
+  QVERIFY(pad.perform("GamepadAToggle"));QVERIFY(!pad.held("GamepadATap"));
+  QVERIFY(pad.perform("GamepadAToggle"));pad.reset();QVERIFY(!pad.held("GamepadATap"));
+ }
+
  void buttonModes(){
   for(const QString source:{"GamepadATap","GamepadDpadUpToggle","GamepadButton32Press"}){
    const auto press=GameController::buttonAction(source,"Press");

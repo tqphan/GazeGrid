@@ -28,7 +28,7 @@ QString GameController::buttonAction(const QString &action,const QString &mode){
 }
 bool GameController::held(const QString &action)const{int code;QString mode;return parseButton(action,code,mode)&&buttons.value(code)!=0;}
 QStringList GameController::actions(){QStringList list{"GamepadReset"};for(auto it=buttonCodes().begin();it!=buttonCodes().end();++it)for(const auto &suffix:{"Press","Release","Toggle","Tap"})list<<"Gamepad"+it.key()+suffix;for(auto it=axisCodes.begin();it!=axisCodes.end();++it)list<<"Gamepad"+it.key()+":0";return list;}
-void GameController::closeDevice(){if(fd>=0){ioctl(fd,UI_DEV_DESTROY);::close(fd);fd=-1;}buttons.clear();axes.clear();generations.clear();}
+void GameController::closeDevice(){if(fd>=0){ioctl(fd,UI_DEV_DESTROY);::close(fd);fd=-1;}buttons.clear();axes.clear();generations.clear();toggledButtons.clear();}
 bool GameController::connectDevice(){
     if(fd>=0||output)return true;
     fd=::open("/dev/uinput",O_WRONLY|O_NONBLOCK|O_CLOEXEC);
@@ -48,9 +48,10 @@ bool GameController::send(int type,int code,int value){
     if(!ok){message="Virtual controller output failed; device disconnected";closeDevice();emit changed();emit failed(message);return false;}
     (type==EV_KEY?buttons:axes)[code]=value;emit changed();return true;
 }
-void GameController::reset(){
+void GameController::reset(bool preserveToggles){
+    if(!preserveToggles)toggledButtons.clear();
     for(auto it=generations.begin();it!=generations.end();++it)it.value()=++sequence;
-    const auto b=buttons,a=axes;for(auto it=b.begin();it!=b.end();++it)if(it.value()&&!send(EV_KEY,it.key(),0))return;for(auto it=a.begin();it!=a.end();++it)if(it.value()&&!send(EV_ABS,it.key(),0))return;
+    const auto b=buttons,a=axes;for(auto it=b.begin();it!=b.end();++it)if(it.value()&&!toggledButtons.contains(it.key())&&!send(EV_KEY,it.key(),0))return;for(auto it=a.begin();it!=a.end();++it)if(it.value()&&!send(EV_ABS,it.key(),0))return;
 }
 bool GameController::perform(const QString &action){
     if(action=="GamepadReset"){reset();return true;}
@@ -60,6 +61,7 @@ bool GameController::perform(const QString &action){
     if(mode=="Tap"&&buttons.value(code))return true;
     const int generation=generations[code]=++sequence;
     if(!send(EV_KEY,code,mode=="Release"?0:mode=="Toggle"?!buttons.value(code):1))return false;
+    if(mode=="Toggle"&&buttons.value(code))toggledButtons.insert(code);else toggledButtons.remove(code);
     if(mode=="Tap")QTimer::singleShot(100,this,[this,code,generation]{if(generations.value(code)==generation)send(EV_KEY,code,0);});
     return true;
 }

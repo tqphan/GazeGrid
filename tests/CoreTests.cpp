@@ -25,6 +25,23 @@ class CoreTests:public QObject{
  Q_OBJECT
 static QVariantMap cmd(QString tag,QString text){return {{"tag",tag},{"text",text}};}
 private slots:
+ void togglesPersistOnlyWhenRequested(){
+  ActionRunner r;r.sendKey=[](QString,bool){return true;};
+  r.supportsPhysicalKey=[](QString){return true;};
+  QVERIFY(r.toggleDwellKey({cmd("Text","!")}));
+  r.cancel(true,true);
+  QVERIFY(r.isToggled({cmd("Text","!")}));QVERIFY(r.isHeld("LSHIFT"));
+  QVERIFY(r.toggleDwellKey({cmd("Text","!")}));QVERIFY(r.heldKeys().isEmpty());
+  QVERIFY(r.start({cmd("KeyToggle","A")}));
+  QTRY_VERIFY(!r.busy());
+  r.cancel(true,true);QVERIFY(r.isToggled({cmd("KeyToggle","A")}));
+  QVERIFY(r.beginDwellHold({cmd("Text","b")}));
+  r.cancel(true,true);QVERIFY(!r.isHeld("B"));QVERIFY(r.isHeld("A"));
+  r.cancel(true);QVERIFY(r.heldKeys().isEmpty());
+  QVERIFY(r.toggleDwellKey({cmd("Text","a")}));
+  r.cancel();QVERIFY(r.heldKeys().isEmpty());
+ }
+
  void conversationSpeakLabels(){
   const auto layout=KeyboardLayout::fromXml(KeyboardPack::load(QStringLiteral(PACK_PATH)+"/keyboard-conversation-fullscreen.xml"));
   QVERIFY(!layout.contains("error"));

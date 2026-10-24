@@ -35,6 +35,7 @@ Controller::Controller(){
  gazeEnabled=profile.values["gazeEnabled"].toBool(false);
  predictionModeValue=profile.values["predictionMode"].toString("context");
  nextWordEnabled=profile.values["predictNextWord"].toBool(true);
+ dwellIndicatorStyle=profile.values.value("dwellIndicatorStyle").toString("bar");
  dwellMs=profile.values["dwellMs"].toInt();literal=profile.values["literal"].toBool();learning=profile.values["learning"].toBool();profileStatus=profile.message;
  scalePercent=profile.values["keyboardScale"].toInt(100);keyboardTheme=profile.values["highContrast"].toBool()?QStringLiteral("high-contrast"):profile.values["keyboardTheme"].toString("system");
  shortLabelScale=profile.values.value("shortLabelScale").toInt(profile.values.value("enlargeShortLabels").toBool(true)?150:100);
@@ -57,6 +58,7 @@ Controller::Controller(){
  gazeIndicatorOpacity=profile.values["gazeIndicatorOpacity"].toInt(100);
  gazeIndicatorColor=profile.values["gazeIndicatorColor"].toString("#00bfff");
  repeatIntervalMs=profile.values["repeatIntervalMs"].toInt(750);
+ preserveTogglesBetweenLayouts=profile.values["preserveTogglesBetweenLayouts"].toBool();
  cycleModifiersOnHover=profile.values["cycleModifiersOnHover"].toBool();
  hideKeyboardDuringMouseActions=profile.values["hideKeyboardDuringMouseActions"].toBool();
  gazeIndicatorMorph=profile.values["gazeIndicatorMorph"].toBool();
@@ -137,7 +139,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -147,8 +149,10 @@ void Controller::resetPreferences(){
  if(!paused)togglePause();
  setMagnifierEnabled(false);
  setGazeEnabled(false);
+ dwellIndicatorStyle="bar";
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";nextWordEnabled=true;backStack.clear();
  repeatIntervalMs=750;
+ preserveTogglesBetweenLayouts=false;
  cycleModifiersOnHover=false;
  hideKeyboardDuringMouseActions=false;
  scrollSpeed=100;scrollDeadzone=50;scrollAxis=0;
@@ -373,7 +377,8 @@ void Controller::openLayout(QString name,bool backReturnsHere){
   compiled["keys"]=keys;
  }
  const bool textOnly=compiled["simulatekeystrokes"].toString().compare("false",Qt::CaseInsensitive)==0;
- runner.cancel(textOnly==runner.textOnly);endButtonHold();gameController.reset();activeJoystick=-1;runner.textOnly=textOnly;runner.capsLock=false;pointer.cancel();dwell.reset();
+ const bool preserve=preserveTogglesBetweenLayouts&&!textOnly&&!runner.textOnly;
+ runner.cancel(textOnly==runner.textOnly,preserve);endButtonHold();gameController.reset(preserve);activeJoystick=-1;runner.textOnly=textOnly;runner.capsLock=false;pointer.cancel();dwell.reset();
  if(backReturnsHere&&!layoutName.isEmpty()&&layoutName!=name){backStack<<layoutName;if(backStack.size()>64)backStack.removeFirst();}
  layout=compiled;layoutName=name;updateSuggestions();emit layoutChanged();emit changed();
 }
@@ -469,6 +474,7 @@ void Controller::receiveMagnifierFrame(QImage image){
  zoomAnimating=progressiveZoom;zoomClock.start();
  updateMagnifierZoom();
  if(zoomAnimating)zoomTimer.start();
+ emit changed();
 }
 void Controller::updateMagnifierZoom(){
  if(!magnifierReady||capturedImage.isNull())return;
@@ -476,8 +482,10 @@ void Controller::updateMagnifierZoom(){
  const double zoom=1.+(activeZoom-1)*progress;
  magnifierCrop=MagnifierGeometry::crop(captureSize,coarseTarget,zoom);
  magnifiedImage=capturedImage.copy(magnifierCrop);++magnifierRevision;
+ const bool finished=zoomAnimating&&progress>=1.;
  if(progress>=1.){if(zoomAnimating)pointDwell.reset();zoomAnimating=false;zoomTimer.stop();}
- emit changed();
+ emit magnifierFrameChanged();
+ if(finished)emit changed();
 }
 void Controller::clearCapture(){
  pointDwell.reset();
