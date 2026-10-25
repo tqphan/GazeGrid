@@ -325,6 +325,7 @@ private slots:
   QVERIFY(WordPrediction::suggest("123he",words,{}).isEmpty());
   QVERIFY(WordPrediction::suggest("hé",words,{}).isEmpty());
   QVERIFY(WordPrediction::suggest("",words,{}).isEmpty());
+  QCOMPARE(WordPrediction::suggest("",words,{},8,true,true),WordPrediction::suggest(" ",words,{}));
  }
  void predictionOptionsValidateAndChangeRanking(){
   auto defaults=ProfileStore::defaults();
@@ -332,6 +333,7 @@ private slots:
   auto legacy=defaults;legacy.remove("predictionMode");legacy.remove("predictNextWord");QVERIFY(ProfileStore::valid(legacy));
   for(const QString mode:{"context","frequency","off"}){auto values=defaults;values["predictionMode"]=mode;QVERIFY(ProfileStore::valid(values));}
   for(const QJsonValue invalid:{QJsonValue("unknown"),QJsonValue(1),QJsonValue(false)}){auto values=defaults;values["predictionMode"]=invalid;QVERIFY(!ProfileStore::valid(values));}
+  auto invalidStarters=defaults;invalidStarters["suggestSentenceStarters"]=1;QVERIFY(!ProfileStore::valid(invalidStarters));
   auto invalid=defaults;invalid["predictNextWord"]=1;QVERIFY(!ProfileStore::valid(invalid));
   const QStringList words{"you","the","light","table"};
   QCOMPARE(WordPrediction::suggest("turn on the ",words,{},4,true).first(),QString("light"));

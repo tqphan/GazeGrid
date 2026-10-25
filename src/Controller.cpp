@@ -39,6 +39,8 @@ Controller::Controller(){
  gazeEnabled=profile.values["gazeEnabled"].toBool(false);
  predictionModeValue=profile.values["predictionMode"].toString("context");
  nextWordEnabled=profile.values["predictNextWord"].toBool(true);
+ completionSpaceEnabled=profile.values["addSpaceAfterCompletion"].toBool(true);
+ sentenceStartersEnabled=profile.values["suggestSentenceStarters"].toBool(true);
  dwellIndicatorStyle=profile.values.value("dwellIndicatorStyle").toString("bar");
  dwellMs=profile.values["dwellMs"].toInt();literal=profile.values["literal"].toBool();learning=profile.values["learning"].toBool();profileStatus=profile.message;
  scalePercent=profile.values["keyboardScale"].toInt(100);keyboardTheme=profile.values["highContrast"].toBool()?QStringLiteral("high-contrast"):profile.values["keyboardTheme"].toString("system");
@@ -144,10 +146,11 @@ void Controller::invalidateInputContext(){
 void Controller::inputContextChanged(bool active,bool sensitive){
  nativeActive=active;sensitiveInput=sensitive;
  if(!active||sensitive)invalidateInputContext();
+ else updateSuggestions();
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
- QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?"Preferences saved. This keyboard will open at startup.":error;emit changed();return ok;
 }
@@ -158,7 +161,7 @@ void Controller::resetPreferences(){
  setMagnifierEnabled(false);
  setGazeEnabled(false);
  dwellIndicatorStyle="bar";
- dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";nextWordEnabled=true;backStack.clear();
+ dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";nextWordEnabled=true;completionSpaceEnabled=true;sentenceStartersEnabled=true;backStack.clear();
  repeatIntervalMs=750;
  preserveTogglesBetweenLayouts=false;
  cycleModifiersOnHover=false;
@@ -428,7 +431,7 @@ void Controller::activate(QString key){
   bool valid=false;int i=key.mid(8).toInt(&valid);if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()||(!runner.textOnly&&!ready()))return;
   if(!runner.heldKeys().isEmpty()){actionStatus="Release held keys before accepting a suggestion";emit changed();return;}
   QString prefix=WordPrediction::prefix(scratchpad);auto word=suggestions[i];
-  runner.start({command("Text",word.mid(prefix.size())+" ")});return;
+  runner.start({command("Text",word.mid(prefix.size())+(completionSpaceEnabled?QString(" "):QString()))});return;
  }
  if(!key.startsWith("key:"))return;
  bool valid=false;int i=key.mid(4).toInt(&valid);auto keys=layout["keys"].toList();if(!valid||i<0||i>=keys.size())return;
@@ -628,12 +631,20 @@ void Controller::updateText(QString text){
  if(scratchpad.size()>4096)scratchpad=scratchpad.right(4096);updateSuggestions();
 }
 QStringList Controller::predictionSuggestions(int limit)const{
- if(sensitiveInput||predictionModeValue=="off"||(!nextWordEnabled&&WordPrediction::prefix(scratchpad).isEmpty()))return {};
- return WordPrediction::suggest(scratchpad,dictionary,learning?frequencies:QMap<QString,int>{},limit,predictionModeValue=="context");
+ if(sensitiveInput||predictionModeValue=="off"||(!scratchpad.isEmpty()&&!nextWordEnabled&&WordPrediction::prefix(scratchpad).isEmpty()))return {};
+ return WordPrediction::suggest(scratchpad,dictionary,learning?frequencies:QMap<QString,int>{},limit,predictionModeValue=="context",sentenceStartersEnabled);
 }
 void Controller::setPredictionMode(QString mode){
  if(!QStringList{"context","frequency","off"}.contains(mode)||predictionModeValue==mode)return;
  predictionModeValue=mode;dwell.reset();updateSuggestions();
+}
+void Controller::setSuggestSentenceStarters(bool enabled){
+ if(sentenceStartersEnabled==enabled)return;
+ sentenceStartersEnabled=enabled;dwell.reset();updateSuggestions();
+}
+void Controller::setAddSpaceAfterCompletion(bool enabled){
+ if(completionSpaceEnabled==enabled)return;
+ completionSpaceEnabled=enabled;dwell.reset();emit changed();
 }
 void Controller::setPredictNextWord(bool enabled){
  if(nextWordEnabled==enabled)return;

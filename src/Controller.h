@@ -63,6 +63,8 @@ class Controller:public QObject{
  Q_PROPERTY(QStringList suggestions MEMBER suggestions NOTIFY changed)
  Q_PROPERTY(bool learning READ learningEnabled WRITE setLearning NOTIFY changed)
  Q_PROPERTY(QString predictionMode READ predictionMode WRITE setPredictionMode NOTIFY changed)
+ Q_PROPERTY(bool suggestSentenceStarters READ suggestSentenceStarters WRITE setSuggestSentenceStarters NOTIFY changed)
+ Q_PROPERTY(bool addSpaceAfterCompletion READ addSpaceAfterCompletion WRITE setAddSpaceAfterCompletion NOTIFY changed)
  Q_PROPERTY(bool predictNextWord READ predictNextWord WRITE setPredictNextWord NOTIFY changed)
  Q_PROPERTY(bool hideKeyboardDuringMouseActions MEMBER hideKeyboardDuringMouseActions NOTIFY changed)
  Q_PROPERTY(bool keyboardTemporarilyHidden READ keyboardTemporarilyHidden NOTIFY changed)
@@ -153,6 +155,10 @@ public:
  void setLearning(bool enabled);
  QString predictionMode()const{return predictionModeValue;}
  void setPredictionMode(QString mode);
+ bool suggestSentenceStarters()const{return sentenceStartersEnabled;}
+ void setSuggestSentenceStarters(bool enabled);
+ bool addSpaceAfterCompletion()const{return completionSpaceEnabled;}
+ void setAddSpaceAfterCompletion(bool enabled);
  bool predictNextWord()const{return nextWordEnabled;}
  void setPredictNextWord(bool enabled);
  Q_INVOKABLE void resetLearning();
@@ -247,7 +253,7 @@ private:
  Dwell canvasDwell;
  QVariantMap layout;QString layoutName;QStringList layoutNames,menuLayoutNames,backStack;
  int suggestionOffset=0;
- QString predictionModeValue="context";bool nextWordEnabled=true;
+ QString predictionModeValue="context";bool nextWordEnabled=true;bool completionSpaceEnabled=true;bool sentenceStartersEnabled=true;
  QStringList predictionSuggestions(int limit=8)const;
  QString scratchpad;QStringList suggestions,dictionary;QMap<QString,int> frequencies;
  QJsonObject mappingProfile;

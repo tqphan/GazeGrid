@@ -722,6 +722,8 @@ Window {
         onActivated:controller.predictionMode=["context","frequency","off"][currentIndex]
         Accessible.name:"Prediction style"
        }
+       Desktop.CheckBox {objectName:"suggestSentenceStartersToggle";text:"Suggest sentence starters when text is empty";enabled:controller.predictionMode!=="off";checked:controller.suggestSentenceStarters;onToggled:controller.suggestSentenceStarters=checked}
+       Desktop.CheckBox {objectName:"addSpaceAfterCompletionToggle";text:"Add a space after word completion";enabled:controller.predictionMode!=="off";checked:controller.addSpaceAfterCompletion;onToggled:controller.addSpaceAfterCompletion=checked}
        Desktop.CheckBox {objectName:"predictNextWordToggle";text:"Suggest the next word after a space";enabled:controller.predictionMode!=="off";checked:controller.predictNextWord;onToggled:controller.predictNextWord=checked}
        Desktop.CheckBox {text:"Use and learn personal words locally";checked:controller.learning;onToggled:controller.learning=checked}
        Desktop.Button {text:"Reset learned words";onClicked:controller.resetLearning()}

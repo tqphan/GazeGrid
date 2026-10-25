@@ -79,12 +79,12 @@ const Index &vocabulary(const QStringList &dictionary){
 }
 }
 void WordPrediction::prepare(const QStringList &dictionary){vocabulary(dictionary);}
-QStringList WordPrediction::suggest(const QString &text,const QStringList &dictionary,const QMap<QString,int> &frequencies,int limit,bool useContext){
- if(limit<=0||text.isEmpty())return {};
+QStringList WordPrediction::suggest(const QString &text,const QStringList &dictionary,const QMap<QString,int> &frequencies,int limit,bool useContext,bool suggestWhenEmpty){
+ if(limit<=0||(text.isEmpty()&&!suggestWhenEmpty))return {};
  const auto current=prefix(text);
  // Never offer an insertion inside numbers/unsupported alphabets or directly
  // after punctuation (accepting a prediction appends text, not a separator).
- if(current.isEmpty()&&!text.back().isSpace())return {};
+ if(!text.isEmpty()&&current.isEmpty()&&!text.back().isSpace())return {};
  const auto &language=model();
  const auto &index=vocabulary(dictionary);
  const auto &words=index.sorted;
