@@ -19,6 +19,15 @@ Window {
  property var dwellStyleIds: ["bar","top-bar","fill","outline","ring","pie","collapse"]
  property var dwellStyleNames: ["Bottom bar","Top bar","Rising fill","Outline","Ring","Pie","Collapse"]
  property real progress: 0
+ property var overlapProgress: ({})
+ readonly property bool overlapEnabled:controller.layout.layoutMode==="canvas"&&controller.layout.activateoverlappingkeys===true&&!controller.sizeMoveMode
+ readonly property var overlapTargets: {
+  const revision=hitTestRevision
+  if(!overlapEnabled||!root.visible||controller.targeting||controller.keyboardTemporarilyHidden)return []
+  if(!root.usingGaze&&!canvasHover.hovered)return []
+  const point=root.usingGaze?Qt.point(gaze.x*screenWidth-logicalX,gaze.y*screenHeight-logicalY):canvasHover.point.position
+  return keysAt(point.x,point.y)
+ }
  property bool gazeEnabled: controller.gazeEnabled
  property bool gazeCheck: false
  property bool minimizedRecovery:controller.layoutName.startsWith("minimized-off-screen-")
@@ -93,6 +102,18 @@ Window {
   }
   return ""
  }
+ function keysAt(px,py) {
+  // Joysticks and prediction slots retain their exclusive interaction model.
+  const top=keyAt(px,py)
+  if(!top.startsWith("key:"))return []
+  const item=keys.itemAt(Number(top.substring(4)))
+  if(!item||item.modelData.kind!=="DynamicKey")return []
+  let targets=[]
+  for(let i=0;i<keys.count;++i){const key=keys.itemAt(i)
+   if(key&&key.modelData.kind==="DynamicKey"&&px>=key.x&&py>=key.y&&px<key.x+key.width&&py<key.y+key.height)targets.push("key:"+i)
+  }
+  return targets
+ }
  Connections {
   target:controller
   function onSettingsRequested(){settings.showNormal();settings.raise();settings.requestActivate()}
@@ -145,7 +166,13 @@ Window {
     }
    }
    if(joystickIndex<0)controller.joystick(-1,0,0,false)
-   root.progress=controller.hover(target)
+   if(root.overlapTargets.length>0){
+    root.overlapProgress=controller.hoverKeys(root.overlapTargets)
+    root.progress=0
+   }else{
+    root.overlapProgress=({})
+    root.progress=controller.hover(target)
+   }
   }
  }
  Rectangle {anchors.fill:parent;visible:!root.transparentBackground;color:root.keyboardBackground}
@@ -227,7 +254,7 @@ Window {
    Kirigami.Theme.colorSet:Kirigami.Theme.Button
    Kirigami.Theme.inherit:false
    border.width:root.minimizedRecovery?0:1;border.color:root.keyboardBorder
-   property bool active:enabled&&(root.usingGaze ? root.gazeTarget===command : root.hovered===command)
+   property bool active:enabled&&(root.overlapTargets.length>0?root.overlapTargets.indexOf(command)>=0:(root.usingGaze ? root.gazeTarget===command : root.hovered===command))
    Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:key.active?0.18:0}
    Rectangle {
     anchors.fill:parent;anchors.margins:2
@@ -333,7 +360,7 @@ Window {
      }
     }
    }
-   DwellIndicator {anchors.fill:parent;progress:key.active?root.progress:0;style:controller.dwellIndicatorStyle;color:root.dwellColor}
+   DwellIndicator {anchors.fill:parent;progress:key.active?(root.overlapTargets.length>0?(root.overlapProgress[key.command]||0):root.progress):0;style:controller.dwellIndicatorStyle;color:root.dwellColor}
    Rectangle {
     anchors.fill:parent;visible:controller.sizeMoveMode;color:"transparent"
     border.width:controller.sizeMoveSelection===key.index?5:2;border.color:root.dwellColor

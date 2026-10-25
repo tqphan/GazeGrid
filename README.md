@@ -277,3 +277,11 @@ Background transparency and click-through are configured per keyboard in XML, no
 ```
 
 The **Size and move demo** enables both. Omit an element or set it to `false` to leave that option off. Existing key-opacity and minimized restore transparency still apply. Click-through applies only when the background is transparent; keys retain their input areas, including translucent keys. Moving or resizing keys temporarily restores input across the canvas. Switching keyboards uses the new keyboard's XML settings.
+
+To activate overlapping keys by gaze or mouse hover dwell, add this per-keyboard option directly inside `<Keyboard>`:
+
+```xml
+<ActivateOverlappingKeys>true</ActivateOverlappingKeys>
+```
+
+This option applies only to Canvas layouts and defaults to `false`; Grid layouts ignore it. Each overlapping `DynamicKey` keeps its own dwell time and progress indicator. Keys completing dwell together activate modifiers first, then other keys in XML order. Actions run sequentially, preserving each key's macro and modifier behavior (a latched modifier still applies to the next ordinary key). Repeat, Hold, and Toggle modes remain available; held keys release independently when you leave their area. Leaving a key cancels its pending activation. Pausing, losing tracking, switching keyboards, or entering move/resize mode cancels pending overlap activations. Pause and mode-switch keys take priority over other overlapping keys. Joysticks and prediction slots retain their exclusive interaction when topmost, and mouse clicks still select the topmost key. Move/resize mode continues to select one item at a time.

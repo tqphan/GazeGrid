@@ -142,6 +142,7 @@ public:
  Q_INVOKABLE void joystick(int index,double x,double y,bool active);
  Q_INVOKABLE void clickCommand(QString key);
  Q_INVOKABLE double hover(QString key);
+ Q_INVOKABLE QVariantMap hoverKeys(const QStringList &targets);
  QString keyMode()const{return keyModeValue;}
  QString buttonMode()const{return buttonModeValue;}
  Q_INVOKABLE double dwellAt(double x,double y,bool valid);
@@ -182,6 +183,14 @@ private:
  int gazeIndicatorSize=18,gazeIndicatorOpacity=100;
  QString gazeIndicatorColor="#00bfff";
  void endButtonHold();
+ void clearOverlap();
+ void releaseOverlapTarget(const QString &target);
+ void dispatchOverlap();
+ struct OverlapActivation {QString target;QVariantList holdCommands;QString buttonHold;};
+ QMap<QString,Dwell> overlapDwells;
+ QMap<QString,QString> overlapButtons;
+ QList<OverlapActivation> overlapPending;
+ bool collectingOverlap=false,dispatchingOverlap=false;
  QString buttonModeValue="Tap",buttonHoldTarget,buttonHoldAction;
  QString keyModeValue="Tap",heldDwellTarget;
  qint64 lastHoldHover=0;

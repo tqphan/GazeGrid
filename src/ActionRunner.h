@@ -33,8 +33,8 @@ public:
     static QString signature(const QVariantList &commands);
     bool shifted()const;
     static QPair<QString,bool> dwellKey(const QVariantList &commands);
-    bool beginDwellHold(const QVariantList &commands);
-    void endDwellHold();
+    bool beginDwellHold(const QVariantList &commands,const QString &owner={});
+    void endDwellHold(const QString &owner={});
     bool toggleDwellKey(const QVariantList &commands);
     void releaseToggledKeys();
 signals:
@@ -42,6 +42,7 @@ signals:
     void failed(QString message);
     void textCommitted(QString text);
     void finished();
+    void cancelled();
 private:
     void step();
     bool key(QString name,bool down,bool persistent=false);
@@ -54,7 +55,7 @@ private:
     bool running=false,waiting=false;
     QTimer timer;
     QSet<QString> held,transient,latched;
-    QString dwellHeld;
+    QMap<QString,QPair<QString,bool>> dwellHolds;
     bool dwellShift=false;
     QSet<QString> toggledKeys, shiftedToggles;
     bool toggleOwnShift=false;

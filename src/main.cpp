@@ -328,6 +328,43 @@ int main(int argc,char **argv){
   });
   return app.exec();
  }
+ if(app.arguments().contains("--overlap-activation-ui-check")){
+  controller.openLayout("keyboard-conversation-fullscreen",false);
+  controller.setProperty("paused",false);controller.setProperty("dwellMs",25);
+  window->setProperty("gazeCheck",true);window->setProperty("gazeEnabled",false);
+  QVariantList keys;
+  for(int i=0;i<2;++i)keys<<QVariantMap{{"kind","DynamicKey"},{"col",i*.25},{"row",0},{"width",.75},{"height",1},
+   {"label",i?"B":"A"},{"commands",QVariantList{QVariantMap{{"tag","Text"},{"text",i?"b":"a"}}}}};
+  controller.setProperty("layout",QVariantMap{{"layoutMode","canvas"},{"activateoverlappingkeys",true},{"rows",1},{"cols",1},{"keys",keys}});
+  emit controller.layoutChanged();window->show();
+  auto stage=std::make_shared<int>(0);auto timer=new QTimer(&app);timer->setInterval(200);
+  QObject::connect(timer,&QTimer::timeout,&app,[&,stage]{
+   if(*stage>0){
+    const QString expected=(*stage==1||*stage==4)?"ab":"b";
+    if(controller.property("scratchpad").toString()!=expected){
+     QTextStream(stderr)<<"FAIL: overlap activation stage "<<*stage<<": "<<controller.property("scratchpad").toString()<<Qt::endl;app.exit(2);return;
+    }
+   }
+   if(*stage==4){app.quit();return;}
+   window->setProperty("gazeCheck",true);window->setProperty("gazeValid",false);
+   controller.hover("");controller.setProperty("scratchpad",QString());
+   auto layout=controller.property("layout").toMap();
+   layout["activateoverlappingkeys"]=*stage!=1;layout["layoutMode"]=*stage==2?"grid":"canvas";
+   controller.setProperty("layout",layout);emit controller.layoutChanged();
+   const QPointF point(window->width()*.5,window->height()*.5);
+   if(*stage==3){
+    window->setProperty("gazeEnabled",false);
+    QEnterEvent enter(point,point,point);QCoreApplication::sendEvent(window,&enter);
+    QMouseEvent move(QEvent::MouseMove,point,point,Qt::NoButton,Qt::NoButton,Qt::NoModifier);QCoreApplication::sendEvent(window,&move);
+   }else{
+    window->setProperty("gazeEnabled",true);
+    window->setProperty("gaze",QPointF((point.x()+window->property("logicalX").toDouble())/window->property("screenWidth").toDouble(),
+     (point.y()+window->property("logicalY").toDouble())/window->property("screenHeight").toDouble()));
+    window->setProperty("gazeValid",true);
+   }
+   window->setProperty("gazeCheck",false);++*stage;
+  });timer->start();return app.exec();
+ }
  if(app.arguments().contains("--keyboard-opacity-ui-check")){
   controller.openLayout("main-14x1-bottom",false);
   window->setProperty("gazeCheck",true);window->setProperty("gazeEnabled",false);

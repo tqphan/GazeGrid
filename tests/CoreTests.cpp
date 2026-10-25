@@ -25,6 +25,32 @@ class CoreTests:public QObject{
  Q_OBJECT
 static QVariantMap cmd(QString tag,QString text){return {{"tag",tag},{"text",text}};}
 private slots:
+ void overlapSettingOnlyAppliesToCanvas(){
+  QTemporaryDir dir;QFile file(dir.filePath("layout.xml"));
+  for(const QString mode:{"Canvas","Grid"})for(const QString setting:{"","false","true","TRUE"}){
+   QVERIFY(file.open(QIODevice::WriteOnly|QIODevice::Truncate));
+   const QString geometry=mode=="Canvas"?"<Canvas><Width>100</Width><Height>100</Height></Canvas>":"<Grid><Rows>1</Rows><Cols>1</Cols></Grid>";
+   file.write(("<Keyboard>"+geometry+"<ActivateOverlappingKeys>"+setting+"</ActivateOverlappingKeys><Content/></Keyboard>").toUtf8());file.close();
+   const auto layout=KeyboardLayout::fromXml(KeyboardPack::load(file.fileName()));
+   QVERIFY(!layout.contains("error"));
+   QCOMPARE(layout["activateoverlappingkeys"].toBool(),mode=="Canvas"&&setting.compare("true",Qt::CaseInsensitive)==0);
+  }
+ }
+ void overlappingDwellHoldsReleaseIndependently(){
+  ActionRunner r;QStringList events;
+  r.sendKey=[&](QString key,bool down){events<<key+(down?"+":"-");return true;};
+  QVERIFY(r.beginDwellHold({cmd("Text","!")},"key:0"));
+  QVERIFY(r.beginDwellHold({cmd("Text","@")},"key:1"));
+  QVERIFY(r.beginDwellHold({cmd("Text","!")},"key:2"));
+  QCOMPARE(events,QStringList({"LSHIFT+","1+","2+"}));
+  r.endDwellHold("key:0");QVERIFY(r.isHeld("1"));QVERIFY(r.shifted());
+  r.endDwellHold("key:2");QVERIFY(!r.isHeld("1"));QVERIFY(r.isHeld("2"));QVERIFY(r.shifted());
+  r.endDwellHold("key:1");QVERIFY(r.heldKeys().isEmpty());
+  QCOMPARE(events,QStringList({"LSHIFT+","1+","2+","1-","2-","LSHIFT-"}));
+  QVERIFY(r.beginDwellHold({cmd("Text","a")},"key:0"));
+  QVERIFY(r.beginDwellHold({cmd("Text","b")},"key:1"));
+  r.cancel(true);QVERIFY(r.heldKeys().isEmpty());
+ }
  void togglesPersistOnlyWhenRequested(){
   ActionRunner r;r.sendKey=[](QString,bool){return true;};
   r.supportsPhysicalKey=[](QString){return true;};

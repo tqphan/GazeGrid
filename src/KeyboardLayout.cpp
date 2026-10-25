@@ -20,6 +20,7 @@ QVariantMap KeyboardLayout::fromXml(const QVariantMap &root){
         else if(tag!="Content")layout[tag.toLower()]=n["text"].toString().trimmed();
     }
     if(canvas==grid||!std::isfinite(rows)||!std::isfinite(cols)||rows<=0||cols<=0||(!canvas&&(rows>64||cols>64)))return {{"error","Invalid keyboard Grid or Canvas"}};
+    layout["activateoverlappingkeys"]=canvas&&layout["activateoverlappingkeys"].toString().compare("true",Qt::CaseInsensitive)==0;
     QSet<QString> occupied;
     for(auto v:root["children"].toList()){auto content=v.toMap();if(content["tag"]!="Content")continue;
         for(auto entry:content["children"].toList()){

@@ -1,4 +1,5 @@
 #include <cmath>
+#include <algorithm>
 #include "Controller.h"
 #include "KeyboardPack.h"
 #include "KeyboardLayout.h"
@@ -107,12 +108,16 @@ Controller::Controller(){
  runner.navigate=[this](QString name,bool back){openLayout(name,back);};
  connect(&runner,&ActionRunner::failed,this,[this](QString m){endButtonHold();gameController.reset();activeJoystick=-1;actionStatus=m.contains("Gamepad")&&!gameController.error().isEmpty()?gameController.error():m;emit changed();});
  connect(&runner,&ActionRunner::stateChanged,this,&Controller::changed);
+ connect(&runner,&ActionRunner::cancelled,this,&Controller::clearOverlap);
+ connect(&runner,&ActionRunner::failed,this,[this]{clearOverlap();});
+ connect(&runner,&ActionRunner::finished,this,&Controller::dispatchOverlap,Qt::QueuedConnection);
  connect(&runner,&ActionRunner::textCommitted,this,&Controller::updateText);
  connect(&portal,&PortalInput::status,this,[this](QString m){portalStatus=m;emit changed();});
  connect(&portal,&PortalInput::readyChanged,this,[this]{dwell.reset();if(!ready()){runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}emit changed();});
  connect(&tobii,&TobiiInput::status,this,[this](QString m){tobiiStatus=m;emit changed();});
  connect(&tobii,&TobiiInput::gaze,this,&Controller::receiveGaze);
  auto timer=new QTimer(this);timer->setInterval(25);connect(timer,&QTimer::timeout,this,[this]{
+  if(!overlapDwells.isEmpty()&&clock.elapsed()-lastHoldHover>200)clearOverlap();
   if(!buttonHoldTarget.isEmpty()&&clock.elapsed()-lastHoldHover>200){endButtonHold();dwell.reset();}
   if(!heldDwellTarget.isEmpty()&&clock.elapsed()-lastHoldHover>200){runner.endDwellHold();heldDwellTarget.clear();dwell.reset();}
   if(gazeAge.isValid()&&GazeClock::now()-lastGazeSample>200000){gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();emit gazePoint(0,0,false);}
@@ -264,6 +269,7 @@ void Controller::endButtonHold(){
  if(!action.isEmpty())gameController.perform(action);
 }
 double Controller::hover(QString key){
+ if(!collectingOverlap)clearOverlap();
  if(sizeMoveMode){
   if(paused||runner.busy()){dwell.inhibit(key,clock.elapsed());return 0;}
   // Editing has its own dwell path: never execute hold, repeat or typing behavior.
@@ -272,8 +278,10 @@ double Controller::hover(QString key){
   }
   return dwell.progress(clock.elapsed(),dwellMs);
  }
- if(key!=buttonHoldTarget||paused)endButtonHold();
- if(key!=heldDwellTarget||paused){runner.endDwellHold();heldDwellTarget.clear();}
+ if(!collectingOverlap){
+  if(key!=buttonHoldTarget||paused)endButtonHold();
+  if(key!=heldDwellTarget||paused){runner.endDwellHold();heldDwellTarget.clear();}
+ }
  lastHoldHover=clock.elapsed();
  if(key.startsWith("suggest:")){
   bool valid=false;const int i=key.mid(8).toInt(&valid);
@@ -313,7 +321,10 @@ double Controller::hover(QString key){
   }
  }
  if(dwell.update(key,clock.elapsed(),duration,repeatKey,repeatIntervalMs)){
-  if(!buttonHold.isEmpty()){
+  if(collectingOverlap){
+   bool pending=false;for(const auto &entry:overlapPending)if(entry.target==key)pending=true;
+   if(!pending)overlapPending.append({key,holdCommands,buttonHold});
+  }else if(!buttonHold.isEmpty()){
    if(gameController.perform(buttonHold)){buttonHoldTarget=key;buttonHoldAction=GameController::buttonAction(buttonHold,"Release");}
    else {actionStatus=gameController.error();emit changed();}
   }else if(!holdCommands.isEmpty()){if(runner.beginDwellHold(holdCommands))heldDwellTarget=key;}else activate(key);
@@ -321,8 +332,79 @@ double Controller::hover(QString key){
  }
  return dwell.progress(clock.elapsed(),duration,repeatIntervalMs);
 }
-void Controller::clickCommand(QString key){activate(key);dwell.consume(key,clock.elapsed());}
+void Controller::releaseOverlapTarget(const QString &target){
+ runner.endDwellHold(target);
+ const auto release=overlapButtons.take(target);
+ if(!release.isEmpty()&&!overlapButtons.values().contains(release))gameController.perform(release);
+}
+void Controller::clearOverlap(){
+ overlapPending.clear();
+ const auto targets=overlapDwells.keys();overlapDwells.clear();
+ for(const auto &target:targets)releaseOverlapTarget(target);
+}
+QVariantMap Controller::hoverKeys(const QStringList &targets){
+ if(layout["layoutMode"]!="canvas"||!layout["activateoverlappingkeys"].toBool()||sizeMoveMode){
+  const auto target=targets.value(0);return {{target,hover(target)}};
+ }
+ const auto keys=layout["keys"].toList();QStringList selected;
+ for(const auto &target:targets){
+  bool ok=false;const int i=target.mid(4).toInt(&ok);
+  if(target.startsWith("key:")&&ok&&i>=0&&i<keys.size()&&keys[i].toMap()["kind"]=="DynamicKey"&&!selected.contains(target))selected<<target;
+ }
+ // Pause/resume must remain usable during a macro and must never resume input
+ // accidentally by activating a second overlapping Sleep key.
+ for(const auto &target:selected){
+  const auto commands=keys[target.mid(4).toInt()].toMap()["commands"].toList();
+  const auto command=commands.size()==1?commands.front().toMap():QVariantMap();
+  const auto action=command["text"].toString().trimmed();
+  if(isSleepKey(target)||isSizeMoveKey(target)||(command["tag"]=="Action"&&(action=="CycleKeyMode"||action=="CycleButtonMode")))
+   return {{target,hover(target)}};
+ }
+ dwell.reset();
+ if(paused||targeting){clearOverlap();return {};}
+ endButtonHold();
+ if(!heldDwellTarget.isEmpty()){runner.endDwellHold();heldDwellTarget.clear();}
+ const auto previous=overlapDwells.keys();
+ for(const auto &target:previous)if(!selected.contains(target)){releaseOverlapTarget(target);overlapDwells.remove(target);}
+ for(auto it=overlapPending.begin();it!=overlapPending.end();)if(!selected.contains(it->target))it=overlapPending.erase(it);else ++it;
+ std::sort(selected.begin(),selected.end(),[&](const QString &a,const QString &b){
+  const int ai=a.mid(4).toInt(),bi=b.mid(4).toInt();
+  const bool am=!ActionRunner::modifierName(keys[ai].toMap()["commands"].toList()).isEmpty();
+  const bool bm=!ActionRunner::modifierName(keys[bi].toMap()["commands"].toList()).isEmpty();
+  return am!=bm?am:ai<bi;
+ });
+ QVariantMap progress;collectingOverlap=true;
+ for(const auto &target:selected){
+  dwell=overlapDwells.value(target);
+  progress[target]=hover(target);
+  overlapDwells[target]=dwell;
+ }
+ collectingOverlap=false;dwell.reset();lastHoldHover=clock.elapsed();
+ dispatchOverlap();return progress;
+}
+void Controller::dispatchOverlap(){
+ if(paused||sizeMoveMode||targeting){clearOverlap();return;}
+ while(!runner.busy()&&!overlapPending.isEmpty()){
+  const auto next=overlapPending.takeFirst();
+  if(!overlapDwells.contains(next.target))continue;
+  if(!next.buttonHold.isEmpty()){
+   const auto release=GameController::buttonAction(next.buttonHold,"Release");
+   if(overlapButtons.values().contains(release)||gameController.perform(next.buttonHold))overlapButtons[next.target]=release;
+   else {actionStatus=gameController.error();clearOverlap();emit changed();return;}
+  }else if(!next.holdCommands.isEmpty()){
+   if(!runner.beginDwellHold(next.holdCommands,next.target)){clearOverlap();return;}
+  }else{
+   dispatchingOverlap=true;activate(next.target);dispatchingOverlap=false;
+  }
+ }
+}
+void Controller::clickCommand(QString key){
+ activate(key);dwell.consume(key,clock.elapsed());
+ if(!sizeMoveMode&&layout["layoutMode"]=="canvas"&&layout["activateoverlappingkeys"].toBool()&&key.startsWith("key:"))
+  overlapDwells[key].consume(key,clock.elapsed());
+}
 void Controller::activate(QString key){
+ if(!dispatchingOverlap)clearOverlap();
  if(sizeMoveMode&&(key.startsWith("key:")||key.startsWith("suggest:"))&&!isSizeMoveKey(key)){
   if(paused)return;
   bool ok=false;const int index=key.mid(4).toInt(&ok);
@@ -331,8 +413,7 @@ void Controller::activate(QString key){
   }
   return;
  }
- endButtonHold();
- runner.endDwellHold();heldDwellTarget.clear();
+ if(!dispatchingOverlap){endButtonHold();runner.endDwellHold();heldDwellTarget.clear();}
  if(key=="MoveModeToggle"||key=="SizeModeToggle"||key=="CycleKeyMode"||key=="CycleButtonMode"){performAction(key);return;}
  if(key=="Settings"){emit settingsRequested();return;}
  if(key=="Speak"){speak();return;}
@@ -425,6 +506,7 @@ bool Controller::performAction(QString action){
  if(action=="MoveModeToggle"||action=="SizeModeToggle"){
   if(layout["layoutMode"]!="canvas"){actionStatus="Size/move mode requires a Canvas layout";emit changed();return true;}
   const QString mode=action=="MoveModeToggle"?"move":"size";
+  clearOverlap();
   canvasEditMode=canvasEditMode==mode?QString():mode;sizeMoveMode=!canvasEditMode.isEmpty();resetCanvasPlacement();
   runner.endDwellHold();runner.releaseToggledKeys();heldDwellTarget.clear();endButtonHold();
   gameController.reset();activeJoystick=-1;
@@ -434,11 +516,13 @@ bool Controller::performAction(QString action){
  }
 
  if(action=="CycleButtonMode"){
+  clearOverlap();
   endButtonHold();gameController.reset();activeJoystick=-1;
   buttonModeValue=buttonModeValue=="Tap"?"Repeat":buttonModeValue=="Repeat"?"Hold":buttonModeValue=="Hold"?"Toggle":"Tap";
   actionStatus="Button mode: "+buttonModeValue;emit changed();return true;
  }
  if(action=="CycleKeyMode"){
+  clearOverlap();
   runner.endDwellHold();heldDwellTarget.clear();
   runner.releaseToggledKeys();
   keyModeValue=keyModeValue=="Tap"?"Repeat":keyModeValue=="Repeat"?"Hold":keyModeValue=="Hold"?"Toggle":"Tap";

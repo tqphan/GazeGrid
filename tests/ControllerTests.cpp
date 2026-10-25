@@ -16,7 +16,79 @@
 #include <QWindow>
 class ControllerTests:public QObject {
  Q_OBJECT
+ static QVariantMap overlapKey(QString tag,QString text,int duration=10){
+  return {{"kind","DynamicKey"},{"dwell",duration},{"commands",QVariantList{QVariantMap{{"tag",tag},{"text",text}}}}};
+ }
+ static void overlapLayout(Controller &c,const QVariantList &keys){
+  c.openLayout("keyboard-conversation-fullscreen",false);c.setProperty("paused",false);
+  c.setProperty("layout",QVariantMap{{"layoutMode","canvas"},{"activateoverlappingkeys",true},{"keys",keys}});
+ }
 private slots:
+ void overlapDwellOrdersModifiersAndDoesNotRetrigger(){
+  Controller c;overlapLayout(c,{overlapKey("Text","a"),overlapKey("Text","b"),overlapKey("Action","LeftShift")});
+  const QStringList targets{"key:1","key:0","key:2","key:0"};
+  c.hoverKeys(targets);QTest::qWait(20);c.hoverKeys(targets);
+  QTRY_COMPARE(c.property("scratchpad").toString(),QString("Ab"));
+  for(int i=0;i<6;++i){c.hoverKeys(targets);QTest::qWait(20);}
+  QCOMPARE(c.property("scratchpad").toString(),QString("Ab"));
+  c.hoverKeys({});c.hoverKeys(targets);QTest::qWait(20);c.hoverKeys(targets);
+  QTRY_COMPARE(c.property("scratchpad").toString(),QString("AbAb"));
+ }
+ void overlapDwellKeepsIndependentTimers(){
+  Controller c;overlapLayout(c,{overlapKey("Text","a",10),overlapKey("Text","b",100)});
+  c.hoverKeys({"key:0","key:1"});QTest::qWait(20);c.hoverKeys({"key:0","key:1"});
+  QTRY_COMPARE(c.property("scratchpad").toString(),QString("a"));
+  // Leaving A does not restart B's dwell timer.
+  c.hoverKeys({"key:1"});
+  for(int i=0;i<8;++i){QTest::qWait(20);c.hoverKeys({"key:1"});}
+  QTRY_COMPARE(c.property("scratchpad").toString(),QString("ab"));
+ }
+ void overlapPendingCancelsOnLeavePauseAndNavigation(){
+  for(const QString event:{"leave","pause","navigate","failure"}){
+   Controller c;auto slow=overlapKey("Wait","80");
+   if(event=="navigate")slow=overlapKey("ChangeKeyboard","keyboard-alphabet-14x4-bottom");
+   if(event=="failure")slow=overlapKey("Action","UnsupportedAction");
+   overlapLayout(c,{slow,overlapKey("Text","b")});
+   c.hoverKeys({"key:0","key:1"});QTest::qWait(20);c.hoverKeys({"key:0","key:1"});
+   if(event=="leave")c.hoverKeys({"key:0"});
+   if(event=="pause")c.togglePause();
+   QTest::qWait(120);QVERIFY(c.property("scratchpad").toString().isEmpty());
+   if(event=="navigate")QCOMPARE(c.property("layoutName").toString(),QString("keyboard-alphabet-14x4-bottom"));
+  }
+ }
+ void overlapOptOutAndGridUseOneTarget(){
+  for(const QString mode:{"canvas","grid"}){
+   Controller c;overlapLayout(c,{overlapKey("Text","a"),overlapKey("Text","b")});
+   auto layout=c.property("layout").toMap();layout["layoutMode"]=mode;layout["activateoverlappingkeys"]=mode=="grid";
+   c.setProperty("layout",layout);
+   c.hoverKeys({"key:1","key:0"});QTest::qWait(20);c.hoverKeys({"key:1","key:0"});
+   QTRY_COMPARE(c.property("scratchpad").toString(),QString("b"));
+  }
+ }
+ void overlapRepeatAndClickConsumption(){
+  Controller c;c.configureInputMethod([](QString){return true;},[](QString,bool){return true;});c.inputContextChanged(true,false);
+  auto a=overlapKey("Text","a"),b=overlapKey("Text","b");a["mode"]="Repeat";b["mode"]="Repeat";
+  overlapLayout(c,{a,b});c.setProperty("repeatIntervalMs",40);
+  for(int i=0;i<12;++i){c.hoverKeys({"key:0","key:1"});QTest::qWait(20);}
+  c.hoverKeys({});QTRY_VERIFY(!c.executingCommands());
+  const auto text=c.property("scratchpad").toString();QVERIFY(text.size()>=4);
+  QCOMPARE(text,QString("ab").repeated(text.size()/2));
+  overlapLayout(c,{overlapKey("Text","a"),overlapKey("Text","b")});c.setProperty("scratchpad",QString());
+  c.clickCommand("key:1");QTRY_COMPARE(c.property("scratchpad").toString(),QString("b"));
+  for(int i=0;i<6;++i){c.hoverKeys({"key:0","key:1"});QTest::qWait(20);}
+  QCOMPARE(c.property("scratchpad").toString(),QString("ba"));
+ }
+ void overlapPauseAndEditControlsAreExclusive(){
+  Controller c;overlapLayout(c,{overlapKey("Text","a"),overlapKey("Action","Sleep"),overlapKey("Action","Sleep")});
+  const QStringList targets{"key:0","key:1","key:2"};
+  for(int i=0;i<6;++i){c.hoverKeys(targets);QTest::qWait(20);}
+  QVERIFY(c.property("paused").toBool());QVERIFY(c.property("scratchpad").toString().isEmpty());
+  c.hoverKeys({});for(int i=0;i<6;++i){c.hoverKeys(targets);QTest::qWait(20);}
+  QVERIFY(!c.property("paused").toBool());QVERIFY(c.property("scratchpad").toString().isEmpty());
+  overlapLayout(c,{overlapKey("Action","MoveModeToggle"),overlapKey("Text","a")});
+  for(int i=0;i<6;++i){c.hoverKeys({"key:0","key:1"});QTest::qWait(20);}
+  QVERIFY(c.property("sizeMoveMode").toBool());QVERIFY(c.property("scratchpad").toString().isEmpty());
+ }
  void keyboardBackgroundIsPerLayout(){
   Controller c;c.openLayout("size-move-demo",false);c.setProperty("saveCanvasChanges",false);
   auto layout=c.property("layout").toMap();
