@@ -1,6 +1,8 @@
-# Host acceptance — initial prototype
+# Host acceptance — recorded evidence
 
-Date: 2026-10-18. Host: Arch Linux x86-64, KDE Wayland, Qt 6.12.0. This report records the initial implementation, not completion of the modernization plan.
+Host: Arch Linux x86-64, KDE Wayland, Qt 6.12.0. Entries below are historical results from their recorded implementation stages, not current feature descriptions or a new validation run. Later entries supersede earlier limitations; current controls are in [README](../README.md) and outstanding work is in [the inventory](feature-inventory.md). Historical layout counts, defaults and UI descriptions are retained only as context for the recorded checks.
+
+## Initial prototype — 2026-10-18
 
 | Check | Result |
 | --- | --- |
@@ -17,8 +19,6 @@ Date: 2026-10-18. Host: Arch Linux x86-64, KDE Wayland, Qt 6.12.0. This report r
 | Original repository | No rewrite files or changes added |
 
 The separate-process test proves keystroke delivery to a focused Qt target. It does not yet establish focus preservation when physically clicking the panel, input delivery into a browser/XWayland application, or pointer-action correctness.
-
-Still required: live Tobii streaming/calibration/reconnect testing; full XML styling, symbols, navigation semantics and actions; platform mappings; text composition and prediction; speech; mouse drag/held buttons/magnification; permission restoration and revocation tests; suspend/resume and mixed-DPI/display changes; accessible settings/recovery flows; a sustained usage session. Windows/macOS adapters and packaging remain future milestones.
 
 No privileged helper or Tobii service installation was performed. CMake/Ninja were installed into `.tools/` after system package installation could not proceed without a sudo password. The selected Tobii SDK remains in its original user-supplied location.
 
@@ -44,7 +44,7 @@ Dwell recovery controls now remain usable while a macro waits. Display changes p
 
 The final automated run passed all three suites (47 test cases excluding setup/cleanup). All 22 layouts rendered offscreen without diagnostics; artifacts and per-layout coverage are in `runtime/render-audit/`. All 51 fixture action names now have implementation paths, but full behavioral parity remains unverified. No live Tobii probe or streaming test was performed.
 
-See `feature-inventory.md` for remaining work, including advanced settings/selection behavior, full text composition, live mouse and magnifier acceptance, mixed-DPI calibration, speech lifecycle, profile usability and packaging.
+See [the inventory](feature-inventory.md) for remaining work.
 
 ## Native desktop follow-up — 2026-10-18
 
