@@ -427,7 +427,7 @@ private slots:
   QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(!p.magnetic());QCOMPARE(moves.size(),1);
  }
  void actionCoverageListsMissingPackFeatures(){
-  auto report=KeyboardPack::audit(PACK_PATH);QCOMPARE(report["layouts"].toList().size(),30);
+  auto report=KeyboardPack::audit(PACK_PATH);QCOMPARE(report["layouts"].toList().size(),31);
   QVERIFY(report["unsupportedActions"].toStringList().isEmpty());
   QVERIFY(!report["behavioralParityVerified"].toBool());
  }
@@ -554,6 +554,31 @@ private slots:
    if(modifier.isEmpty())QCOMPARE(text.at(0).at(0).toString(),QString("\b"));
    QVERIFY(runner.heldKeys().isEmpty());
   }
+ }
+ void saveCanvasGeometry(){
+  QTemporaryDir dir;QVERIFY(dir.isValid());const auto path=dir.filePath("keyboard.xml");
+  QByteArray source=R"(<Keyboard><!--keep comment--><Name>Test</Name><TransparentBackground>true</TransparentBackground><Canvas><Width>100</Width><Height>100</Height></Canvas><Content><DynamicKey X="1" Y="2" Width="10" Height="20" Mode="Tap"><Label>A</Label><Text>a</Text></DynamicKey><Scratchpad X="0" Y="70" Width="100" Height="20"/></Content></Keyboard>)";
+  auto write=[&](const QByteArray &bytes){QFile f(path);return f.open(QIODevice::WriteOnly)&&f.write(bytes)==bytes.size();};
+  auto read=[&](){QFile f(path);if(!f.open(QIODevice::ReadOnly))return QByteArray();return f.readAll();};
+  QVERIFY(write(source));
+  auto layout=KeyboardLayout::fromXml(KeyboardPack::load(path));QVERIFY(!layout.contains("error"));
+  auto keys=layout["keys"].toList();auto key=keys[0].toMap();key["col"]=12.25;key["row"]=30.5;key["width"]=25.75;key["height"]=15.25;keys[0]=key;
+  QString error;QVERIFY2(KeyboardLayout::saveCanvasGeometry(path,source,keys,error),qPrintable(error));
+  QCOMPARE(read(),source);QVERIFY(source.contains("<!--keep comment-->"));QVERIFY(source.contains("<Text>a</Text>"));
+  auto loaded=KeyboardLayout::fromXml(KeyboardPack::load(path));auto saved=loaded["keys"].toList()[0].toMap();
+  QCOMPARE(saved["col"].toDouble(),12.25);QCOMPARE(saved["row"].toDouble(),30.5);
+  QCOMPARE(saved["width"].toDouble(),25.75);QCOMPARE(saved["height"].toDouble(),15.25);
+  QCOMPARE(saved["label"],key["label"]);QCOMPARE(saved["commands"],key["commands"]);
+  QCOMPARE(loaded["transparentbackground"].toString(),QString("true"));
+  QCOMPARE(loaded["keys"].toList()[1],keys[1]);
+  // Subsequent saves use the updated source snapshot.
+  QVERIFY(KeyboardLayout::saveCanvasGeometry(path,source,keys,error));
+  const auto good=source;key["width"]=1000;keys[0]=key;
+  QVERIFY(!KeyboardLayout::saveCanvasGeometry(path,source,keys,error));QCOMPARE(read(),good);
+  key["width"]=25.75;keys[0]=key;
+  QVERIFY(write(good+"\n<!--external edit-->"));
+  const auto external=read();QVERIFY(!KeyboardLayout::saveCanvasGeometry(path,source,keys,error));QCOMPARE(read(),external);
+  QVERIFY(!KeyboardLayout::saveCanvasGeometry(dir.filePath("missing.xml"),source,keys,error));
  }
  void canvasLayout(){
   QTemporaryDir dir;
@@ -774,7 +799,7 @@ private slots:
  }
  void explicitActivationDoesNotFireAgain(){Dwell d;d.consume("Pause",0);for(int t=25;t<1500;t+=25)QVERIFY(!d.update("Pause",t,500));d.update("",1500,500);QVERIFY(!d.update("Pause",1550,500));}
  void changingTargetCancels(){Dwell d;d.update("a",0,150);d.update("a",100,150);QVERIFY(!d.update("b",160,150));QVERIFY(!d.update("b",260,150));QVERIFY(d.update("b",310,150));}
- void packLoadsAndLinksResolve(){auto r=KeyboardPack::audit(PACK_PATH);QCOMPARE(r["fileCount"].toInt(),30);QCOMPARE(r["keyCount"].toInt(),757);QVERIFY2(r["errors"].toStringList().isEmpty(),qPrintable(r["errors"].toStringList().join('\n')));}
+ void packLoadsAndLinksResolve(){auto r=KeyboardPack::audit(PACK_PATH);QCOMPARE(r["fileCount"].toInt(),31);QCOMPARE(r["keyCount"].toInt(),765);QVERIFY2(r["errors"].toStringList().isEmpty(),qPrintable(r["errors"].toStringList().join('\n')));}
  void textPreservesWhitespaceAndOrder(){
   QTemporaryDir dir;QFile f(dir.filePath("test.xml"));QVERIFY(f.open(QIODevice::WriteOnly));f.write("<Keyboard><DynamicKey row=\"2\"><KeyDown>LSHIFT</KeyDown><Text>&#9;</Text><Wait>50</Wait><KeyUp>LSHIFT</KeyUp></DynamicKey></Keyboard>");f.close();
   auto r=KeyboardPack::load(f.fileName());auto key=r["children"].toList()[0].toMap();QCOMPARE(key["attributes"].toMap()["row"].toString(),QString("2"));

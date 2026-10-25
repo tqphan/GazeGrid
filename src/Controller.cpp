@@ -1,3 +1,4 @@
+#include <cmath>
 #include "Controller.h"
 #include "KeyboardPack.h"
 #include "KeyboardLayout.h"
@@ -9,6 +10,8 @@
 #include "MagnifierGeometry.h"
 #include <QGuiApplication>
 #include <QScreen>
+#include <QWindow>
+#include <QRegion>
 #include "ProfileStore.h"
 #include <QTimer>
 #include <QDir>
@@ -261,6 +264,14 @@ void Controller::endButtonHold(){
  if(!action.isEmpty())gameController.perform(action);
 }
 double Controller::hover(QString key){
+ if(sizeMoveMode){
+  if(paused||runner.busy()){dwell.inhibit(key,clock.elapsed());return 0;}
+  // Editing has its own dwell path: never execute hold, repeat or typing behavior.
+  if(dwell.update(key,clock.elapsed(),dwellMs)){
+   activate(key);dwell.consume(key,clock.elapsed());
+  }
+  return dwell.progress(clock.elapsed(),dwellMs);
+ }
  if(key!=buttonHoldTarget||paused)endButtonHold();
  if(key!=heldDwellTarget||paused){runner.endDwellHold();heldDwellTarget.clear();}
  lastHoldHover=clock.elapsed();
@@ -312,9 +323,17 @@ double Controller::hover(QString key){
 }
 void Controller::clickCommand(QString key){activate(key);dwell.consume(key,clock.elapsed());}
 void Controller::activate(QString key){
+ if(sizeMoveMode&&(key.startsWith("key:")||key.startsWith("suggest:"))&&!isSizeMoveKey(key)){
+  if(paused)return;
+  bool ok=false;const int index=key.mid(4).toInt(&ok);
+  if(key.startsWith("key:")&&ok&&index>=0&&index<layout["keys"].toList().size()){
+   resetCanvasPlacement();sizeMoveSelection=index;emit changed();
+  }
+  return;
+ }
  endButtonHold();
  runner.endDwellHold();heldDwellTarget.clear();
- if(key=="CycleKeyMode"||key=="CycleButtonMode"){performAction(key);return;}
+ if(key=="MoveModeToggle"||key=="SizeModeToggle"||key=="CycleKeyMode"||key=="CycleButtonMode"){performAction(key);return;}
  if(key=="Settings"){emit settingsRequested();return;}
  if(key=="Speak"){speak();return;}
  if(key=="StopSpeech"){stopSpeech();return;}
@@ -340,7 +359,7 @@ void Controller::activate(QString key){
  auto commands=keys[i].toMap()["commands"].toList();bool ok=false;commands=mapped(commands,ok);
  if(!ok){emit changed();return;}
  // Navigation, sleep, and scratchpad clearing work without a portal session.
- bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="CycleButtonMode"||value=="CycleKeyMode"||value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="SpeakLabel"||value=="NextSuggestions"||value=="PreviousSuggestions"||GameController::supports(value))))needsOutput=true;}
+ bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="MoveModeToggle"||value=="SizeModeToggle"||value=="CycleButtonMode"||value=="CycleKeyMode"||value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="SpeakLabel"||value=="NextSuggestions"||value=="PreviousSuggestions"||GameController::supports(value))))needsOutput=true;}
  if(needsOutput&&!runner.textOnly&&!ready()){actionStatus="Authorize desktop control before sending input";emit changed();return;}
  if(!runner.textOnly&&commands.size()==1){
   auto cmd=commands.front().toMap();
@@ -355,7 +374,11 @@ void Controller::activate(QString key){
 void Controller::openLayout(QString name,bool backReturnsHere){
  if(name.endsWith(".xml"))name.chop(4);
  if(!layoutNames.contains(name)){actionStatus="Unknown keyboard: "+name;emit changed();return;}
- auto compiled=KeyboardLayout::fromXml(KeyboardPack::load(QDir(QStringLiteral(DEFAULT_PACK_PATH)).filePath(name+".xml")));
+ const auto sourcePath=QDir(QStringLiteral(DEFAULT_PACK_PATH)).filePath(name+".xml");
+ QFile sourceFile(sourcePath);
+ if(!sourceFile.open(QIODevice::ReadOnly)){actionStatus=sourceFile.errorString();emit changed();return;}
+ const auto sourceBytes=sourceFile.readAll();sourceFile.close();
+ auto compiled=KeyboardLayout::fromXml(KeyboardPack::load(sourcePath));
  if(compiled.contains("error")){actionStatus=compiled["error"].toString();emit changed();return;}
  if(nativeMode){
   const auto reason=panelPlacementReason(compiled);
@@ -380,12 +403,14 @@ void Controller::openLayout(QString name,bool backReturnsHere){
  const bool preserve=preserveTogglesBetweenLayouts&&!textOnly&&!runner.textOnly;
  runner.cancel(textOnly==runner.textOnly,preserve);endButtonHold();gameController.reset(preserve);activeJoystick=-1;runner.textOnly=textOnly;runner.capsLock=false;pointer.cancel();dwell.reset();
  if(backReturnsHere&&!layoutName.isEmpty()&&layoutName!=name){backStack<<layoutName;if(backStack.size()>64)backStack.removeFirst();}
- layout=compiled;layoutName=name;updateSuggestions();emit layoutChanged();emit changed();
+ canvasSourcePath=sourcePath;canvasSource=sourceBytes;
+ saveCanvasChanges=compiled["persistkeygeometry"].toString().compare("true",Qt::CaseInsensitive)==0;canvasSaveStatus.clear();
+ resetCanvasPlacement();canvasEditMode.clear();sizeMoveMode=false;layout=compiled;layoutName=name;updateSuggestions();emit layoutChanged();emit changed();
 }
 void Controller::recover(){paused=false;backStack.clear();openLayout("main-14x1-bottom",false);}
 void Controller::joystick(int index,double x,double y,bool active){
  const auto keys=layout["keys"].toList();
- if(!active||paused||runner.textOnly||index<0||index>=keys.size()){
+ if(!active||sizeMoveMode||paused||runner.textOnly||index<0||index>=keys.size()){
   if(activeJoystick>=0&&activeJoystick<keys.size())gameController.stick(keys[activeJoystick].toMap()["style"].toMap().value("stick","Left").toString(),0,0);
   activeJoystick=-1;return;
  }
@@ -397,6 +422,17 @@ void Controller::joystick(int index,double x,double y,bool active){
  }
 }
 bool Controller::performAction(QString action){
+ if(action=="MoveModeToggle"||action=="SizeModeToggle"){
+  if(layout["layoutMode"]!="canvas"){actionStatus="Size/move mode requires a Canvas layout";emit changed();return true;}
+  const QString mode=action=="MoveModeToggle"?"move":"size";
+  canvasEditMode=canvasEditMode==mode?QString():mode;sizeMoveMode=!canvasEditMode.isEmpty();resetCanvasPlacement();
+  runner.endDwellHold();runner.releaseToggledKeys();heldDwellTarget.clear();endButtonHold();
+  gameController.reset();activeJoystick=-1;
+  // Keep the activating key consumed until the pointer leaves it.
+  actionStatus=sizeMoveMode?"Dwell on a key, then dwell at its new "+QString(canvasEditMode=="move"?"center":"bottom-right corner"):"Canvas editing off";
+  emit changed();return true;
+ }
+
  if(action=="CycleButtonMode"){
   endButtonHold();gameController.reset();activeJoystick=-1;
   buttonModeValue=buttonModeValue=="Tap"?"Repeat":buttonModeValue=="Repeat"?"Hold":buttonModeValue=="Hold"?"Toggle":"Tap";
@@ -534,4 +570,95 @@ void Controller::stopSpeech(){speech.stop();}
 bool Controller::keyToggled(const QVariantList &commands)const{
  const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,literal);
  return resolved.allowed&&runner.isToggled(resolved.commands);
+}
+
+bool Controller::isSizeMoveKey(const QString &key) const{
+ if(!key.startsWith("key:"))return false;
+ bool ok=false;const int index=key.mid(4).toInt(&ok);const auto keys=layout["keys"].toList();
+ if(!ok||index<0||index>=keys.size())return false;
+ const auto commands=keys[index].toMap()["commands"].toList();
+ return commands.size()==1&&commands[0].toMap()["tag"]=="Action"&&(commands[0].toMap()["text"].toString().trimmed()=="MoveModeToggle"||commands[0].toMap()["text"].toString().trimmed()=="SizeModeToggle");
+}
+bool Controller::setCanvasKeyRect(int index,double x,double y,double width,double height){
+ auto keys=layout["keys"].toList();
+ if(!sizeMoveMode||paused||layout["layoutMode"]!="canvas"||index<0||index>=keys.size()||
+    !std::isfinite(x)||!std::isfinite(y)||!std::isfinite(width)||!std::isfinite(height)||
+    x<0||y<0||width<=0||height<=0||x+width>layout["cols"].toDouble()||y+height>layout["rows"].toDouble())return false;
+ auto entry=keys[index].toMap();entry["col"]=x;entry["row"]=y;entry["width"]=width;entry["height"]=height;
+ keys[index]=entry;layout["keys"]=keys;dwell.reset();resetCanvasPlacement();
+ canvasSaveStatus="Position and size changes are temporary until saved.";
+ if(saveCanvasChanges)saveCanvasGeometry();
+ emit layoutChanged();emit changed();return true;
+}
+
+void Controller::resetCanvasPlacement(){
+ sizeMoveSelection=-1;canvasEditPreview.clear();canvasAnchorValid=false;canvasPlacementArmed=false;canvasPlacementBlocked=false;canvasDwell.reset();
+}
+double Controller::canvasEditAt(double x,double y,bool valid){
+ if(runner.busy()){canvasDwell.reset();return 0;}
+ if(!sizeMoveMode||paused||!valid||!std::isfinite(x)||!std::isfinite(y)||x<0||y<0||x>1||y>1){
+  canvasDwell.reset();canvasAnchorValid=false;dwell.reset();return 0;
+ }
+ const QPointF point(x,y);
+ const auto distance=[](QPointF a,QPointF b){return std::hypot(a.x()-b.x(),a.y()-b.y());};
+ if(canvasPlacementBlocked){
+  if(distance(point,canvasAnchor)<.03)return 0;
+  canvasPlacementBlocked=false;dwell.reset();
+ }
+ const auto keys=layout["keys"].toList();const double cols=layout["cols"].toDouble(),rows=layout["rows"].toDouble();
+ QString target;
+ for(int i=keys.size()-1;i>=0;--i){const auto k=keys[i].toMap();
+  if(x*cols>=k["col"].toDouble()&&x*cols<k["col"].toDouble()+k["width"].toDouble()&&
+     y*rows>=k["row"].toDouble()&&y*rows<k["row"].toDouble()+k["height"].toDouble()){
+   const QString candidate="key:"+QString::number(i);
+   if(target.isEmpty()||isSizeMoveKey(candidate))target=candidate;
+   if(isSizeMoveKey(candidate))break;
+  }
+ }
+ if(sizeMoveSelection<0||isSizeMoveKey(target)){
+  canvasDwell.reset();
+  const int before=sizeMoveSelection;const double progress=hover(target);
+  if(before<0&&sizeMoveSelection>=0){canvasAnchor=point;canvasAnchorValid=true;}
+  return progress;
+ }
+ dwell.reset();
+ if(!canvasAnchorValid){canvasAnchor=point;canvasAnchorValid=true;canvasDwell.reset();return 0;}
+ if(!canvasPlacementArmed){
+  if(distance(point,canvasAnchor)<.03)return 0;
+  canvasPlacementArmed=true;canvasAnchor=point;canvasDwell.reset();
+ }
+ if(distance(point,canvasAnchor)>.015){canvasAnchor=point;canvasDwell.reset();}
+ auto preview=keys[sizeMoveSelection].toMap();
+ if(canvasEditMode=="move"){
+  preview["col"]=qBound(0.0,x*cols-preview["width"].toDouble()/2,cols-preview["width"].toDouble());
+  preview["row"]=qBound(0.0,y*rows-preview["height"].toDouble()/2,rows-preview["height"].toDouble());
+ }else{
+  preview["width"]=qBound(qMin(cols/100,cols-preview["col"].toDouble()),x*cols-preview["col"].toDouble(),cols-preview["col"].toDouble());
+  preview["height"]=qBound(qMin(rows/100,rows-preview["row"].toDouble()),y*rows-preview["row"].toDouble(),rows-preview["row"].toDouble());
+ }
+ canvasEditPreview=preview;emit changed();
+ if(canvasDwell.update("place",clock.elapsed(),dwellMs)){
+  setCanvasKeyRect(sizeMoveSelection,preview["col"].toDouble(),preview["row"].toDouble(),preview["width"].toDouble(),preview["height"].toDouble());
+  resetCanvasPlacement();canvasPlacementBlocked=true;canvasAnchor=point;emit changed();return 0;
+ }
+ return canvasDwell.progress(clock.elapsed(),dwellMs);
+}
+
+void Controller::updateKeyboardMask(QObject *object,const QVariantList &rectangles,bool enabled){
+ auto window=qobject_cast<QWindow*>(object);if(!window)return;
+ QRegion region;
+ if(enabled){
+  for(const auto &value:rectangles){const auto r=value.toRectF();if(!r.isEmpty())region+=r.toAlignedRect();}
+  // An empty QWindow mask means the full window; use an off-window region for an empty layout.
+  if(region.isEmpty())region=QRegion(-1,-1,1,1);
+ }
+ if(window->mask()!=region)window->setMask(region);
+}
+
+bool Controller::saveCanvasGeometry(){
+ if(layout["layoutMode"]!="canvas"){canvasSaveStatus="Only Canvas keyboards support saving key geometry.";emit changed();return false;}
+ QString error;
+ const bool saved=KeyboardLayout::saveCanvasGeometry(canvasSourcePath,canvasSource,layout["keys"].toList(),error);
+ canvasSaveStatus=saved?"Positions and sizes saved to "+canvasSourcePath:"Could not save: "+error+" Changes remain temporary.";
+ emit changed();return saved;
 }

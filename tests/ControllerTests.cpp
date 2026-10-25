@@ -13,9 +13,100 @@
 #include <QJsonDocument>
 #include <QGuiApplication>
 #include <QScreen>
+#include <QWindow>
 class ControllerTests:public QObject {
  Q_OBJECT
 private slots:
+ void keyboardBackgroundIsPerLayout(){
+  Controller c;c.openLayout("size-move-demo",false);c.setProperty("saveCanvasChanges",false);
+  auto layout=c.property("layout").toMap();
+  QCOMPARE(layout.value("transparentbackground").toString(),QString("true"));
+  QCOMPARE(layout.value("backgroundclickthrough").toString(),QString("true"));
+  c.openLayout("main-14x1-bottom",false);layout=c.property("layout").toMap();
+  QVERIFY(!layout.contains("transparentbackground"));
+  QVERIFY(!layout.contains("backgroundclickthrough"));
+  QVERIFY(c.metaObject()->indexOfProperty("transparentKeyboardBackground")<0);
+  QVERIFY(c.metaObject()->indexOfProperty("keyboardBackgroundClickThrough")<0);
+ }
+ void keyboardInputMask(){
+  Controller c;QWindow window;
+  c.updateKeyboardMask(&window,{QRectF(0,0,40,40),QRectF(60,0,40,40)},true);
+  QVERIFY(window.mask().contains(QPoint(20,20)));
+  QVERIFY(!window.mask().contains(QPoint(50,20)));
+  QVERIFY(window.mask().contains(QPoint(80,20)));
+  c.updateKeyboardMask(&window,{QRectF(10,50,20,20)},true);
+  QVERIFY(!window.mask().contains(QPoint(20,20)));
+  QVERIFY(window.mask().contains(QPoint(20,60)));
+  c.updateKeyboardMask(&window,{},true);
+  QVERIFY(!window.mask().isEmpty());QVERIFY(!window.mask().contains(QPoint(0,0)));
+  c.updateKeyboardMask(&window,{},false);QVERIFY(window.mask().isEmpty());
+ }
+
+ void canvasModeDwellDoesNotRetrigger(){
+  Controller c;c.openLayout("size-move-demo",false);c.setProperty("saveCanvasChanges",false);c.setProperty("dwellMs",20);
+  c.hover("key:0");QTest::qWait(30);c.hover("key:0");
+  QTRY_VERIFY(!c.executingCommands());QVERIFY(c.property("sizeMoveMode").toBool());
+  for(int i=0;i<8;++i){
+   c.canvasEditAt(.15,.10,true);QTest::qWait(25);
+   QCOMPARE(c.property("canvasEditMode").toString(),QString("move"));
+  }
+  c.canvasEditAt(.50,.10,true);QTest::qWait(30);c.canvasEditAt(.50,.10,true);
+  QTRY_VERIFY(!c.executingCommands());QCOMPARE(c.property("canvasEditMode").toString(),QString("size"));
+  for(int i=0;i<8;++i){c.canvasEditAt(.50,.10,true);QTest::qWait(25);QCOMPARE(c.property("canvasEditMode").toString(),QString("size"));}
+  c.canvasEditAt(.99,.99,true);c.canvasEditAt(.50,.10,true);QTest::qWait(30);c.canvasEditAt(.50,.10,true);
+  QTRY_VERIFY(!c.executingCommands());QVERIFY(!c.property("sizeMoveMode").toBool());
+  for(int i=0;i<8;++i){c.hover("key:8");QTest::qWait(25);QVERIFY(!c.property("sizeMoveMode").toBool());}
+ }
+ void canvasPlacementDwell(){
+  Controller c;c.openLayout("size-move-demo",false);c.setProperty("saveCanvasChanges",false);c.setProperty("dwellMs",10);
+  auto dwellAt=[&](double x,double y){c.canvasEditAt(x,y,true);QTest::qWait(20);c.canvasEditAt(x,y,true);};
+  c.activate("MoveModeToggle");QCOMPARE(c.property("canvasEditMode").toString(),QString("move"));
+  dwellAt(.15,.60);QCOMPARE(c.property("sizeMoveSelection").toInt(),3);
+  dwellAt(.15,.60);QCOMPARE(c.property("sizeMoveSelection").toInt(),3);
+  const auto scratch=c.property("scratchpad");
+  dwellAt(.40,.60);QCOMPARE(c.property("sizeMoveSelection").toInt(),-1);
+  auto rect=[&]{return c.property("layout").toMap()["keys"].toList()[3].toMap();};
+  QCOMPARE(rect()["col"].toDouble(),30.0);QCOMPARE(rect()["row"].toDouble(),46.0);
+  dwellAt(.40,.60);QCOMPARE(c.property("sizeMoveSelection").toInt(),-1);
+  c.activate("SizeModeToggle");QCOMPARE(c.property("canvasEditMode").toString(),QString("size"));
+  c.clickCommand("key:3");c.canvasEditAt(.40,.60,true);
+  dwellAt(.65,.90);QCOMPARE(rect()["width"].toDouble(),35.0);QCOMPARE(rect()["height"].toDouble(),44.0);
+  c.activate("MoveModeToggle");c.clickCommand("key:3");c.canvasEditAt(.4,.6,true);
+  c.canvasEditAt(.9,.9,true);QTest::qWait(20);c.canvasEditAt(.9,.9,false);
+  QCOMPARE(c.property("sizeMoveSelection").toInt(),3);
+  c.canvasEditAt(.9,.9,true);dwellAt(1,1);
+  QCOMPARE(rect()["col"].toDouble(),65.0);QCOMPARE(rect()["row"].toDouble(),56.0);
+  QCOMPARE(c.property("scratchpad"),scratch);
+  c.activate("MoveModeToggle");QVERIFY(!c.property("sizeMoveMode").toBool());
+  QCOMPARE(c.property("sizeMoveSelection").toInt(),-1);
+ }
+ void sizeMoveMode(){
+  Controller c;c.openLayout("size-move-demo",false);c.setProperty("saveCanvasChanges",false);
+  QVERIFY(!c.property("layout").toMap().contains("error"));
+  QVERIFY(!c.setCanvasKeyRect(3,1,2,20,20));
+  c.clickCommand("key:0");QTRY_VERIFY(!c.executingCommands());
+  QVERIFY(c.property("sizeMoveMode").toBool());
+  const auto original=c.property("layout").toMap();
+  QVERIFY(!c.setCanvasKeyRect(-1,1,2,20,20));
+  QVERIFY(!c.setCanvasKeyRect(3,-1,2,20,20));
+  QVERIFY(!c.setCanvasKeyRect(3,90,2,20,20));
+  QVERIFY(!c.setCanvasKeyRect(3,1,2,0,20));
+  QCOMPARE(c.property("layout").toMap(),original);
+  const auto scratch=c.property("scratchpad");c.clickCommand("key:3");
+  QCOMPARE(c.property("scratchpad"),scratch);
+  QVERIFY(c.setCanvasKeyRect(3,10.5,40.5,25.5,30.5));
+  auto key=c.property("layout").toMap()["keys"].toList()[3].toMap();
+  QCOMPARE(key["col"].toDouble(),10.5);QCOMPARE(key["height"].toDouble(),30.5);
+  c.clickCommand("key:0");QTRY_VERIFY(!c.executingCommands());
+  QVERIFY(!c.property("sizeMoveMode").toBool());
+  QCOMPARE(c.property("layout").toMap()["keys"].toList()[3].toMap(),key);
+  c.activate("MoveModeToggle");QVERIFY(c.property("sizeMoveMode").toBool());
+  c.openLayout("size-move-demo",false);c.setProperty("saveCanvasChanges",false);QVERIFY(!c.property("sizeMoveMode").toBool());
+  QCOMPARE(c.property("layout").toMap(),original);
+  c.openLayout("game-controller",false);c.activate("MoveModeToggle");
+  QVERIFY(!c.property("sizeMoveMode").toBool());
+ }
+
  void preserveTogglePreference(){
   auto values=ProfileStore::defaults();
   QCOMPARE(values["preserveTogglesBetweenLayouts"].toBool(),false);
@@ -512,8 +603,8 @@ private slots:
  }
  void keyboardMenuHonorsXmlVisibility(){
   Controller controller;
-  QCOMPARE(controller.property("menuLayoutNames").toStringList(),QStringList({"game-controller","main-14x1-top"}));
-  QCOMPARE(controller.property("layoutNames").toStringList().size(),30);
+  QCOMPARE(controller.property("menuLayoutNames").toStringList(),QStringList({"game-controller","main-14x1-top","size-move-demo"}));
+  QCOMPARE(controller.property("layoutNames").toStringList().size(),31);
   controller.openLayout("minimized-off-screen-bottom");
   QCOMPARE(controller.property("layoutName").toString(),QString("minimized-off-screen-bottom"));
   controller.recover();QCOMPARE(controller.property("layoutName").toString(),QString("main-14x1-bottom"));

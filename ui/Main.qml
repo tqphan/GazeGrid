@@ -12,6 +12,10 @@ Window {
  color:"transparent"
  flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
  property string hovered: ""
+ property bool canvasDragging:false
+ property point canvasPoint:Qt.point(0,0)
+ // Keep coordinates current before entering edit mode as well.
+ HoverHandler {id:canvasHover}
  property var dwellStyleIds: ["bar","top-bar","fill","outline","ring","pie","collapse"]
  property var dwellStyleNames: ["Bottom bar","Top bar","Rising fill","Outline","Ring","Pie","Collapse"]
  property real progress: 0
@@ -55,14 +59,31 @@ Window {
  property bool targetPointValid:false
  // Repeater lifecycle changes must invalidate the shared hit even when the
  // replacement layout has the same number of keys.
+ readonly property bool transparentBackground: (controller.layout.transparentbackground === "true") || root.minimizedRecovery || (controller.layout.keys||[]).some(k=>root.styleOpacity(k.style,"opacity")<1)
+ readonly property bool backgroundClickThrough: transparentBackground && (controller.layout.backgroundclickthrough === "true") && !controller.sizeMoveMode
+ onBackgroundClickThroughChanged:Qt.callLater(updateInputMask)
+ onWidthChanged:Qt.callLater(updateInputMask)
+ onHeightChanged:Qt.callLater(updateInputMask)
+ function updateInputMask() {
+  let rectangles=[]
+  for(let i=0;i<keys.count;++i){let key=keys.itemAt(i);if(key&&key.visible)rectangles.push(Qt.rect(key.x,key.y,key.width,key.height))}
+  controller.updateKeyboardMask(root,rectangles,backgroundClickThrough)
+ }
+ Component.onCompleted:Qt.callLater(updateInputMask)
  property int hitTestRevision: 0
+ onHitTestRevisionChanged:Qt.callLater(updateInputMask)
  readonly property string gazeTarget: {
   const revision=hitTestRevision
   return usingGaze ? keyAt(gaze.x*screenWidth-logicalX,gaze.y*screenHeight-logicalY) : ""
  }
+ function styleOpacity(style,name) {
+  const value=style&&style[name]!==undefined?Number(style[name]):1
+  return isFinite(value)?Math.max(0,Math.min(1,value)):1
+ }
  function keyAt(px,py) {
   for(let i=keys.count-1;i>=0;--i){let item=keys.itemAt(i);if(!item)continue
    if(px>=item.x&&py>=item.y&&px<item.x+item.width&&py<item.y+item.height){
+    if(controller.sizeMoveMode)return "key:"+i
     if(item.modelData.kind==="SuggestionRow") {
      let n=Math.floor((px-item.x)/item.predictionWidth);return n<item.predictionCount&&n<controller.suggestions.length&&controller.suggestions[n].trim().length>0?"suggest:"+n:""
     }
@@ -82,13 +103,20 @@ Window {
  Timer {
   interval:25;running:!root.gazeCheck;repeat:true
   onTriggered:{
+   if(controller.sizeMoveMode){
+    const point=root.usingGaze?Qt.point(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY):canvasHover.point.position
+    const valid=root.visible&&!controller.keyboardTemporarilyHidden&&(root.usingGaze?root.gazeValid:canvasHover.hovered)&&!root.canvasDragging
+    root.progress=controller.canvasEditAt(point.x/root.width,point.y/root.height,valid)
+    root.canvasPoint=point
+    return
+   }
    let target=controller.keyboardTemporarilyHidden?"":root.hovered
    if(root.usingGaze){
     target=""
     if(root.gazeValid){
      let px=root.gaze.x*root.screenWidth,py=root.gaze.y*root.screenHeight
      let overPanel=root.visible&&px>=root.logicalX&&px<root.logicalX+root.width&&py>=root.logicalY&&py<root.logicalY+root.height
-     controller.trackGaze(root.gaze.x,root.gaze.y,!overPanel&&!settings.visible)
+     controller.trackGaze(root.gaze.x,root.gaze.y,!overPanel)
      if(!controller.targeting&&root.visible)target=root.gazeTarget
     }
    }
@@ -104,9 +132,9 @@ Window {
     root.targetPointValid=false;root.targetProgress=controller.dwellAt(0,0,false)
    }
    let joystickIndex=-1
-   if(root.visible&&(!root.usingGaze||!settings.visible)&&!controller.targeting&&!controller.keyboardTemporarilyHidden&&target.startsWith("key:")){
+   if(root.visible&&!controller.targeting&&!controller.keyboardTemporarilyHidden&&target.startsWith("key:")){
     let i=Number(target.substring(4)),item=keys.itemAt(i)
-    if(item&&item.modelData.kind==="Joystick"){
+    if(item&&item.modelData.kind==="Joystick"&&!controller.sizeMoveMode){
      joystickIndex=i
      let px=root.usingGaze?root.gaze.x*root.screenWidth-root.logicalX-item.x:item.pointerX
      let py=root.usingGaze?root.gaze.y*root.screenHeight-root.logicalY-item.y:item.pointerY
@@ -120,7 +148,7 @@ Window {
    root.progress=controller.hover(target)
   }
  }
- Rectangle {anchors.fill:parent;visible:!root.minimizedRecovery;color:root.keyboardBackground}
+ Rectangle {anchors.fill:parent;visible:!root.transparentBackground;color:root.keyboardBackground}
  Repeater {
   id:keys
   onItemAdded: root.hitTestRevision++
@@ -128,6 +156,10 @@ Window {
   model:controller.layout.keys || []
   Rectangle {
    id:key
+   onXChanged:Qt.callLater(root.updateInputMask)
+   onYChanged:Qt.callLater(root.updateInputMask)
+   onWidthChanged:Qt.callLater(root.updateInputMask)
+   onHeightChanged:Qt.callLater(root.updateInputMask)
    clip:true
    required property var modelData
    required property int index
@@ -164,7 +196,7 @@ Window {
     const commands=modelData.commands || []
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="LookToScrollActive"
    }
-   property bool stateFilled:keyboardToggled||gamepadPressed||modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)
+   property bool stateFilled:((editAction==="MoveModeToggle"&&controller.canvasEditMode==="move")||(editAction==="SizeModeToggle"&&controller.canvasEditMode==="size"))||keyboardToggled||gamepadPressed||modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)
    property real predictionWidth:controller.layout.layoutMode==="canvas"?width/Math.max(1,predictionCount):2*root.width/controller.layout.cols
    property int predictionCount:modelData.suggestionCount!==undefined?modelData.suggestionCount:Math.floor(modelData.width/2)
    property bool sleepKey: {
@@ -177,14 +209,21 @@ Window {
    property string label:root.minimizedRecovery?["↘","↙","↗","↖"][controller.restoreCorner]:controller.shifted&&modelData.shiftLabel?modelData.shiftLabel:modelData.label
    property real symbolMargin:controller.layout.symbolmargin!==undefined?Math.max(0,Number(controller.layout.symbolmargin)):12
    property color foreground:root.keyboardForeground
-   x:modelData.col*root.width/controller.layout.cols
-   y:modelData.row*root.height/controller.layout.rows
-   width:modelData.width*root.width/controller.layout.cols
-   height:modelData.height*root.height/controller.layout.rows
+   property real foregroundOpacity:root.styleOpacity(modelData.style,"foregroundopacity")
+   property string editAction:(modelData.commands||[]).length===1&&modelData.commands[0].tag==="Action"?modelData.commands[0].text.trim():""
+   property bool sizeMoveKey:editAction==="MoveModeToggle"||editAction==="SizeModeToggle"
+   property real editX:modelData.col
+   property real editY:modelData.row
+   property real editWidth:modelData.width
+   property real editHeight:modelData.height
+   x:(editMouse.pressed?editX:modelData.col)*root.width/controller.layout.cols
+   y:(editMouse.pressed?editY:modelData.row)*root.height/controller.layout.rows
+   width:(editMouse.pressed?editWidth:modelData.width)*root.width/controller.layout.cols
+   height:(editMouse.pressed?editHeight:modelData.height)*root.height/controller.layout.rows
    color:root.keyboardPalette?root.keyboardPalette.key:Kirigami.Theme.backgroundColor
-   // Flatten the restore button before applying opacity to its overlapping visuals.
-   layer.enabled:root.minimizedRecovery
-   opacity:(enabled?1:0.35)*(root.minimizedRecovery?controller.restoreOpacity/100:1)
+   // Composite overlapping key visuals before applying whole-key transparency.
+   layer.enabled:opacity<1
+   opacity:(enabled?1:0.35)*(root.minimizedRecovery?controller.restoreOpacity/100:root.styleOpacity(modelData.style,"opacity"))
    Kirigami.Theme.colorSet:Kirigami.Theme.Button
    Kirigami.Theme.inherit:false
    border.width:root.minimizedRecovery?0:1;border.color:root.keyboardBorder
@@ -192,18 +231,20 @@ Window {
    Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:key.active?0.18:0}
    Rectangle {
     anchors.fill:parent;anchors.margins:2
-    visible:key.keyboardToggled||key.gamepadPressed||key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)
+    visible:(key.sizeMoveKey&&controller.sizeMoveMode)||key.keyboardToggled||key.gamepadPressed||key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)
     color:key.stateFilled?root.dwellColor:"transparent"
     opacity:key.stateFilled?0.25:1
-    border.width:2;border.color:root.dwellColor
+    border.width:controller.sizeMoveSelection===key.index?5:2;border.color:root.dwellColor
    }
    Text {
     anchors.fill:parent;anchors.margins:12;visible:key.modelData.kind==="Scratchpad"
+    opacity:key.foregroundOpacity
     text:controller.scratchpad;color:key.foreground;wrapMode:Text.Wrap
     font.pixelSize:24;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
    }
    Column {
     anchors.centerIn:parent;spacing:4
+    opacity:key.foregroundOpacity
     visible:key.modelData.kind==="DynamicKey"&&!key.unavailableReason
     Image {
      anchors.horizontalCenter:parent.horizontalCenter
@@ -228,6 +269,7 @@ Window {
    }
    Rectangle {
     id:modeBadge
+    opacity:key.foregroundOpacity
     objectName:"keyModeBadge:"+key.index
     visible:key.modelData.kind==="DynamicKey"&&!key.unavailableReason&&(key.cycleKeyModeKey||key.cycleButtonModeKey)&&!root.minimizedRecovery
     anchors.horizontalCenter:parent.horizontalCenter
@@ -248,6 +290,7 @@ Window {
    Text {
     anchors.fill:parent;anchors.margins:6
     visible:key.unavailableReason.length>0
+    opacity:key.foregroundOpacity
     text:"Unavailable\nin Plasma mode";color:key.foreground
     font.pixelSize:16;minimumPixelSize:10;fontSizeMode:Text.Fit
     horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
@@ -256,7 +299,7 @@ Window {
    Rectangle {
     visible:key.modelData.kind==="Joystick"
     anchors.centerIn:parent;width:Math.min(key.width,key.height)*.8;height:width;radius:width/2
-    color:"transparent";border.color:key.foreground;opacity:.8
+    color:"transparent";border.color:key.foreground;opacity:.8*key.foregroundOpacity
     Rectangle {objectName:"joystickThumb:"+key.index;width:parent.width*.18;height:width;radius:width/2;color:root.dwellColor
      x:(parent.width-width)/2+(key.active?key.stickX:0)*parent.width*.35
      y:(parent.height-height)/2+(key.active?key.stickY:0)*parent.height*.35}
@@ -284,18 +327,79 @@ Window {
       onHasPredictionChanged:if(!hasPrediction&&root.hovered==="suggest:"+index)root.hovered=""
       width:key.predictionWidth;height:key.height;color:"transparent";border.color:root.keyboardBorder
       Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:predictionSlot.active?0.18:0}
-      Text {anchors.fill:parent;anchors.margins:4;text:predictionSlot.predictionText;color:key.foreground;font.pixelSize:Math.min(24,key.height*.28);fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
+      Text {anchors.fill:parent;anchors.margins:4;text:predictionSlot.predictionText;opacity:key.foregroundOpacity;color:key.foreground;font.pixelSize:Math.min(24,key.height*.28);fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
       MouseArea {objectName:"predictionMouseArea:"+index;anchors.fill:parent;hoverEnabled:true;enabled:predictionSlot.hasPrediction;onEntered:root.hovered="suggest:"+index;onExited:if(root.hovered==="suggest:"+index)root.hovered="";onClicked:controller.clickCommand("suggest:"+index)}
       DwellIndicator {objectName:"predictionProgress:"+index;anchors.left:parent.left;anchors.bottom:parent.bottom;width:progress>0?parent.width:0;height:parent.height;progress:predictionSlot.active?root.progress:0;style:controller.dwellIndicatorStyle;color:root.dwellColor}
      }
     }
    }
    DwellIndicator {anchors.fill:parent;progress:key.active?root.progress:0;style:controller.dwellIndicatorStyle;color:root.dwellColor}
+   Rectangle {
+    anchors.fill:parent;visible:controller.sizeMoveMode;color:"transparent"
+    border.width:controller.sizeMoveSelection===key.index?5:2;border.color:root.dwellColor
+    Text {anchors.right:parent.right;anchors.bottom:parent.bottom;visible:controller.canvasEditMode==="size";text:"◢";font.pixelSize:24;color:root.dwellColor}
+   }
+   MouseArea {
+    id:editMouse
+    objectName:"sizeMoveMouseArea:"+key.index
+    anchors.fill:parent;enabled:controller.sizeMoveMode;hoverEnabled:true
+    cursorShape:controller.canvasEditMode==="size"?Qt.SizeFDiagCursor:Qt.SizeAllCursor
+    property point startPoint
+    property real startX
+    property real startY
+    property real startWidth
+    property real startHeight
+    property bool resizing:false
+    property bool moved:false
+    onEntered:root.hovered=key.command
+    onExited:root.hovered=""
+    onPressed:mouse=>{
+     startPoint=mapToItem(root.contentItem,mouse.x,mouse.y)
+     startX=key.modelData.col;startY=key.modelData.row;startWidth=key.modelData.width;startHeight=key.modelData.height
+     key.editX=startX;key.editY=startY;key.editWidth=startWidth;key.editHeight=startHeight
+     resizing=controller.canvasEditMode==="size";moved=false;root.canvasDragging=true
+     root.hovered=""
+    }
+    onPositionChanged:mouse=>{
+     if(!pressed)return
+     const point=mapToItem(root.contentItem,mouse.x,mouse.y)
+     if(!moved&&Math.abs(point.x-startPoint.x)+Math.abs(point.y-startPoint.y)<4)return
+     moved=true
+     const dx=(point.x-startPoint.x)*controller.layout.cols/root.width
+     const dy=(point.y-startPoint.y)*controller.layout.rows/root.height
+     if(resizing){
+      key.editWidth=Math.max(Math.min(startWidth,controller.layout.cols*24/root.width),Math.min(controller.layout.cols-startX,startWidth+dx))
+      key.editHeight=Math.max(Math.min(startHeight,controller.layout.rows*24/root.height),Math.min(controller.layout.rows-startY,startHeight+dy))
+     }else{
+      key.editX=Math.max(0,Math.min(controller.layout.cols-startWidth,startX+dx))
+      key.editY=Math.max(0,Math.min(controller.layout.rows-startHeight,startY+dy))
+     }
+    }
+    onCanceled:root.canvasDragging=false
+    onReleased:{
+     root.canvasDragging=false
+     if(moved)controller.setCanvasKeyRect(key.index,key.editX,key.editY,key.editWidth,key.editHeight)
+     else controller.clickCommand(key.command)
+    }
+   }
    Accessible.role:Accessible.Button
    Accessible.description:key.keyboardToggled?"Locked until selected again":key.cycleButtonModeKey?"Button mode: "+controller.buttonMode:key.cycleKeyModeKey?"Key mode: "+controller.keyMode:key.sleepKey?(controller.paused?"Pause on":"Pause off"):key.magnifierKey?(controller.magnifierEnabled?"Magnifier on":"Magnifier off"):key.modifier?(key.modifierState==="locked"?"Locked until selected again":key.modifierState==="latched"?"Latched for the next key":"Off. Select once to latch, twice to lock."):""
    Accessible.name:key.sleepKey?(controller.paused?"Resume input":"Pause input"):root.minimizedRecovery?"Restore keyboard":key.unavailableReason?key.unavailableReason:(key.label||key.modelData.symbol)
    Accessible.onPressAction:controller.clickCommand(key.command)
   }
+ }
+ Rectangle {
+  z:45;visible:controller.sizeMoveMode&&controller.canvasEditPreview.col!==undefined
+  x:(controller.canvasEditPreview.col||0)*root.width/controller.layout.cols
+  y:(controller.canvasEditPreview.row||0)*root.height/controller.layout.rows
+  width:(controller.canvasEditPreview.width||0)*root.width/controller.layout.cols
+  height:(controller.canvasEditPreview.height||0)*root.height/controller.layout.rows
+  color:"transparent";border.width:3;border.color:root.dwellColor
+ }
+ DwellIndicator {
+  z:46;visible:controller.sizeMoveMode
+  x:root.canvasPoint.x-24;y:root.canvasPoint.y-24;width:48;height:48
+  progress:root.progress;style:"ring";color:root.dwellColor
  }
  Item {
   id:keyboardGazeIndicator;objectName:"keyboardGazeIndicator";visible:root.visible&&root.gazeEnabled&&!controller.targeting
@@ -346,7 +450,6 @@ Window {
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
   property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Shortcuts","Look to scroll"]
   property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","preferences-desktop-keyboard-shortcuts","transform-move"]
-  onClosing:controller.clickCommand("CancelTarget")
   component SettingSlider:ColumnLayout {
    property string label
    property string displayValue
@@ -444,6 +547,21 @@ Window {
         }
        }
        Desktop.CheckBox {id:includeHidden;text:"Include layouts hidden by the XML pack"}
+       Desktop.CheckBox {
+        visible:controller.layout.layoutMode==="canvas"
+        text:"Save move/resize changes to original XML"
+        checked:controller.saveCanvasChanges
+        onToggled:controller.saveCanvasChanges=checked
+       }
+       Desktop.Button {
+        visible:controller.layout.layoutMode==="canvas"
+        text:"Save current positions and sizes to XML"
+        onClicked:controller.saveCanvasGeometry()
+       }
+       Desktop.Label {
+        visible:controller.layout.layoutMode==="canvas";Layout.fillWidth:true;wrapMode:Text.WordWrap
+        text:controller.canvasSaveStatus||"Saving overwrites this keyboard's original XML. Automatic saving applies to completed moves and resizes."
+       }
       }
      }
      Desktop.GroupBox {

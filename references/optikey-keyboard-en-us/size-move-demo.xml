@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Keyboard>
+ <Name>Size and move demo</Name>
+ <TransparentBackground>true</TransparentBackground>
+ <BackgroundClickThrough>true</BackgroundClickThrough>
+ <PersistKeyGeometry>true</PersistKeyGeometry>
+ <Width>100%</Width><Height>100%</Height><Position>Bottom</Position>
+ <Canvas><Width>100</Width><Height>100</Height></Canvas>
+ <Content>
+  <DynamicKey X="2" Y="2" Width="30" Height="18"><Label>Move mode</Label><Action>MoveModeToggle</Action></DynamicKey>
+  <DynamicKey X="70" Y="2" Width="28" Height="18"><Label>Keyboard menu</Label><Action>MenuKeyboard</Action></DynamicKey>
+  <Scratchpad X="2" Y="24" Width="96" Height="16"/>
+  <DynamicKey X="5" Y="48" Width="20" Height="28"><Label>A</Label><Text>a</Text></DynamicKey>
+  <DynamicKey X="30" Y="48" Width="20" Height="28"><Label>B</Label><Text>b</Text></DynamicKey>
+  <DynamicKey X="55" Y="48" Width="20" Height="28"><Label>C</Label><Text>c</Text></DynamicKey>
+  <DynamicKey X="5" Y="82" Width="70" Height="16"><Label>Space</Label><Text> </Text></DynamicKey>
+  <DynamicKey X="80" Y="48" Width="18" Height="50"><Label>Clear</Label><Action>ClearScratchpad</Action></DynamicKey>
+  <DynamicKey X="36" Y="2" Width="30" Height="18"><Label>Resize mode</Label><Action>SizeModeToggle</Action></DynamicKey>
+ </Content>
+</Keyboard>

@@ -45,7 +45,7 @@ QList<Choice> physicalKeys() {
 QList<Choice> availableActions() {
     QList<Choice> result{
         {"Keyboard · Pause / resume input", "Sleep"}, {"Keyboard · Open keyboard menu", "MenuKeyboard"},
-        {"Keyboard · Go back", "BackFromKeyboard"}, {"Keyboard · Cycle key mode", "CycleKeyMode"},
+        {"Keyboard · Move mode", "MoveModeToggle"}, {"Keyboard · Resize mode", "SizeModeToggle"}, {"Keyboard · Go back", "BackFromKeyboard"}, {"Keyboard · Cycle key mode", "CycleKeyMode"},
         {"Speech · Speak scratchpad", "Speak"}, {"Speech · Speak this key’s label", "SpeakLabel"},
         {"Typing · Clear scratchpad", "ClearScratchpad"}, {"Typing · Delete previous word", "BackMany"},
         {"Typing · Next suggestions", "NextSuggestions"}, {"Typing · Previous suggestions", "PreviousSuggestions"},

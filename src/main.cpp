@@ -308,6 +308,51 @@ int main(int argc,char **argv){
  QObject::connect(&app,&QGuiApplication::screenRemoved,&app,displayChanged);
  QObject::connect(&app,&QGuiApplication::primaryScreenChanged,&app,displayChanged);
  applyGeometry();window->show();
+ if(app.arguments().contains("--keyboard-background-ui-check")){
+  window->setProperty("gazeCheck",true);
+  controller.openLayout("size-move-demo",false);controller.setProperty("saveCanvasChanges",false);
+  QTimer::singleShot(250,&app,[&]{
+   const auto image=window->grabWindow();
+   const QPoint gap(window->width()*99/100,window->height()/2);
+   if(image.isNull()||image.pixelColor(gap).alpha()!=0||window->mask().isEmpty()||
+      window->mask().contains(gap)||!window->mask().contains(QPoint(window->width()/10,window->height()/10))){
+    QTextStream(stderr)<<"FAIL: transparent background or key input mask"<<Qt::endl;app.exit(2);return;
+   }
+   controller.setProperty("sizeMoveMode",true);
+   QTimer::singleShot(50,&app,[&]{
+    if(!window->mask().isEmpty()){app.exit(3);return;}
+    controller.setProperty("sizeMoveMode",false);
+    controller.openLayout("main-14x1-bottom",false);
+    QTimer::singleShot(50,&app,[&]{app.exit(window->mask().isEmpty()?0:4);});
+   });
+  });
+  return app.exec();
+ }
+ if(app.arguments().contains("--keyboard-opacity-ui-check")){
+  controller.openLayout("main-14x1-bottom",false);
+  window->setProperty("gazeCheck",true);window->setProperty("gazeEnabled",false);
+  controller.setProperty("paused",false);
+  QVariantMap key{{"col",0},{"row",0},{"width",1},{"height",1},{"kind","DynamicKey"},
+                  {"label","Test"},{"symbol",""},{"commands",QVariantList{}},
+                  {"style",QVariantMap{{"opacity",0.5},{"foregroundopacity",0.25}}}};
+  controller.setProperty("layout",QVariantMap{{"rows",1},{"cols",1},{"keys",QVariantList{key}}});
+  emit controller.layoutChanged();
+  QTimer::singleShot(250,&app,[&]{
+   const auto image=window->grabWindow();
+   std::function<QQuickItem*(QQuickItem*)> findKey=[&](QQuickItem *item)->QQuickItem*{
+    if(item->objectName()=="keyMouseArea:0")return item->parentItem();
+    for(auto child:item->childItems())if(auto found=findKey(child))return found;
+    return nullptr;
+   };
+   auto item=findKey(window->contentItem());
+   if(image.isNull()||qAbs(image.pixelColor(10,10).alpha()-128)>2||!item||
+      qAbs(item->property("foregroundOpacity").toDouble()-0.25)>0.001){
+    QTextStream(stderr)<<"FAIL: keyboard XML opacity rendering: alpha="<<(image.isNull()?-1:image.pixelColor(10,10).alpha())<<" foreground="<<(item?item->property("foregroundOpacity").toDouble():-1)<<Qt::endl;app.exit(2);return;
+   }
+   app.quit();
+  });
+  return app.exec();
+ }
  if(app.arguments().contains("--restore-opacity-ui-check")){
   window->setProperty("gazeCheck",true);window->setProperty("gazeEnabled",false);
   controller.setProperty("paused",false);controller.setRestoreWidth(64);controller.setRestoreHeight(64);
@@ -367,6 +412,79 @@ int main(int argc,char **argv){
   }
   window->setProperty("gazeValid",false);
   if(!window->property("gazeTarget").toString().isEmpty())return 2;
+  controller.openLayout("size-move-demo",false);controller.setProperty("saveCanvasChanges",false);
+  controller.activate("MoveModeToggle");
+  window->setProperty("gazeEnabled",false);window->show();QCoreApplication::processEvents();
+  auto drag=[&](double x,double y,double dx,double dy){
+   const QPointF start(x*window->width()/100,y*window->height()/100);
+   const QPointF end((x+dx)*window->width()/100,(y+dy)*window->height()/100);
+   QMouseEvent press(QEvent::MouseButtonPress,start,start,Qt::LeftButton,Qt::LeftButton,Qt::NoModifier);
+   QCoreApplication::sendEvent(window,&press);
+   QMouseEvent move(QEvent::MouseMove,end,end,Qt::NoButton,Qt::LeftButton,Qt::NoModifier);
+   QCoreApplication::sendEvent(window,&move);
+   QMouseEvent release(QEvent::MouseButtonRelease,end,end,Qt::LeftButton,Qt::NoButton,Qt::NoModifier);
+   QCoreApplication::sendEvent(window,&release);QCoreApplication::processEvents();
+  };
+  drag(15,60,5,3);
+  auto moved=controller.property("layout").toMap()["keys"].toList()[3].toMap();
+  if(qAbs(moved["col"].toDouble()-10)>0.1||qAbs(moved["row"].toDouble()-51)>0.1){
+   QTextStream(stderr)<<"FAIL: canvas key drag "<<moved["col"].toDouble()<<","<<moved["row"].toDouble()<<Qt::endl;return 2;
+  }
+  controller.activate("SizeModeToggle");
+  drag(29.5,78.5,5,5);
+  auto resized=controller.property("layout").toMap()["keys"].toList()[3].toMap();
+  if(qAbs(resized["width"].toDouble()-25)>0.1||qAbs(resized["height"].toDouble()-33)>0.1){
+   QTextStream(stderr)<<"FAIL: canvas key resize"<<Qt::endl;return 2;
+  }
+  if(hit(40,30)!="key:2"){
+   QTextStream(stderr)<<"FAIL: scratchpad cannot be selected for dwell editing"<<Qt::endl;return 2;
+  }
+  window->setProperty("gazeCheck",true);
+  controller.activate("MoveModeToggle");controller.setProperty("dwellMs",10);
+  controller.canvasEditAt(.2,.6,true);
+  {QEventLoop wait;QTimer::singleShot(20,&wait,&QEventLoop::quit);wait.exec();}controller.canvasEditAt(.2,.6,true);
+  controller.canvasEditAt(.45,.45,true);
+  {QEventLoop wait;QTimer::singleShot(20,&wait,&QEventLoop::quit);wait.exec();}controller.canvasEditAt(.45,.45,true);
+  QCoreApplication::processEvents();
+  if(controller.property("sizeMoveSelection").toInt()!=-1||hit(45,45)!="key:3"){
+   QTextStream(stderr)<<"FAIL: dwell placement and gaze hit geometry"<<Qt::endl;return 2;
+  }
+  auto editSettings=window->findChild<QQuickWindow*>("settingsWindow");
+  if(!editSettings)return 2;
+  editSettings->show();QCoreApplication::processEvents();
+  controller.setProperty("dwellMs",50);window->setProperty("gazeCheck",false);
+  auto settle=[](){QEventLoop wait;QTimer::singleShot(160,&wait,&QEventLoop::quit);wait.exec();};
+  hit(65,60);settle();
+  if(controller.property("sizeMoveSelection").toInt()!=5){QTextStream(stderr)<<"FAIL: gaze dwell pickup"<<Qt::endl;return 2;}
+  hit(60,45);settle();
+  if(controller.property("sizeMoveSelection").toInt()!=-1||hit(60,45)!="key:5"){QTextStream(stderr)<<"FAIL: gaze dwell drop"<<Qt::endl;return 2;}
+  window->setProperty("gazeEnabled",false);
+  auto pointMouse=[&](double x,double y){
+   const QPointF point(x*window->width()/100,y*window->height()/100);
+
+   QMouseEvent move(QEvent::MouseMove,point,point,Qt::NoButton,Qt::NoButton,Qt::NoModifier);QCoreApplication::sendEvent(window,&move);
+  };
+  pointMouse(45,45);settle();
+  if(controller.property("sizeMoveSelection").toInt()!=3){QTextStream(stderr)<<"FAIL: mouse dwell pickup"<<Qt::endl;return 2;}
+  pointMouse(20,45);settle();
+  const auto placed=controller.property("layout").toMap()["keys"].toList()[3].toMap();
+  if(controller.property("sizeMoveSelection").toInt()!=-1||qAbs(placed["col"].toDouble()-7.5)>.1){QTextStream(stderr)<<"FAIL: mouse dwell drop"<<Qt::endl;return 2;}
+  // Enter both modes through the actual XML keys, with Settings still open.
+  // This matches selecting the demo from Settings and then using mouse dwell.
+  controller.openLayout("size-move-demo",false);controller.setProperty("saveCanvasChanges",false);QCoreApplication::processEvents();
+  pointMouse(15,10);settle();settle();
+  if(controller.property("canvasEditMode").toString()!="move"){QTextStream(stderr)<<"FAIL: dwell move toggle did not stay enabled"<<Qt::endl;return 2;}
+  pointMouse(15,60);settle();
+  if(controller.property("sizeMoveSelection").toInt()!=3){QTextStream(stderr)<<"FAIL: pickup after dwelling on mode key"<<Qt::endl;return 2;}
+  pointMouse(45,45);settle();
+  const auto moveResult=controller.property("layout").toMap()["keys"].toList()[3].toMap();
+  if(controller.property("sizeMoveSelection").toInt()!=-1||qAbs(moveResult["col"].toDouble()-35)>.1){QTextStream(stderr)<<"FAIL: move with Settings open"<<Qt::endl;return 2;}
+  pointMouse(50,10);settle();settle();
+  if(controller.property("canvasEditMode").toString()!="size"){QTextStream(stderr)<<"FAIL: dwell resize toggle did not stay enabled"<<Qt::endl;return 2;}
+  pointMouse(45,45);settle();pointMouse(65,78);settle();
+  const auto sizeResult=controller.property("layout").toMap()["keys"].toList()[3].toMap();
+  if(controller.property("sizeMoveSelection").toInt()!=-1||qAbs(sizeResult["width"].toDouble()-30)>.1||qAbs(sizeResult["height"].toDouble()-47)>.1){QTextStream(stderr)<<"FAIL: resize with Settings open"<<Qt::endl;return 2;}
+  editSettings->hide();
   QTextStream(stdout)<<"PASS: shared gaze targeting, fractional geometry, overlap order, gaps, suggestions, resizing and layout replacement"<<Qt::endl;
   return 0;
  }
@@ -392,6 +510,10 @@ int main(int argc,char **argv){
   auto poll=new QTimer(&app);poll->setInterval(50);
   QObject::connect(poll,&QTimer::timeout,&app,[&,area,key,thumb,centeredX,stage=0]()mutable{
    if(!window->isVisible())return;
+   if(stage==4){
+    if(key->property("stickX").toDouble()<.5||thumb->x()<=centeredX+1){QTextStream(stderr)<<"FAIL: gaze joystick blocked by Settings"<<Qt::endl;app.exit(2);return;}
+    QTextStream(stdout)<<"PASS: mouse and gaze joystick input with Settings open"<<Qt::endl;app.quit();return;
+   }
    const QPointF local(stage<2?area->width()*.8:area->width()/2,area->height()/2);
    const QPointF point=area->mapToItem(window->contentItem(),local);
    if(stage==0||stage==2){
@@ -406,6 +528,11 @@ int main(int argc,char **argv){
    if(std::abs(key->property("stickX").toDouble())>.01||std::abs(thumb->x()-centeredX)>1){QTextStream(stderr)<<"FAIL: mouse joystick did not center"<<Qt::endl;app.exit(2);return;}
    QMetaObject::invokeMethod(area,"exited");
    if(!window->property("hovered").toString().isEmpty()){app.exit(2);return;}
+   if(settings->isVisible()){
+    const auto gazePoint=area->mapToItem(window->contentItem(),QPointF(area->width()*.8,area->height()/2));
+    window->setProperty("gaze",QPointF((window->property("logicalX").toDouble()+gazePoint.x())/window->property("screenWidth").toDouble(),(window->property("logicalY").toDouble()+gazePoint.y())/window->property("screenHeight").toDouble()));
+    window->setProperty("gazeValid",true);stage=4;return;
+   }
    QTextStream(stdout)<<"PASS: actual joystick dot moves and centers with gaze unavailable"<<Qt::endl;app.quit();
   });
   poll->start();QTimer::singleShot(3000,&app,[&]{app.exit(2);});return app.exec();

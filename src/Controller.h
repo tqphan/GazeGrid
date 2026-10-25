@@ -44,6 +44,12 @@ class Controller:public QObject{
  Q_PROPERTY(int shortLabelScale MEMBER shortLabelScale NOTIFY changed)
  Q_PROPERTY(int longLabelScale MEMBER longLabelScale NOTIFY changed)
  Q_PROPERTY(bool rememberDesktop MEMBER rememberDesktop NOTIFY changed)
+ Q_PROPERTY(int sizeMoveSelection MEMBER sizeMoveSelection NOTIFY changed)
+ Q_PROPERTY(bool saveCanvasChanges MEMBER saveCanvasChanges NOTIFY changed)
+ Q_PROPERTY(QString canvasSaveStatus MEMBER canvasSaveStatus NOTIFY changed)
+ Q_PROPERTY(bool sizeMoveMode MEMBER sizeMoveMode NOTIFY changed)
+ Q_PROPERTY(QString canvasEditMode MEMBER canvasEditMode NOTIFY changed)
+ Q_PROPERTY(QVariantMap canvasEditPreview MEMBER canvasEditPreview NOTIFY changed)
  Q_PROPERTY(QVariantMap layout MEMBER layout NOTIFY layoutChanged)
  Q_PROPERTY(QString layoutName MEMBER layoutName NOTIFY layoutChanged)
  Q_PROPERTY(QStringList layoutNames MEMBER layoutNames CONSTANT)
@@ -82,6 +88,7 @@ class Controller:public QObject{
  Q_PROPERTY(int magnifierRevision MEMBER magnifierRevision NOTIFY magnifierFrameChanged)
 public:
  Controller();~Controller()override;
+ Q_INVOKABLE void updateKeyboardMask(QObject *window,const QVariantList &rectangles,bool enabled);
  bool isMagnifierEnabled()const{return magnifierEnabled;}
  void setMagnifierEnabled(bool enabled);
  PortalInput *output(){return &portal;}
@@ -126,6 +133,11 @@ public:
  Q_INVOKABLE void connectTobii(){if(!tobii.isRunning())tobii.start();}
  Q_INVOKABLE void togglePause();
  Q_INVOKABLE void activate(QString key);
+ Q_INVOKABLE bool saveCanvasGeometry();
+ Q_INVOKABLE bool setCanvasKeyRect(int index,double x,double y,double width,double height);
+ bool isSizeMoveKey(const QString &key) const;
+ Q_INVOKABLE double canvasEditAt(double x,double y,bool valid);
+ void resetCanvasPlacement();
  Q_INVOKABLE bool gamepadHeld(QString action)const{return gameController.held(action);}
  Q_INVOKABLE void joystick(int index,double x,double y,bool active);
  Q_INVOKABLE void clickCommand(QString key);
@@ -217,6 +229,13 @@ private:
  bool rememberDesktop=false;
  bool nativeMode=false,nativeActive=false,sensitiveInput=false;
  qint64 lastGazeSample=0;
+ int sizeMoveSelection=-1;
+ bool sizeMoveMode=false;
+ bool saveCanvasChanges=false;
+ QString canvasSourcePath,canvasSaveStatus;QByteArray canvasSource;
+ QString canvasEditMode;QVariantMap canvasEditPreview;
+ QPointF canvasAnchor;bool canvasAnchorValid=false,canvasPlacementArmed=false,canvasPlacementBlocked=false;
+ Dwell canvasDwell;
  QVariantMap layout;QString layoutName;QStringList layoutNames,menuLayoutNames,backStack;
  int suggestionOffset=0;
  QString predictionModeValue="context";bool nextWordEnabled=true;

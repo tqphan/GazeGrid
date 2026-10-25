@@ -1,5 +1,9 @@
 #include "KeyboardLayout.h"
 #include "ActionRunner.h"
+#include "KeyboardPack.h"
+#include <QDomDocument>
+#include <QFile>
+#include <QSaveFile>
 #include "GameController.h"
 #include <QSet>
 #include <cmath>
@@ -79,4 +83,39 @@ QVariantMap KeyboardLayout::fromXml(const QVariantMap &root){
         }
     }
     layout["layoutMode"]=canvas?"canvas":"grid";layout["rows"]=rows;layout["cols"]=cols;layout["keys"]=keys;return layout;
+}
+
+bool KeyboardLayout::saveCanvasGeometry(const QString &path,QByteArray &source,const QVariantList &keys,QString &error){
+    QFile file(path);
+    if(!file.open(QIODevice::ReadOnly)){error=file.errorString();return false;}
+    const auto current=file.readAll();file.close();
+    if(current!=source){error="The keyboard XML changed on disk. Reload it before saving.";return false;}
+    const auto original=fromXml(KeyboardPack::load(path));
+    if(original.contains("error")||original["layoutMode"]!="canvas"||original["keys"].toList().size()!=keys.size()){
+        error="The source is not a matching Canvas keyboard.";return false;
+    }
+    QDomDocument doc;
+    if(!doc.setContent(current,QDomDocument::ParseOption::PreserveSpacingOnlyNodes)){error="Cannot parse keyboard XML.";return false;}
+    auto content=doc.documentElement().firstChildElement("Content");int index=0;
+    for(auto element=content.firstChildElement();!element.isNull();element=element.nextSiblingElement(),++index){
+        if(index>=keys.size()){error="Keyboard content no longer matches.";return false;}
+        const auto key=keys[index].toMap();
+        const double x=key["col"].toDouble(),y=key["row"].toDouble(),w=key["width"].toDouble(),h=key["height"].toDouble();
+        if(element.tagName()!=key["kind"].toString()||!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(w)||!std::isfinite(h)||
+           x<0||y<0||w<=0||h<=0||x+w>original["cols"].toDouble()||y+h>original["rows"].toDouble()){
+            error="Invalid key geometry; XML was not changed.";return false;
+        }
+        const QMap<QString,double> geometry{{"X",x},{"Y",y},{"Width",w},{"Height",h}};
+        for(auto it=geometry.begin();it!=geometry.end();++it){
+            // Preserve the original attribute spelling when possible.
+            QString name=it.key();const auto attributes=element.attributes();
+            for(int i=0;i<attributes.size();++i)if(attributes.item(i).nodeName().compare(name,Qt::CaseInsensitive)==0){name=attributes.item(i).nodeName();break;}
+            element.setAttribute(name,QString::number(it.value(),'g',17));
+        }
+    }
+    if(index!=keys.size()){error="Keyboard content no longer matches.";return false;}
+    const auto bytes=doc.toByteArray(-1);
+    QSaveFile output(path);
+    if(!output.open(QIODevice::WriteOnly)||output.write(bytes)!=bytes.size()||!output.commit()){error=output.errorString();return false;}
+    source=bytes;error.clear();return true;
 }
