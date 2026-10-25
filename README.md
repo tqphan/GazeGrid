@@ -18,6 +18,8 @@ The default SDK is the exact user-supplied `stream_engine_linux_3.0.4.6031` dire
 
 ## Current controls and implementation
 
+On Wayland, the standalone keyboard uses the overlay layer so it remains above fullscreen applications without taking keyboard focus. This includes top and bottom layouts and the minimized restore button. Experimental KWin input-method mode retains its native bottom input panel; its layer-shell layouts use the same overlay layer.
+
 - **Authorize** requests keyboard/pointer access through KDE's portal. The preferred backend is libei; unsupported EIS can use portal D-Bus methods in a separate session mode.
 - The imported XML keyboard opens directly. **Settings** honors XML menu visibility; enable **Include layouts hidden by the XML pack** to select any of the 29 layouts; navigation keys and **Home / recover** also change layouts. Geometry, symbols, key groups, ordered macros, modifier toggles, scratchpad text, dictionary suggestions and editable platform mappings have implementations. Full behavior and appearance parity remain unverified.
 - **Modifier keys** (Shift, Ctrl, Alt, and Win) cycle through off → latched → locked → off. A **Latched** badge means the modifier releases after the next text or function key; a filled highlight and **Locked** badge mean it stays held until selected again. Latched and locked modifiers carry over between keyboard layouts. Pause and cancellation clear both states. Explicit XML `KeyToggle` commands retain their held/released behavior.

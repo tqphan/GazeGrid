@@ -285,7 +285,8 @@ int main(int argc,char **argv){
 #ifdef GAZEGRID_LINUX
   if(QGuiApplication::platformName().startsWith("wayland")){
    if(inputMethod&&!inputMethod->attachPanel(window,top||fullScreen)){QTextStream(stderr)<<"Unable to assign keyboard surface role\n";app.exit(2);return;}
-   if(!inputMethod||top||fullScreen){auto layer=LayerShellQt::Window::get(window);layer->setScope("gazegrid-keyboard");layer->setScreen(screen);layer->setLayer((minimized||fullScreen)?LayerShellQt::Window::LayerOverlay:LayerShellQt::Window::LayerTop);
+   // Keep every keyboard layout above fullscreen clients without taking focus.
+   if(!inputMethod||top||fullScreen){auto layer=LayerShellQt::Window::get(window);layer->setScope("gazegrid-keyboard");layer->setScreen(screen);layer->setLayer(LayerShellQt::Window::LayerOverlay);
    layer->setAnchors(minimized?LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft:LayerShellQt::Window::Anchors(top?LayerShellQt::Window::AnchorTop:LayerShellQt::Window::AnchorBottom));
    layer->setMargins(minimized?QMargins(x,y,0,0):top?QMargins(0,offset,0,0):QMargins(0,0,0,-offset));layer->setDesiredSize(QSize(width,height));
    layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);layer->setActivateOnShow(false);layer->setExclusiveZone(inputMethod||minimized||fullScreen?-1:0);
