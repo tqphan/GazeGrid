@@ -65,9 +65,9 @@ embedded manifest, including `asInvoker` and `uiAccess=true`.
 `GAZEGRID_WITH_TOBII=OFF` builds the full UI with mouse dwell and reports that
 tracker support is unavailable. CI uses this option because proprietary SDK
 headers and binaries are not stored in the repository. For eye-tracker builds,
-set `GAZEGRID_WITH_TOBII=ON`, `TOBII_SDK` to a matching Windows Stream Engine SDK
+set `GAZEGRID_WITH_TOBII=ON`, `TOBII_SDK` to a Windows Stream Engine 4 SDK
 with `include/tobii`. The build needs SDK headers, but does not bundle a runtime DLL. The existing adapter uses
-the Stream Engine 3 API; a different SDK API may require adapting the loader.
+the Stream Engine 4 API on Windows; a different SDK API requires adapting the loader.
 Windows users must install the [Tobii Experience driver package and app](https://help.tobii.com/hc/en-us/articles/360010104134-How-to-install-Tobii-Experience),
 complete Tobii setup/calibration, and restart GazeGrid. This vendor installation
 supplies the Stream Engine runtime. Install the device drivers and driver software
@@ -79,11 +79,27 @@ path. It does not search the working directory or PATH or follow directory
 links outside those trees. If your package installs elsewhere, report the
 package/version and installation path so discovery can be extended.
 
-The current adapter uses the Stream Engine **3** ABI; a DLL with a different
+The Windows adapter uses the Stream Engine **4** ABI; a DLL with a different
 major version is rejected before device/API calls. Installing a newer runtime
 alone does not make that ABI compatible. Missing or incompatible runtimes report
 setup guidance; mouse dwell remains available. The MSI explains this prerequisite
 and whether the particular GazeGrid build includes tracker support.
+
+### Public integration reference
+
+The Windows implementation follows the public
+[App-TobiiStreamEngine C++ example](https://github.com/labstreaminglayer/App-TobiiStreamEngine/blob/master/mainwindow.cpp),
+particularly `device_connect()` and `recording_thread_function()`. This is an
+integration example, not the vendor's API specification. Device creation passes
+`TOBII_FIELD_OF_USE_INTERACTIVE` as the third argument, before the device output
+pointer. API creation, device enumeration, gaze subscription, callback processing,
+and teardown use the same basic lifecycle.
+
+GazeGrid retains its interruptible polling, stale-sample rejection and input
+release behavior. The Linux build continues to use its selected Stream Engine 3
+SDK and three-argument device creation. Windows still needs matching SDK headers
+at build time and a compatible x64 runtime at execution time; the public example
+does not replace those dependencies or establish hardware compatibility.
 
 ## Persistent GazeGrid signing identity
 

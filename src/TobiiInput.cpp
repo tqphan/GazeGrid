@@ -28,11 +28,11 @@ struct Api {
 #define LOAD(name) name=reinterpret_cast<decltype(name)>(library.resolve(#name)); if(!name){error="Missing SDK symbol: " #name;return false;}
   LOAD(tobii_get_api_version)
 #ifdef _WIN32
-  // This adapter uses the Stream Engine 3 ABI (including device_create).
+  // Windows uses the Stream Engine 4 interactive device_create ABI.
   // Do not call newer incompatible exports merely because their names match.
   tobii_version_t version{};
-  if(tobii_get_api_version(&version)!=TOBII_ERROR_NO_ERROR||version.major!=3){
-   error="The installed Tobii Gaming Stream Engine is incompatible with this build (requires API major 3). Install a compatible GazeGrid build; mouse dwell remains available.";
+  if(tobii_get_api_version(&version)!=TOBII_ERROR_NO_ERROR||version.major!=4){
+   error="The installed Tobii Gaming Stream Engine is incompatible with this build (requires API major 4). Install a compatible GazeGrid build; mouse dwell remains available.";
    return false;
   }
 #endif
@@ -72,7 +72,14 @@ void TobiiInput::run(){
   a.tobii_api_destroy(api);return;
  }
  if(urls.size()>1){emit status("Multiple Tobii devices found; device selection is not implemented yet.");a.tobii_api_destroy(api);return;}
- tobii_device_t *device=nullptr;e=a.tobii_device_create(api,urls.front().c_str(),&device);
+ tobii_device_t *device=nullptr;
+#ifdef _WIN32
+ // Public integration reference: labstreaminglayer/App-TobiiStreamEngine,
+ // mainwindow.cpp, device_connect(). See docs/windows.md.
+ e=a.tobii_device_create(api,urls.front().c_str(),TOBII_FIELD_OF_USE_INTERACTIVE,&device);
+#else
+ e=a.tobii_device_create(api,urls.front().c_str(),&device);
+#endif
  if(e!=TOBII_ERROR_NO_ERROR){emit status(a.message(e));a.tobii_api_destroy(api);return;}
  tobii_supported_t supported=TOBII_NOT_SUPPORTED;
  e=a.tobii_stream_supported(device,TOBII_STREAM_GAZE_POINT,&supported);
