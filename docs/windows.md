@@ -75,9 +75,18 @@ Only redistribute SDK files under your vendor license.
 Create the identity once on a Windows signing machine:
 
 ```powershell
-$password = Read-Host 'PFX password' -AsSecureString
-./platform/windows/New-GazeGridCertificate.ps1 -OutputDirectory C:/Private/GazeGrid -Password $password
+./platform/windows/New-GazeGridCertificate.ps1
 ```
+
+The script prompts for an output directory (press Enter to use
+`GazeGrid-Signing` under your Windows user profile) and a password, with input
+hidden. Save that password for the GitHub signing secret. You can still pass
+`-OutputDirectory` and a SecureString `-Password` for automated use.
+After creation, the script prints the GitHub environment/secret setup, release
+workflow, artifact download, and target-machine certificate trust instructions.
+Interactive runs also offer to copy the base64-encoded PFX to the clipboard;
+fully parameterized CI calls do not pause for this prompt. The script never
+prints the password or encoded PFX.
 
 This creates a self-signed RSA/SHA-256 code-signing certificate with subject and
 friendly name GazeGrid, exports a password-protected PFX and a public CER, and
