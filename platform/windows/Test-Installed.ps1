@@ -1,8 +1,9 @@
 # Run only on an isolated Windows test machine: temporarily removes this test root.
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$Msi, [Parameter(Mandatory)][string]$CertificateThumbprint)
+param([Parameter(Mandatory)][string]$Msi, [Parameter(Mandatory)][string]$CertificateThumbprint, [switch]$ExpectTobii)
 $ErrorActionPreference = 'Stop'
 $path = (Resolve-Path $Msi).Path
+& "$PSScriptRoot/Assert-NoTobiiRuntime.ps1" -Msi $path
 $installed = "$env:ProgramFiles/GazeGrid/gazegrid.exe"
 function Run-Msi([string]$Operation, [string[]]$Properties = @()) {
     $process = Start-Process msiexec.exe -ArgumentList (@($Operation, "`"$path`"", '/qn', '/norestart', '/l*v', "`"$env:RUNNER_TEMP/gazegrid-msi-$mode-$($Operation.TrimStart('/')).log`"") + $Properties) -Wait -PassThru
@@ -43,6 +44,8 @@ try {
     if (!$diagnose.WaitForExit(30000)) { $diagnose.Kill(); throw 'Installed diagnostics timed out.' }
     if ($diagnose.ExitCode -ne 0) { throw 'Installed diagnostics failed.' }
     $diagnostics = Get-Content $report -Raw | ConvertFrom-Json
+    if ($ExpectTobii -and !$diagnostics.tobii.compiled) { throw 'Installed application was built without Tobii support.' }
+    if (@(Get-ChildItem "$env:ProgramFiles/GazeGrid" -Recurse -File -Filter '*tobii*.dll').Count) { throw 'Installed package includes a forbidden Tobii runtime DLL.' }
     if (!$diagnostics.portal.tokenQuerySucceeded -or [bool]$diagnostics.portal.uiAccess -ne $expectedUIAccess) { throw "Unexpected UIAccess token in $mode installation." }
     $process = Start-Process $installed -Verb Open -ArgumentList '--smoke' -WorkingDirectory $env:TEMP -PassThru
     $null = $process.Handle

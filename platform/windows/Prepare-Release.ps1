@@ -12,6 +12,10 @@ $tag = "v$version"
 if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $tag) {
     throw "Tag $env:GITHUB_REF_NAME does not match CMake version $tag."
 }
+$cache = Get-Content "$BuildDirectory/CMakeCache.txt" -Raw
+if ($cache -notmatch '(?m)^GAZEGRID_WITH_TOBII:BOOL=(ON|OFF)\r?$') { throw 'Cannot determine whether Tobii support was built.' }
+$trackerNote = if ($Matches[1] -eq 'ON') { 'This build includes Tobii eye tracking and mouse dwell. Install the Tobii Experience software and drivers separately; no Tobii DLL is included.' }
+else { 'This build supports mouse dwell; tracker support is not compiled in.' }
 $msi = @(Get-ChildItem "$BuildDirectory/*.msi")
 if ($msi.Count -ne 1) { throw 'Expected exactly one signed MSI.' }
 $destination = Join-Path $BuildDirectory 'release'
@@ -34,7 +38,7 @@ GazeGrid $version for Windows x64.
 - Certificate trust remains after uninstall. Administrators can revoke it using certlm.msc in Trusted Root Certification Authorities / Certificates.
 - Certificate thumbprint: $thumbprint
 - SHA-256 checksums are in SHA256SUMS.txt.
-- This build supports mouse dwell; tracker support is not compiled in.
+- $trackerNote
 - Tracker-enabled builds require the Tobii Experience software and drivers from https://gaming.tobii.com/getstarted/. The vendor installation supplies the Stream Engine DLL; GazeGrid does not bundle it.
 - Virtual Xbox 360 gamepad output requires the separately installed ViGEmBus driver.
 - Native hardware acceptance remains pending.

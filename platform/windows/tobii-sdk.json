@@ -1,0 +1,8 @@
+{
+  "version": "4.23.0.3",
+  "sha256": "8f109d939f8a88a54c8b2970a3181343ac062381c327bcb25aedc4035c410ec5",
+  "files": [
+    "include/tobii/tobii.h",
+    "include/tobii/tobii_streams.h"
+  ]
+}

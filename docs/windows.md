@@ -194,6 +194,11 @@ environment and these secrets:
 
 - `GAZEGRID_SIGNING_PFX_BASE64`: base64-encoded persistent GazeGrid PFX.
 - `GAZEGRID_SIGNING_PFX_PASSWORD`: its export password.
+- `GAZEGRID_TOBII_HEADERS_BASE64`: a base64 ZIP containing only
+  `include/tobii/tobii.h` and `include/tobii/tobii_streams.h` from Stream Engine
+  4.23.0.3. The archive SHA-256 and exact file list are pinned in
+  `platform/windows/tobii-sdk.json`; `Restore-TobiiSdk.ps1` verifies both before
+  extracting. SDK headers stay out of the repository and release assets.
 
 The tag must exactly match `v` plus the version in `CMakeLists.txt`, for example
 `v0.1.0`. For a new release, update that version, commit and push the change, then
@@ -210,11 +215,12 @@ include the source commit, signing certificate thumbprint and runtime prerequisi
 An existing version tag must point to the same source commit. Reruns may refresh
 a draft; published release assets are never overwritten.
 
-The release workflow fails if signing secrets are missing; it never silently
-creates a replacement identity. Its default artifact is a mouse-dwell build;
-use the local script with your licensed SDK for tracker-enabled releases.
-Installing SDK provisioning in CI requires an authorized distribution source
-for that SDK.
+The release workflow requires the signing and SDK-header secrets; it does not
+silently produce a mouse-only release. Published Windows builds include Tobii
+support and load the compatible Stream Engine 4 DLL from the user's Tobii
+installation. No vendor DLL is bundled. Packaging checks both the deployment
+directory and the MSI File table for Tobii DLLs; installed-app diagnostics verify
+that tracker support was compiled in, even on CI machines without Tobii hardware.
 
 ### Qt MinGW quick start
 

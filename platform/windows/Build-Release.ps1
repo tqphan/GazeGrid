@@ -67,6 +67,9 @@ Invoke-Checked windeployqt @('--release', '--no-compiler-runtime', '--qmldir', "
 $pluginDirectory = (& qmake -query QT_INSTALL_PLUGINS).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Could not locate Qt platform plugins.' }
 Copy-Item "$pluginDirectory/platforms/qoffscreen.dll" "$deploy/platforms/qoffscreen.dll"
+if (@(Get-ChildItem -LiteralPath $deploy -Recurse -File -Filter '*tobii*.dll').Count) {
+    throw 'Tobii runtime DLLs must not be distributed in the MSI.'
+}
 Push-Location $build
 try { Invoke-Checked cpack @('-G', 'WIX', '-C', 'Release') }
 finally {
@@ -77,6 +80,7 @@ finally {
 $packages = @(Get-ChildItem "$build/*.msi")
 if ($packages.Count -ne 1) { throw 'Expected exactly one MSI in the build directory.' }
 foreach ($msi in $packages) {
+    & "$PSScriptRoot/Assert-NoTobiiRuntime.ps1" -Msi $msi.FullName
     Invoke-Checked $signTool @('sign', '/sha1', $CertificateThumbprint, '/fd', 'SHA256', $msi.FullName)
     Invoke-Checked $signTool @('verify', '/pa', $msi.FullName)
 }

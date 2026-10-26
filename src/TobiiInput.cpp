@@ -49,7 +49,7 @@ void url(const char *value,void *data) {static_cast<std::vector<std::string>*>(d
 }
 TobiiInput::~TobiiInput(){requestInterruption();wait();}
 QVariantMap TobiiInput::probe(){
- Api a; QVariantMap result{{"library",QStringLiteral(TOBII_LIBRARY_PATH)}};
+ Api a; QVariantMap result{{"compiled",true},{"library",QStringLiteral(TOBII_LIBRARY_PATH)}};
  if(!a.load()){result["error"]=a.error;return result;}
  result["library"]=a.library.fileName();
  tobii_version_t v{}; auto e=a.tobii_get_api_version(&v);
