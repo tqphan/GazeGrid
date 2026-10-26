@@ -67,7 +67,12 @@ Copy-Item "$root/ui/*.qml" "$build/windows-ui/" -Exclude Main.qml
 Invoke-Checked windeployqt @('--release', '--no-compiler-runtime', '--qmldir', "$build/windows-ui", '--dir', $deploy, $exe)
 if ($TobiiSdk) { Copy-Item $TobiiRuntime "$deploy/tobii_stream_engine.dll" }
 Push-Location $build
-try { Invoke-Checked cpack @('-G', 'WIX', '-C', 'Release') } finally { Pop-Location }
+try { Invoke-Checked cpack @('-G', 'WIX', '-C', 'Release') }
+finally {
+    $wixLog = "$build/_CPack_Packages/win64/WIX/wix.log"
+    if (Test-Path $wixLog) { Get-Content $wixLog }
+    Pop-Location
+}
 $packages = @(Get-ChildItem "$build/*.msi")
 if ($packages.Count -ne 1) { throw 'Expected exactly one MSI in the build directory.' }
 foreach ($msi in $packages) {

@@ -58,3 +58,14 @@ jobs:
             build/windows/*.msi
             build/windows/GazeGrid.cer
           if-no-files-found: error
+      - name: Upload Windows diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-diagnostics
+          path: |
+            build/windows/*-qt-test.txt
+            build/windows/Testing/Temporary/LastTest.log
+            build/windows/_CPack_Packages/win64/WIX/wix.log
+            ${{ runner.temp }}/gazegrid-msi-*.log
+          if-no-files-found: ignore

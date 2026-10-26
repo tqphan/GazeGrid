@@ -8,17 +8,22 @@
       <RegistrySearch Id="SavedMode" Root="HKLM" Key="Software\GazeGrid\Installer" Name="TrustCertificate" Type="raw" Win64="yes" />
     </Property>
     <SetProperty Id="GAZEGRID_TRUST_CERTIFICATE" Value="[GAZEGRID_SAVED_MODE]" After="AppSearch" Sequence="both">Installed AND GAZEGRID_SAVED_MODE</SetProperty>
-    <Binary Id="GazeGridPublicCertificate" SourceFile="@CMAKE_BINARY_DIR@/GazeGrid.cer" />
+    <Binary Id="GazeGridPublicCer" SourceFile="@CMAKE_BINARY_DIR@/GazeGrid.cer" />
     <DirectoryRef Id="INSTALL_ROOT">
       <Component Id="GazeGridSigned" Guid="EBDB964C-AE84-4B98-B95F-17EF4DA6A48D" Win64="yes">
         <Condition>GAZEGRID_TRUST_CERTIFICATE = "1"</Condition>
-        <File Id="GazeGridSignedExe" Source="@CMAKE_BINARY_DIR@/Release/gazegrid.exe" KeyPath="yes" />
+        <File Id="GazeGridSignedExe" Source="@CMAKE_BINARY_DIR@/Release/gazegrid.exe" KeyPath="yes">
+          <Shortcut Id="GazeGridSignedStart" Directory="GazeGridMenu" Name="GazeGrid" Advertise="yes" WorkingDirectory="INSTALL_ROOT" />
+        </File>
       </Component>
       <Component Id="GazeGridUnsigned" Guid="CBE8E2AD-971E-4B24-8BF6-498EF7CC35BF" Win64="yes">
         <Condition>GAZEGRID_TRUST_CERTIFICATE &lt;&gt; "1"</Condition>
-        <File Id="GazeGridUnsignedExe" Source="@CMAKE_BINARY_DIR@/unsigned/gazegrid.exe" KeyPath="yes" />
+        <File Id="GazeGridUnsignedExe" Source="@CMAKE_BINARY_DIR@/unsigned/gazegrid.exe" KeyPath="yes">
+          <Shortcut Id="GazeGridUnsignedStart" Directory="GazeGridMenu" Name="GazeGrid" Advertise="yes" WorkingDirectory="INSTALL_ROOT" />
+        </File>
       </Component>
       <Component Id="GazeGridMode" Guid="C208D796-4B5F-4282-AB70-020BC516DF9D" Win64="yes">
+        <RemoveFolder Id="RemoveGazeGridMenu" Directory="GazeGridMenu" On="uninstall" />
         <RegistryValue Root="HKLM" Key="Software\GazeGrid\Installer" Name="TrustCertificate" Value="[GAZEGRID_TRUST_CERTIFICATE]" Type="string" KeyPath="yes" />
       </Component>
       <!-- Trust is deliberately persistent: never remove a root that may already
@@ -26,18 +31,12 @@
       <Component Id="GazeGridCertificate" Guid="*" Win64="yes" Permanent="yes">
         <Condition>GAZEGRID_TRUST_CERTIFICATE = "1"</Condition>
         <RegistryValue Root="HKLM" Key="Software\GazeGrid\Certificates" Name="@GAZEGRID_CERTIFICATE_THUMBPRINT@" Value="1" Type="integer" KeyPath="yes" />
-        <iis:Certificate Id="GazeGridTrust" Name="GazeGrid" BinaryKey="GazeGridPublicCertificate" StoreLocation="localMachine" StoreName="root" Request="no" Overwrite="no" />
+        <iis:Certificate Id="GazeGridTrust" Name="GazeGrid" BinaryKey="GazeGridPublicCer" StoreLocation="localMachine" StoreName="root" Request="no" Overwrite="no" />
       </Component>
     </DirectoryRef>
     <DirectoryRef Id="TARGETDIR">
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="GazeGridMenu" Name="GazeGrid">
-          <Component Id="GazeGridShortcut" Guid="2FE355B9-22AF-42E7-8F32-C11F9AE662B6" Win64="yes">
-            <Shortcut Id="GazeGridStart" Name="GazeGrid" Target="[INSTALL_ROOT]gazegrid.exe" WorkingDirectory="INSTALL_ROOT" />
-            <RemoveFolder Id="RemoveGazeGridMenu" On="uninstall" />
-            <RegistryValue Root="HKLM" Key="Software\GazeGrid\Installer" Name="Shortcut" Value="1" Type="integer" KeyPath="yes" />
-          </Component>
-        </Directory>
+        <Directory Id="GazeGridMenu" Name="GazeGrid" />
       </Directory>
     </DirectoryRef>
     <ComponentGroup Id="GazeGridExecutables">
@@ -45,7 +44,7 @@
       <ComponentRef Id="GazeGridUnsigned" />
       <ComponentRef Id="GazeGridMode" />
       <ComponentRef Id="GazeGridCertificate" />
-      <ComponentRef Id="GazeGridShortcut" />
+
     </ComponentGroup>
   </Fragment>
   <Fragment>
