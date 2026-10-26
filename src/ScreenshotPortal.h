@@ -1,10 +1,16 @@
 #pragma once
 #include <QObject>
+#ifndef _WIN32
 #include <QDBusContext>
+#endif
 #include <QImage>
 #include <QTimer>
 #include <QVariantMap>
-class ScreenshotPortal:public QObject,protected QDBusContext {
+class ScreenshotPortal:public QObject
+#ifndef _WIN32
+,protected QDBusContext
+#endif
+{
  Q_OBJECT
 public:
  explicit ScreenshotPortal(QObject *parent=nullptr);

@@ -1,0 +1,62 @@
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][string]$CertificateThumbprint,
+    [string]$BuildDirectory = 'build/windows',
+    [string]$TobiiSdk = '',
+    [string]$TobiiRuntime = ''
+)
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+function Invoke-Checked([string]$Program, [string[]]$Arguments) {
+    & $Program @Arguments
+    if ($LASTEXITCODE -ne 0) { throw "$Program failed with exit code $LASTEXITCODE" }
+}
+$root = (Resolve-Path "$PSScriptRoot/../..").Path
+$cert = Get-Item "Cert:\CurrentUser\My\$CertificateThumbprint"
+if ($cert.Subject -ne 'CN=GazeGrid' -or $cert.Issuer -ne $cert.Subject -or !$cert.HasPrivateKey -or $cert.NotAfter -le (Get-Date)) {
+    throw 'An unexpired self-signed CN=GazeGrid certificate with its private key is required.'
+}
+$signCommand = Get-Command signtool.exe -ErrorAction SilentlyContinue
+$signTool = if ($signCommand) { $signCommand.Source } else { $null }
+if (!$signTool) {
+    $signTool = (Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+}
+$configure = @('-S', $root, '-B', $BuildDirectory, '-A', 'x64', '-DGAZEGRID_UIACCESS=OFF')
+if ($TobiiSdk) {
+    if (!(Test-Path $TobiiRuntime)) { throw 'Supply the matching redistributable Tobii DLL using -TobiiRuntime.' }
+    $configure += @('-DGAZEGRID_WITH_TOBII=ON', "-DTOBII_SDK=$TobiiSdk")
+} else { $configure += '-DGAZEGRID_WITH_TOBII=OFF' }
+Invoke-Checked cmake $configure
+Invoke-Checked cmake @('--build', $BuildDirectory, '--config', 'Release', '--parallel')
+Invoke-Checked ctest @('--test-dir', $BuildDirectory, '-C', 'Release', '--output-on-failure')
+# UIAccess builds cannot be run from the ordinary build directory. Test first,
+# then relink the exact application with the release manifest and sign it.
+Invoke-Checked cmake @('-S', $root, '-B', $BuildDirectory, '-DGAZEGRID_UIACCESS=ON')
+Invoke-Checked cmake @('--build', $BuildDirectory, '--config', 'Release', '--target', 'gazegrid', '--parallel')
+$build = (Resolve-Path $BuildDirectory).Path
+$exe = "$build/Release/gazegrid.exe"
+$manifestTool = Join-Path (Split-Path $signTool) 'mt.exe'
+Invoke-Checked $manifestTool @("-inputresource:$exe;#1", "-out:$build/gazegrid.manifest")
+[xml]$manifest = Get-Content "$build/gazegrid.manifest"
+$execution = $manifest.SelectSingleNode("//*[local-name()='requestedExecutionLevel']")
+if (!$execution -or $execution.uiAccess -ne 'true' -or $execution.level -ne 'asInvoker') {
+    throw 'Release manifest must request asInvoker with uiAccess=true.'
+}
+Invoke-Checked $signTool @('sign', '/sha1', $CertificateThumbprint, '/fd', 'SHA256', $exe)
+Invoke-Checked $signTool @('verify', '/pa', $exe)
+$deploy = "$build/deploy"
+if (Test-Path $deploy) { Remove-Item -Recurse -Force $deploy }
+New-Item -ItemType Directory $deploy | Out-Null
+# Only scan Qt-only generated QML; the source directory also contains KDE imports.
+Copy-Item "$root/ui/*.qml" "$build/windows-ui/" -Exclude Main.qml
+Invoke-Checked windeployqt @('--release', '--no-compiler-runtime', '--qmldir', "$build/windows-ui", '--dir', $deploy, $exe)
+if ($TobiiSdk) { Copy-Item $TobiiRuntime "$deploy/tobii_stream_engine.dll" }
+Push-Location $build
+try { Invoke-Checked cpack @('-G', 'WIX', '-C', 'Release') } finally { Pop-Location }
+$packages = @(Get-ChildItem "$build/*.msi")
+if ($packages.Count -ne 1) { throw 'Expected exactly one MSI in the build directory.' }
+foreach ($msi in $packages) {
+    Invoke-Checked $signTool @('sign', '/sha1', $CertificateThumbprint, '/fd', 'SHA256', $msi.FullName)
+    Invoke-Checked $signTool @('verify', '/pa', $msi.FullName)
+}
+Export-Certificate -Cert $cert -FilePath "$build/GazeGrid.cer" -Force | Out-Null

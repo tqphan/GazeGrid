@@ -558,8 +558,12 @@ private slots:
  void corruptMappingsUseDefaultsAndPreserveSavedFile(){
   const auto path=QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);QVERIFY(QDir().mkpath(path));
   QFile file(QDir(path).filePath("linux-mappings.json"));QVERIFY(file.open(QIODevice::WriteOnly));file.write("{broken");file.close();
+#ifndef _WIN32
   {Controller controller;QVERIFY(controller.property("profileStatus").toString().contains("Using default mappings"));
    QVERIFY(!QJsonDocument::fromJson(controller.mappingJson().toUtf8()).object().isEmpty());}
+#else
+  {Controller controller;QVERIFY(!controller.property("profileStatus").toString().contains("Using default mappings"));}
+#endif
   QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),QByteArray("{broken"));file.close();QVERIFY(file.remove());
  }
  void visualPreferencesPersistAndReset(){

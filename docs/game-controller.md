@@ -19,11 +19,23 @@ Custom keys can use `<Action>CycleButtonMode</Action>`. The action is also avail
 in Settings → Gaze & dwell. Button mode starts at Tap each launch.
 Explicit Release actions and multi-command macros retain their original behavior.
 
-This implements virtual output only, using the standard Linux gamepad mapping:
-https://kernel.org/doc/html/latest/input/gamepad.html
-The device appears as `OptiKey Virtual Controller`. Games must support Linux
-controllers (or use Steam Input). This does not impersonate every proprietary
-controller, implement motion sensors/touchpads, or receive force feedback.
+On Linux, output uses the [standard Linux gamepad mapping](https://kernel.org/doc/html/latest/input/gamepad.html)
+and appears as `GazeGrid Virtual Controller`. Games must support Linux controllers
+(or use Steam Input).
+
+On Windows, output uses [ViGEmBus](https://github.com/nefarius/ViGEmBus) and appears
+as an Xbox 360 controller. Install the upstream bus driver separately. The client
+library is built into GazeGrid; no separate ViGEmClient DLL is needed. Missing-driver
+and connection errors appear in action status, and subsequent actions retry.
+Xbox buttons, D-pad, sticks and triggers are supported. Digital trigger buttons
+hold the corresponding trigger at full pressure; releasing them restores any
+analog trigger value. Hat axes and D-pad buttons combine without releasing one
+another. Positive screen Y maps to negative XInput stick Y.
+
+Windows rejects Linux-only C/Z, Button1–32, Throttle, Rudder and Wheel actions.
+These remain available on Linux. Neither backend implements motion sensors,
+touchpads or force feedback. Windows hardware/driver acceptance remains pending;
+the report mapping and lifecycle are tested with injected output.
 
 ## Device access
 

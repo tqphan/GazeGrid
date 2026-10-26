@@ -707,7 +707,7 @@ Window {
       title:settings.categoryNames[4];visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
-       Desktop.CheckBox {text:"Literal keys (bypass platform mappings)";checked:controller.literal;onToggled:controller.literal=checked}
+       Desktop.CheckBox {visible:Qt.platform.os!=="windows";text:"Literal keys (bypass platform mappings)";checked:controller.literal;onToggled:controller.literal=checked}
       }
      }
      Desktop.GroupBox {
@@ -746,17 +746,17 @@ Window {
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Tool {id:authorize;text:"Connect desktop control";command:"Connect"}
-       Desktop.CheckBox {text:"Remember desktop-control permission, if supported";checked:controller.rememberDesktop;onToggled:controller.rememberDesktop=checked}
-       Desktop.Button {text:"Disconnect and forget desktop permission";onClicked:controller.forgetDesktopPermission()}
+       Desktop.CheckBox {visible:Qt.platform.os!=="windows";text:"Remember desktop-control permission, if supported";checked:controller.rememberDesktop;onToggled:controller.rememberDesktop=checked}
+       Desktop.Button {visible:Qt.platform.os!=="windows";text:"Disconnect and forget desktop permission";onClicked:controller.forgetDesktopPermission()}
       }
      }
      Desktop.GroupBox {
       title:settings.categoryNames[6];visible:settingsCategory.currentIndex==6;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
-       Desktop.Label {text:"Linux shortcut mappings"}
-       Desktop.ScrollView {Layout.fillWidth:true;Layout.preferredHeight:180;Desktop.TextArea {id:mappingEditor;text:controller.mappingJson;wrapMode:Text.Wrap;font.family:"monospace";selectByMouse:true}}
-       Desktop.Button {text:"Save mappings";onClicked:controller.saveMappings(mappingEditor.text)}
+       Desktop.Label {text:Qt.platform.os==="windows"?"Windows uses the keyboard pack’s original shortcuts.":"Linux shortcut mappings"}
+       Desktop.ScrollView {visible:Qt.platform.os!=="windows";Layout.fillWidth:true;Layout.preferredHeight:180;Desktop.TextArea {id:mappingEditor;text:controller.mappingJson;wrapMode:Text.Wrap;font.family:"monospace";selectByMouse:true}}
+       Desktop.Button {visible:Qt.platform.os!=="windows";text:"Save mappings";onClicked:controller.saveMappings(mappingEditor.text)}
        Desktop.Label {text:controller.actionStatus;wrapMode:Text.Wrap;Layout.fillWidth:true}
       }
      }

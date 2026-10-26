@@ -18,9 +18,12 @@
 #include <QJsonObject>
 #include <QDir>
 #include <QPainter>
+#ifdef GAZEGRID_LINUX
 #include <QDBusConnection>
 #include <QDBusMessage>
+#endif
 #include "Controller.h"
+#include "AppPaths.h"
 #include "KeyboardPack.h"
 #include "KeyboardEditor.h"
 #include "KeyboardLayout.h"
@@ -101,7 +104,7 @@ int main(int argc,char **argv){
  if(diagnose||audit){
   QVariantMap report;
   if(diagnose){report["tobii"]=TobiiInput::probe();report["portal"]=PortalInput::probe();report["qtVersion"]=qVersion();}
-  if(audit)report["keyboards"]=KeyboardPack::audit(QStringLiteral(DEFAULT_PACK_PATH));
+  if(audit)report["keyboards"]=KeyboardPack::audit(keyboardPackDirectory());
   QTextStream(stdout)<<QJsonDocument::fromVariant(report).toJson();
   return audit&&!report["keyboards"].toMap()["errors"].toStringList().isEmpty()?1:0;
  }
@@ -113,6 +116,7 @@ int main(int argc,char **argv){
   QTimer::singleShot(60000,&app,[&]{QTextStream(stdout)<<"Portal check timed out"<<Qt::endl;app.exit(2);});
   return app.exec();
  }
+#ifdef GAZEGRID_LINUX
  std::unique_ptr<PlasmaInputMethod> inputMethod;
  if(inputMethodMode){
   inputMethod=std::make_unique<PlasmaInputMethod>();
@@ -129,7 +133,9 @@ int main(int argc,char **argv){
   registration.setArguments({QString("org.gazegrid.GazeGrid"),QVariantMap{}});
   QDBusConnection::sessionBus().call(registration,QDBus::Block,2000);
  }
+#endif
  Controller controller;
+#ifdef GAZEGRID_LINUX
  if(inputMethod){
   controller.configureInputMethod([&](QString text){return inputMethod->commitText(text);},[&](QString name,bool down){return inputMethod->sendKey(name,down);});
   QObject::connect(inputMethod.get(),&PlasmaInputMethod::contextInvalidated,&controller,&Controller::invalidateInputContext);
@@ -183,6 +189,7 @@ int main(int argc,char **argv){
    }
   });
  }
+#endif
  if(inputCheck||pointerCheck){controller.setKeyboardScale(100);controller.openLayout("keyboard-alphabet-14x4-bottom",false);}
  auto args=app.arguments();int layoutIndex=args.indexOf("--layout");if(layoutIndex>=0&&layoutIndex+1<args.size())controller.openLayout(args[layoutIndex+1],false);
  QQmlApplicationEngine engine;
@@ -191,7 +198,9 @@ int main(int argc,char **argv){
  engine.rootContext()->setContextProperty("controller",&controller);
  engine.load(QUrl("qrc:/ui/Main.qml"));if(engine.rootObjects().isEmpty())return 1;
  auto window=qobject_cast<QQuickWindow*>(engine.rootObjects().front());if(!window)return 1;
+#ifdef GAZEGRID_LINUX
  nativeCheckWindow=window;
+#endif
  if(app.arguments().contains("--gaze-indicator-ui-check")){
   auto overlay=window->findChild<QQuickItem*>("keyboardGazeIndicator");
   if(!overlay)return 1;
@@ -807,7 +816,7 @@ int main(int argc,char **argv){
      if(active&&!sent)QTimer::singleShot(300,&app,[&]{
       if(!active||sent||!controller.ready())return;sent=true;
       // Send only after the disposable receiver reports keyboard focus.
-      auto layout=KeyboardLayout::fromXml(KeyboardPack::load(QStringLiteral(DEFAULT_PACK_PATH)+"/keyboard-alphabet-14x4-bottom.xml"));
+      auto layout=KeyboardLayout::fromXml(KeyboardPack::load(keyboardPackDirectory()+"/keyboard-alphabet-14x4-bottom.xml"));
       QVariantList sequence;
       for(auto letter:QString("gazegrid")){
        bool found=false;
@@ -851,7 +860,13 @@ int main(int argc,char **argv){
  // Diagnostic modes manage their own sessions or must remain input-free.
  bool diagnosticMode=smoke;
  for(const auto &arg:args)if(arg.endsWith("-check"))diagnosticMode=true;
- if(!diagnosticMode&&controller.property("rememberDesktop").toBool())
+ if(!diagnosticMode&&
+#ifdef _WIN32
+    true
+#else
+    controller.property("rememberDesktop").toBool()
+#endif
+ )
   QTimer::singleShot(0,&controller,&Controller::connectDesktop);
  if(smoke)QTimer::singleShot(1500,&app,[&]{
   auto output=qEnvironmentVariable("GAZEGRID_SCREENSHOT");

@@ -1,0 +1,60 @@
+name: Build and test
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    container: archlinux:base
+    steps:
+      - name: Install build and desktop dependencies
+        run: pacman -Syu --noconfirm --needed git cmake ninja gcc pkgconf qt6-base qt6-declarative qt6-svg qt6-wayland layer-shell-qt libei speech-dispatcher kirigami qqc2-desktop-style dbus
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGAZEGRID_WITH_TOBII=OFF
+      - run: cmake --build build --parallel 2
+      - run: dbus-run-session -- ctest --test-dir build --output-on-failure
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: win64_msvc2022_64
+          cache: true
+      - name: Configure WiX 3 and test certificate
+        shell: pwsh
+        run: |
+          (Join-Path $env:WIX 'bin') | Out-File -FilePath $env:GITHUB_PATH -Append
+          $password = ConvertTo-SecureString ([guid]::NewGuid().ToString()) -AsPlainText -Force
+          ./platform/windows/New-GazeGridCertificate.ps1 -OutputDirectory "$env:RUNNER_TEMP/signing" -Password $password
+          $cert = Get-PfxCertificate "$env:RUNNER_TEMP/signing/GazeGrid.cer"
+          Import-Certificate -FilePath "$env:RUNNER_TEMP/signing/GazeGrid.cer" -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+          "SIGNING_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Build, test, sign and package (ephemeral CI identity)
+        shell: pwsh
+        run: ./platform/windows/Build-Release.ps1 -CertificateThumbprint $env:SIGNING_THUMBPRINT
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
+      - name: Verify MSI installation, signed application launch and uninstall
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem build/windows/*.msi | Select-Object -First 1).FullName
+          ./platform/windows/Test-Installed.ps1 -Msi $msi -CertificateThumbprint $env:SIGNING_THUMBPRINT
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GazeGrid-Windows-x64-test-MSI
+          path: |
+            build/windows/*.msi
+            build/windows/GazeGrid.cer
+          if-no-files-found: error

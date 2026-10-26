@@ -6,3 +6,7 @@
 __pycache__/
 *.pyc
 *.user
+
+# Never commit signing private keys.
+*.pfx
+*.p12

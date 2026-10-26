@@ -3,8 +3,11 @@
 #include <QMap>
 #include <QSet>
 #include <functional>
+#ifdef _WIN32
+#include "WindowsGamepad.h"
+#endif
 
-// Standard Linux gamepad plus extended joystick axes/buttons.
+// Shared gamepad actions; Linux uinput or Windows ViGEmBus output.
 class GameController : public QObject {
     Q_OBJECT
 public:
@@ -28,6 +31,9 @@ private:
     bool send(int type,int code,int value);
     void closeDevice();
     int fd=-1;
+#ifdef _WIN32
+    WindowsGamepad windowsPad;
+#endif
     int sequence=0;
     QString message;
     QMap<int,int> buttons,axes;

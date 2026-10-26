@@ -1,4 +1,8 @@
-# GazeGrid — Linux prototype
+# GazeGrid — Linux and Windows
+
+Windows app integration, Linux/Windows CI, and signed UIAccess MSI packaging are
+configured. See [Windows build and release instructions](docs/windows.md) for
+signing setup, SDK options, and remaining native acceptance checks.
 
 Qt 6 Quick/QML and C++20 implementation in its own sibling project. The original OptiKey repository is unchanged. This is the initial integration prototype, not the completed rewrite.
 

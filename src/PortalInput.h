@@ -1,3 +1,6 @@
+#ifdef _WIN32
+#include "WindowsDesktopInput.h"
+#else
 #pragma once
 #include <QObject>
 #include <QVariantMap>
@@ -51,3 +54,5 @@ private:
  QSet<int> held,heldButtons;
  ei_device *device(int capability);
 };
+
+#endif

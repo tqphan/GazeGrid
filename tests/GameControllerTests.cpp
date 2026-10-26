@@ -3,7 +3,7 @@
 #include "ActionCatalog.h"
 #include "KeyboardPack.h"
 #include "KeyboardLayout.h"
-#include <linux/input.h>
+#include "GamepadCodes.h"
 class GameControllerTests:public QObject {
  Q_OBJECT
 private slots:

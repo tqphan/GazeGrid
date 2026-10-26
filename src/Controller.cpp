@@ -23,6 +23,13 @@
 #include "AppPaths.h"
 #include <QTextBoundaryFinder>
 namespace {
+bool bypassPlatformMappings(bool literal){
+#ifdef _WIN32
+ return true;
+#else
+ return literal;
+#endif
+}
 QVariantMap command(QString tag,QString value){return {{"tag",tag},{"text",value}};}
 QString configFile(const QString &name){auto dir=appConfigDirectory();QDir().mkpath(dir);return QDir(dir).filePath(name);}
 QString panelPlacementReason(const QVariantMap &layout){
@@ -69,14 +76,15 @@ Controller::Controller(){
  hideKeyboardDuringMouseActions=profile.values["hideKeyboardDuringMouseActions"].toBool();
  gazeIndicatorMorph=profile.values["gazeIndicatorMorph"].toBool();
  smoothingLevel=profile.values["gazeSmoothingLevel"].toInt(1);smoothTargetChanges=profile.values["smoothWhenChangingGazeTarget"].toBool();
- layoutNames=QDir(QStringLiteral(DEFAULT_PACK_PATH)).entryList({"*.xml"},QDir::Files,QDir::Name);for(auto &name:layoutNames)name.chop(4);
+ layoutNames=QDir(keyboardPackDirectory()).entryList({"*.xml"},QDir::Files,QDir::Name);for(auto &name:layoutNames)name.chop(4);
  for(const auto &name:layoutNames){
-  auto item=KeyboardLayout::fromXml(KeyboardPack::load(QDir(QStringLiteral(DEFAULT_PACK_PATH)).filePath(name+".xml")));
+  auto item=KeyboardLayout::fromXml(KeyboardPack::load(QDir(keyboardPackDirectory()).filePath(name+".xml")));
   if(!item.contains("error")&&item["hidefromkeyboardmenu"].toString().compare("true",Qt::CaseInsensitive)!=0)menuLayoutNames<<name;
  }
  QFile words(":/resources/EnglishUS.dic");if(words.open(QIODevice::ReadOnly)){dictionary=QString::fromUtf8(words.readAll()).remove(QChar(0xfeff)).split('\n',Qt::SkipEmptyParts);for(auto &word:dictionary)word=word.trimmed();dictionary.sort(Qt::CaseInsensitive);}
  WordPrediction::prepare(dictionary);
  QFile learned(configFile("learned.json"));if(learned.open(QIODevice::ReadOnly)){auto obj=QJsonDocument::fromJson(learned.readAll()).object();for(auto it=obj.begin();it!=obj.end();++it)frequencies[it.key()]=qBound(0,it.value().toInt(),1000000);}
+#ifndef _WIN32
  QString mappingError;QFile mappings(configFile("linux-mappings.json"));
  if(mappings.exists()){
   if(mappings.open(QIODevice::ReadOnly))mappingProfile=ShortcutMappings::parse(mappings.readAll(),mappingError);
@@ -89,6 +97,7 @@ Controller::Controller(){
   if(!defaultError.isEmpty())actionStatus=defaultError;
  }
  if(!mappingError.isEmpty())profileStatus+=(profileStatus.isEmpty()?QString():QString(" "))+mappingError+". Using default mappings; saved file was preserved.";
+#endif
  pointer.move=[this](double x,double y){return portal.moveAbsolute(x,y);};
  pointer.moveRelative=[this](double x,double y){return portal.move(x,y);};
  pointer.button=[this](int code,bool down){return portal.button(code,down);};
@@ -199,7 +208,7 @@ bool Controller::saveMappings(QString json){
  mappingProfile=profile;actionStatus="Platform mappings saved";emit changed();return true;
 }
 QVariantList Controller::mapped(const QVariantList &commands,bool &ok){
- auto result=ShortcutMappings::resolve(commands,mappingProfile,literal);ok=result.allowed;actionStatus=result.message;return result.commands;
+ auto result=ShortcutMappings::resolve(commands,mappingProfile,bypassPlatformMappings(literal));ok=result.allowed;actionStatus=result.message;return result.commands;
 }
 void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
  const auto now=GazeClock::now();
@@ -302,7 +311,7 @@ double Controller::hover(QString key){
    const auto keyMode=fixedMode.isEmpty()?keyModeValue:fixedMode;
    const auto buttonMode=fixedMode.isEmpty()?buttonModeValue:fixedMode;
    if(!runner.textOnly&&entry["unavailableReason"].toString().isEmpty()&&commands.size()==1){
-    const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,literal);
+    const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,bypassPlatformMappings(literal));
     if(resolved.allowed&&resolved.commands.size()==1){
      const auto cmd=resolved.commands.front().toMap();
      const auto button=cmd["tag"]=="Action"?GameController::buttonAction(cmd["text"].toString(),"Press"):QString();
@@ -315,7 +324,7 @@ double Controller::hover(QString key){
    if(ready()&&entry["unavailableReason"].toString().isEmpty()&&commands.size()==1){
     const bool modeKey=!ActionRunner::dwellKey(commands).first.isEmpty();
     if(modeKey&&keyMode=="Hold"&&!runner.textOnly){
-     const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,literal);
+     const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,bypassPlatformMappings(literal));
      if(resolved.allowed&&!ActionRunner::dwellKey(resolved.commands).first.isEmpty())holdCommands=resolved.commands;
     }
     repeatKey=repeatKey||(cycleModifiersOnHover&&!ActionRunner::modifierName(commands).isEmpty())
@@ -458,7 +467,7 @@ void Controller::activate(QString key){
 void Controller::openLayout(QString name,bool backReturnsHere){
  if(name.endsWith(".xml"))name.chop(4);
  if(!layoutNames.contains(name)){actionStatus="Unknown keyboard: "+name;emit changed();return;}
- const auto sourcePath=QDir(QStringLiteral(DEFAULT_PACK_PATH)).filePath(name+".xml");
+ const auto sourcePath=QDir(keyboardPackDirectory()).filePath(name+".xml");
  QFile sourceFile(sourcePath);
  if(!sourceFile.open(QIODevice::ReadOnly)){actionStatus=sourceFile.errorString();emit changed();return;}
  const auto sourceBytes=sourceFile.readAll();sourceFile.close();
@@ -474,7 +483,7 @@ void Controller::openLayout(QString name,bool backReturnsHere){
     const auto command=entry.toMap();if(command["tag"]!="ChangeKeyboard")continue;
     auto destination=command["text"].toString().trimmed();if(destination.endsWith(".xml"))destination.chop(4);
     if(!layoutNames.contains(destination))continue;
-    const auto target=KeyboardLayout::fromXml(KeyboardPack::load(QDir(QStringLiteral(DEFAULT_PACK_PATH)).filePath(destination+".xml")));
+    const auto target=KeyboardLayout::fromXml(KeyboardPack::load(QDir(keyboardPackDirectory()).filePath(destination+".xml")));
     if(target.contains("error"))continue;
     const auto unavailable=panelPlacementReason(target);
     if(!unavailable.isEmpty()){key["unavailableReason"]=unavailable;break;}
@@ -663,7 +672,7 @@ void Controller::speak(){if(!sensitiveInput)speech.speak(scratchpad);}
 void Controller::stopSpeech(){speech.stop();}
 
 bool Controller::keyToggled(const QVariantList &commands)const{
- const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,literal);
+ const auto resolved=ShortcutMappings::resolve(commands,mappingProfile,bypassPlatformMappings(literal));
  return resolved.allowed&&runner.isToggled(resolved.commands);
 }
 

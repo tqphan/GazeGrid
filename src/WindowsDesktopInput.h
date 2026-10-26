@@ -1,0 +1,33 @@
+#pragma once
+#include <QObject>
+#include <QVariantMap>
+#include "WindowsInput.h"
+// Compatibility facade for Controller's desktop-output lifecycle.
+class PortalInput:public QObject {
+ Q_OBJECT
+public:
+ explicit PortalInput(QObject *parent=nullptr):QObject(parent){}
+ ~PortalInput() override {close();}
+ static QVariantMap probe();
+ void connectPortal(){available=true;emit status("Windows desktop input connected");emit readyChanged();}
+ void setRememberPermission(bool){}
+ void forgetPermission(){}
+ void close(){releaseAll();available=false;emit readyChanged();}
+ bool key(int code,bool down);
+ bool move(double dx,double dy){return available&&input.move(dx,dy);}
+ bool click(){if(!button(272,true))return false;return button(272,false);}
+ bool button(int code,bool down){return available&&input.button(code,down);}
+ bool moveAbsolute(double x,double y);
+ bool absoluteAvailable()const{return available;}
+ bool scroll(double dy){return scrollAxes(0,dy);}
+ bool scrollAxes(double dx,double dy){return available&&input.scrollAxes(dx/120.0,dy/120.0);}
+ bool ready()const{return available;}
+ void releaseAll(){if(!input.releaseAll())emit status("Windows rejected an input release; retry desktop connection");}
+ void releaseButtons(){if(!input.releaseButtons())emit status("Windows rejected a pointer release");}
+signals:
+ void status(QString message);
+ void readyChanged();
+private:
+ WindowsInput input;
+ bool available=false;
+};
