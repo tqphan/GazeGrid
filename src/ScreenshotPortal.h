@@ -1,13 +1,13 @@
 #pragma once
 #include <QObject>
-#ifndef _WIN32
+#ifndef GAZEGRID_WINDOWS
 #include <QDBusContext>
 #endif
 #include <QImage>
 #include <QTimer>
 #include <QVariantMap>
 class ScreenshotPortal:public QObject
-#ifndef _WIN32
+#ifndef GAZEGRID_WINDOWS
 ,protected QDBusContext
 #endif
 {

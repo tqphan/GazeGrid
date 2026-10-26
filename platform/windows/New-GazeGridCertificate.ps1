@@ -63,7 +63,10 @@ Write-Host @'
 
 4. Commit and push the project's scripts and workflow files to GitHub.
    Open Actions > Signed Windows MSI > Run workflow.
-   After it succeeds, download the GazeGrid-Windows-x64-signed artifact.
+   Leave Create a draft GitHub release enabled to create a versioned draft.
+   After it succeeds, review the draft on the repository's Releases page
+   and publish when ready. You can also download the
+   GazeGrid-Windows-x64-signed artifact from the workflow run.
    It contains the signed MSI and public GazeGrid.cer certificate.
    The application executable inside the MSI is signed with the same identity.
 

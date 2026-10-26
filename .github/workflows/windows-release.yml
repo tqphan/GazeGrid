@@ -1,14 +1,37 @@
 name: Signed Windows MSI
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: Create a draft GitHub release for the CMake version
+        type: boolean
+        default: true
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
   package:
     runs-on: windows-2022
     environment: windows-release
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+      - name: Validate version tag
+        shell: pwsh
+        run: |
+          $project = Get-Content CMakeLists.txt -Raw
+          if ($project -notmatch 'project\(GazeGrid\s+VERSION\s+(\d+\.\d+\.\d+)') { throw 'Missing project version' }
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$($Matches[1])") {
+            throw 'The release tag must match the version in CMakeLists.txt.'
+          }
       - uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'
@@ -46,13 +69,16 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           QT_QUICK_BACKEND: software
+      - name: Prepare versioned release assets and checksums
+        id: release
+        shell: pwsh
+        run: ./platform/windows/Prepare-Release.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: GazeGrid-Windows-x64-signed
-          path: |
-            build/windows/*.msi
-            build/windows/GazeGrid.cer
+          path: build/windows/release/*
           if-no-files-found: error
+          retention-days: 30
       - name: Remove signing identity
         if: always()
         shell: pwsh
@@ -61,3 +87,44 @@ jobs:
             Remove-Item "Cert:\CurrentUser\My\$env:SIGNING_THUMBPRINT" -Force -ErrorAction SilentlyContinue
             Remove-Item "Cert:\LocalMachine\Root\$env:SIGNING_THUMBPRINT" -Force -ErrorAction SilentlyContinue
           }
+
+  release:
+    name: Create draft GitHub release
+    needs: package
+    if: github.event_name == 'push' || inputs.create_release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: GazeGrid-Windows-x64-signed
+          path: release
+      - name: Attach verified assets to a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.package.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.package.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release
+          sha256sum --check SHA256SUMS.txt
+          cd ..
+          if git rev-parse --verify "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            tagged_commit=$(git rev-list -n 1 "$RELEASE_TAG")
+            test "$tagged_commit" = "$GITHUB_SHA" || { echo 'Existing version tag points to a different commit.'; exit 1; }
+          fi
+          if gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft > draft-status.txt; then
+            test "$(cat draft-status.txt)" = true || { echo 'Refusing to replace a published release.'; exit 1; }
+            gh release edit "$RELEASE_TAG" --target "$GITHUB_SHA" --notes-file release/RELEASE-NOTES.md
+            gh release upload "$RELEASE_TAG" release/*.msi release/GazeGrid.cer release/SHA256SUMS.txt --clobber
+          else
+            gh release create "$RELEASE_TAG" release/*.msi release/GazeGrid.cer release/SHA256SUMS.txt \
+              --target "$GITHUB_SHA" --title "GazeGrid $RELEASE_VERSION" --draft \
+              --notes-file release/RELEASE-NOTES.md
+          fi
+          gh release view "$RELEASE_TAG" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"

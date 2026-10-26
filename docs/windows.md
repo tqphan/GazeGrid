@@ -134,15 +134,30 @@ process a UIAccess token via `--diagnose`, then uninstalls. The installed smoke 
 removes Qt development search paths. CI artifacts include MSI and public CER,
 never the PFX. Do not distribute these changing CI identities as releases.
 
-`.github/workflows/windows-release.yml` is manually dispatched and uses the
-`windows-release` environment with these secrets:
+`.github/workflows/windows-release.yml` runs when a `v*` tag is pushed or from
+**Actions → Signed Windows MSI → Run workflow**. It uses the `windows-release`
+environment and these secrets:
 
 - `GAZEGRID_SIGNING_PFX_BASE64`: base64-encoded persistent GazeGrid PFX.
 - `GAZEGRID_SIGNING_PFX_PASSWORD`: its export password.
 
-The release workflow fails if the secrets are missing; it never silently creates
-a replacement identity. It performs the same packaging/install checks and uploads
-the signed MSI/public CER as artifacts without publishing a GitHub release.
-Its default artifact is explicitly a mouse-dwell build; use the local script
-with your licensed SDK for tracker-enabled releases. Installing SDK provisioning
-in CI requires an authorized distribution source for that SDK.
+The tag must exactly match `v` plus the version in `CMakeLists.txt`, for example
+`v0.1.0`. For a new release, update that version, commit and push the change, then
+push the matching tag. Alternatively, manually run the workflow on the desired
+commit with **Create a draft GitHub release** enabled (the default); it selects
+the project version automatically. Uncheck that option for an artifact-only build.
+
+After build, tests, signing and installed UIAccess verification succeed, the
+workflow prepares `GazeGrid-VERSION-Windows-x64.msi`, `GazeGrid.cer`, SHA-256
+checksums, and release notes. A separate job with repository write permission
+attaches the MSI, CER and checksum file to a **draft GitHub release**. Review it
+under the repository's Releases page and publish when ready. The release notes
+include the source commit, signing certificate thumbprint and runtime prerequisites.
+An existing version tag must point to the same source commit. Reruns may refresh
+a draft; published release assets are never overwritten.
+
+The release workflow fails if signing secrets are missing; it never silently
+creates a replacement identity. Its default artifact is a mouse-dwell build;
+use the local script with your licensed SDK for tracker-enabled releases.
+Installing SDK provisioning in CI requires an authorized distribution source
+for that SDK.
