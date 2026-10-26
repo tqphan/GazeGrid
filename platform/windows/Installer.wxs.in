@@ -8,19 +8,19 @@
       <RegistrySearch Id="SavedMode" Root="HKLM" Key="Software\GazeGrid\Installer" Name="TrustCertificate" Type="raw" Win64="yes" />
     </Property>
     <SetProperty Id="GAZEGRID_TRUST_CERTIFICATE" Value="[GAZEGRID_SAVED_MODE]" After="AppSearch" Sequence="both">Installed AND GAZEGRID_SAVED_MODE</SetProperty>
-    <Icon Id="GazeGridApplicationIcon" SourceFile="@CMAKE_SOURCE_DIR@/resources/gazegrid.ico" />
+    <Icon Id="GazeGrid.exe" SourceFile="@CMAKE_SOURCE_DIR@/resources/gazegrid.ico" />
     <Binary Id="GazeGridPublicCer" SourceFile="@CMAKE_BINARY_DIR@/GazeGrid.cer" />
     <DirectoryRef Id="INSTALL_ROOT">
       <Component Id="GazeGridSigned" Guid="EBDB964C-AE84-4B98-B95F-17EF4DA6A48D" Win64="yes">
         <Condition>GAZEGRID_TRUST_CERTIFICATE = "1"</Condition>
         <File Id="GazeGridSignedExe" Source="@CMAKE_BINARY_DIR@/Release/gazegrid.exe" KeyPath="yes">
-          <Shortcut Id="GazeGridSignedStart" Directory="GazeGridMenu" Name="GazeGrid" Icon="GazeGridApplicationIcon" IconIndex="0" Advertise="yes" WorkingDirectory="INSTALL_ROOT" />
+          <Shortcut Id="GazeGridSignedStart" Directory="GazeGridMenu" Name="GazeGrid" Icon="GazeGrid.exe" IconIndex="0" Advertise="yes" WorkingDirectory="INSTALL_ROOT" />
         </File>
       </Component>
       <Component Id="GazeGridUnsigned" Guid="CBE8E2AD-971E-4B24-8BF6-498EF7CC35BF" Win64="yes">
         <Condition>GAZEGRID_TRUST_CERTIFICATE &lt;&gt; "1"</Condition>
         <File Id="GazeGridUnsignedExe" Source="@CMAKE_BINARY_DIR@/unsigned/gazegrid.exe" KeyPath="yes">
-          <Shortcut Id="GazeGridUnsignedStart" Directory="GazeGridMenu" Name="GazeGrid" Icon="GazeGridApplicationIcon" IconIndex="0" Advertise="yes" WorkingDirectory="INSTALL_ROOT" />
+          <Shortcut Id="GazeGridUnsignedStart" Directory="GazeGridMenu" Name="GazeGrid" Icon="GazeGrid.exe" IconIndex="0" Advertise="yes" WorkingDirectory="INSTALL_ROOT" />
         </File>
       </Component>
       <Component Id="GazeGridMode" Guid="C208D796-4B5F-4282-AB70-020BC516DF9D" Win64="yes">
