@@ -76,6 +76,10 @@ static QImage grabSceneForCheck(QQuickWindow *window){
  loop.exec();return result->image();
 }
 int main(int argc,char **argv){
+#ifdef _WIN32
+ // Fusion consistently honors the dark Windows palette across Quick controls.
+ qputenv("QT_QUICK_CONTROLS_STYLE","Fusion");
+#endif
  bool inputMethodMode=false;for(int i=1;i<argc;++i)inputMethodMode|=QString::fromLocal8Bit(argv[i])=="--input-method";
  if(inputMethodMode&&qEnvironmentVariableIsEmpty("WAYLAND_SOCKET")){QTextStream(stderr)<<"Input-method mode must be launched by KWin through Virtual Keyboard settings or a nested test session.\n";return 2;}
  bool diagnose=false,audit=false,smoke=false,portalCheck=false,inputCheck=false,inputTarget=false,pointerCheck=false,pointerTarget=false;

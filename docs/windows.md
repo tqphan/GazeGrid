@@ -215,3 +215,7 @@ creates a replacement identity. Its default artifact is a mouse-dwell build;
 use the local script with your licensed SDK for tracker-enabled releases.
 Installing SDK provisioning in CI requires an authorized distribution source
 for that SDK.
+
+### Qt MinGW quick start
+
+With Qt 6 MinGW x64, its matching compiler, CMake and Ninja installed under C:\Qt, run `.\build.ps1 -Run` or double-click `run.cmd`. The script configures an unsigned development build, runs tests, and deploys Qt beside the executable. Use `-QtDirectory` to select a kit, `-QtRoot` for a different Qt installation root, and `-TobiiSdk` for eye-tracker SDK headers. Signed UIAccess releases still require MSVC.

@@ -1,5 +1,7 @@
 # GazeGrid — Linux and Windows
 
+On Windows with Qt 6 MinGW installed in C:\Qt, double-click **run.cmd** to build, test, and launch. In PowerShell, use `.\build.ps1 -Run`. The script detects a Stream Engine Windows SDK beside this checkout; otherwise it uses mouse dwell. You can also pass `-TobiiSdk C:\SDK\StreamEngine` for tracker support. See [Windows instructions](docs/windows.md) for MSVC and signed releases.
+
 Windows app integration, Linux/Windows CI, and signed UIAccess MSI packaging are
 configured. See [Windows build and release instructions](docs/windows.md) for
 signing setup, SDK options, and remaining native acceptance checks.

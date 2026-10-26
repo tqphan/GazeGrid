@@ -16,6 +16,8 @@ string(REPLACE "Kirigami.Heading" "Desktop.Label" qml "${qml}")
 string(REPLACE "level:1" "font.pixelSize:24" qml "${qml}")
 string(REPLACE "Kirigami.Separator {Layout.fillHeight:true}" "Rectangle {Layout.fillHeight:true;implicitWidth:1;color:systemPalette.mid}" qml "${qml}")
 string(REPLACE "Kirigami.Separator {Layout.fillWidth:true}" "Rectangle {Layout.fillWidth:true;implicitHeight:1;color:systemPalette.mid}" qml "${qml}")
+# A control-bearing ApplicationWindow propagates one palette to all settings controls.
+string(REPLACE "Window {\n  id:settings;" "Desktop.ApplicationWindow {\n  palette.window: systemPalette.window\n  palette.windowText: systemPalette.windowText\n  palette.text: systemPalette.windowText\n  palette.buttonText: systemPalette.windowText\n  palette.button: systemPalette.button\n  palette.base: systemPalette.base\n  palette.highlight: \"#397de0\"\n  palette.highlightedText: \"#ffffff\"\n  font.family: \"Segoe UI\"\n  font.pixelSize: 14\n  id:settings;" qml "${qml}")
 set(MAIN_QML "${CMAKE_CURRENT_BINARY_DIR}/windows-ui/Main.qml")
 file(WRITE "${MAIN_QML}" "${qml}")
 set_source_files_properties("${MAIN_QML}" PROPERTIES QT_RESOURCE_ALIAS "ui/Main.qml")

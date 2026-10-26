@@ -1,5 +1,8 @@
 #include "SpeechOutput.h"
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
+#include <windows.h>
 #include <sapi.h>
 #include <memory>
 SpeechOutput::Backend SpeechOutput::nativeBackend(){

@@ -473,10 +473,41 @@ Window {
   }
  }
  Window {
-  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1000,root.screenWidth);height:Math.min(720,root.screenHeight-60);title:"GazeGrid settings";color:Kirigami.Theme.backgroundColor
+  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1100,root.screenWidth);height:Math.min(800,root.screenHeight-60);title:"GazeGrid settings";color:Kirigami.Theme.backgroundColor
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
   property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Shortcuts","Look to scroll"]
   property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","preferences-desktop-keyboard-shortcuts","transform-move"]
+  property var categoryDescriptions:["Connection health and recent activity.","Make your keyboard feel right for you.","Fine-tune eye tracking and selection timing.","Choose how you zoom and select targets.","Personalize prediction and spoken text.","Manage keyboard and pointer access.","Keyboard shortcuts for your desktop.","Adjust hands-free scrolling."]
+  component SettingsButton:Desktop.Button {
+   id:buttonControl;implicitHeight:38;implicitWidth:Math.max(88,contentItem.implicitWidth+32);leftPadding:16;rightPadding:16
+   contentItem:Text {text:buttonControl.text;color:buttonControl.highlighted?"white":Kirigami.Theme.textColor;font.pixelSize:13;font.weight:Font.Medium;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter;opacity:buttonControl.enabled?1:0.4}
+   background:Rectangle {radius:6;color:buttonControl.highlighted?(buttonControl.down?"#2864bd":buttonControl.hovered?"#458bed":"#397de0"):Qt.rgba(0.5,0.5,0.5,buttonControl.down?0.25:buttonControl.hovered?0.18:0.09);border.width:1;border.color:buttonControl.activeFocus?"#599cff":Qt.rgba(0.5,0.5,0.5,0.3)}
+  }
+  component SettingsComboBox:Desktop.ComboBox {
+   id:comboControl;implicitHeight:40;leftPadding:12;rightPadding:34
+   contentItem:Text {text:comboControl.displayText;color:Kirigami.Theme.textColor;font.pixelSize:14;verticalAlignment:Text.AlignVCenter;elide:Text.ElideRight;opacity:comboControl.enabled?1:0.4}
+   indicator:Text {x:parent.width-width-14;anchors.verticalCenter:parent.verticalCenter;text:"\u2304";color:Kirigami.Theme.textColor;font.pixelSize:18}
+   background:Rectangle {radius:6;color:Qt.rgba(0.5,0.5,0.5,comboControl.hovered?0.13:0.07);border.width:1;border.color:comboControl.activeFocus?"#599cff":Qt.rgba(0.5,0.5,0.5,0.32)}
+  }
+  component SettingsCheckBox:Desktop.CheckBox {
+   id:checkControl;implicitHeight:36;spacing:10
+   indicator:Rectangle {x:0;y:(checkControl.height-height)/2;width:20;height:20;radius:4;color:checkControl.checked?"#397de0":"transparent";border.width:1;border.color:checkControl.activeFocus?"#82b5ff":checkControl.checked?"#397de0":"#808080"
+    Text {anchors.centerIn:parent;text:"\u2713";color:"white";visible:checkControl.checked;font.pixelSize:14}
+   }
+   contentItem:Text {text:checkControl.text;leftPadding:30;color:Kirigami.Theme.textColor;font.pixelSize:14;verticalAlignment:Text.AlignVCenter;wrapMode:Text.Wrap;opacity:checkControl.enabled?1:0.4}
+  }
+  component SettingsSlider:Desktop.Slider {
+   id:sliderControl;implicitHeight:28
+   background:Rectangle {x:sliderControl.leftPadding;y:sliderControl.topPadding+(sliderControl.availableHeight-height)/2;width:sliderControl.availableWidth;height:4;radius:2;color:Qt.rgba(0.5,0.5,0.5,0.3)
+    Rectangle {width:sliderControl.visualPosition*parent.width;height:parent.height;radius:2;color:"#599cff"}
+   }
+   handle:Rectangle {x:sliderControl.leftPadding+sliderControl.visualPosition*(sliderControl.availableWidth-width);y:sliderControl.topPadding+(sliderControl.availableHeight-height)/2;width:18;height:18;radius:9;color:sliderControl.pressed?"#397de0":"#dceaff";border.width:sliderControl.activeFocus?3:4;border.color:"#599cff";opacity:sliderControl.enabled?1:0.4}
+  }
+  component SettingsCard:Desktop.GroupBox {
+   padding:20;topPadding:50
+   label:Text {x:20;y:17;text:parent.title;color:Kirigami.Theme.textColor;font.pixelSize:15;font.weight:Font.DemiBold}
+   background:Rectangle {color:Qt.tint(Kirigami.Theme.backgroundColor,Qt.rgba(0.5,0.5,0.5,0.055));radius:10;border.width:1;border.color:Qt.rgba(0.5,0.5,0.5,0.22)}
+  }
   component SettingSlider:ColumnLayout {
    property string label
    property string displayValue
@@ -485,18 +516,18 @@ Window {
    property alias stepSize:control.stepSize
    property alias value:control.value
    signal moved()
-   Layout.fillWidth:true;spacing:2
+   Layout.fillWidth:true;spacing:8
    RowLayout {
     Layout.fillWidth:true
     Desktop.Label {text:label;Layout.fillWidth:true;wrapMode:Text.Wrap}
     Desktop.Label {text:displayValue;font.bold:true;horizontalAlignment:Text.AlignRight}
    }
-   Desktop.Slider {
+   SettingsSlider {
     id:control;Layout.fillWidth:true;Accessible.name:label
     onMoved:parent.moved()
    }
   }
-  component Tool:Desktop.Button {
+  component Tool:SettingsButton {
    property string command:""
    focusPolicy:Qt.NoFocus
    onHoveredChanged:root.hovered=hovered?command:""
@@ -507,13 +538,17 @@ Window {
   RowLayout {
    anchors.fill:parent;spacing:0
    Rectangle {
-    Layout.preferredWidth:210;Layout.fillHeight:true
+    Layout.preferredWidth:230;Layout.fillHeight:true
     color:Kirigami.Theme.backgroundColor
     Kirigami.Theme.colorSet:Kirigami.Theme.View
     Kirigami.Theme.inherit:false
     ColumnLayout {
      anchors.fill:parent;anchors.margins:Kirigami.Units.largeSpacing;spacing:Kirigami.Units.largeSpacing
-     Kirigami.Heading {text:"Settings";level:1;Layout.topMargin:8;Layout.leftMargin:8}
+     ColumnLayout {
+      Layout.leftMargin:10;Layout.topMargin:16;Layout.bottomMargin:20;spacing:5
+      Kirigami.Heading {text:"GazeGrid";level:1;font.weight:Font.DemiBold}
+      Desktop.Label {text:"SETTINGS";font.pixelSize:10;font.letterSpacing:2;opacity:0.55}
+     }
      ListView {
      id:settingsCategory;objectName:"settingsCategory"
      Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:4
@@ -523,7 +558,11 @@ Window {
      delegate:Desktop.ItemDelegate {
       required property int index
       required property string modelData
-      width:ListView.view.width;text:modelData
+      width:ListView.view.width;height:46;text:modelData
+      contentItem:Text {text:modelData;leftPadding:14;verticalAlignment:Text.AlignVCenter;font.pixelSize:14;font.weight:parent.highlighted?Font.DemiBold:Font.Normal;color:Kirigami.Theme.textColor}
+      background:Rectangle {radius:7;color:parent.highlighted?Qt.rgba(0.25,0.52,0.95,0.20):parent.hovered?Qt.rgba(0.5,0.5,0.5,0.10):"transparent"
+       Rectangle {width:3;height:18;radius:1.5;anchors.left:parent.left;anchors.verticalCenter:parent.verticalCenter;color:"#599cff";visible:parent.parent.highlighted}
+      }
       icon.name:settings.categoryIcons[index]
       highlighted:ListView.isCurrentItem
       onClicked:settingsCategory.currentIndex=index
@@ -533,17 +572,24 @@ Window {
    }
    Kirigami.Separator {Layout.fillHeight:true}
    ColumnLayout {
-    Layout.fillWidth:true;Layout.fillHeight:true;Layout.margins:Kirigami.Units.largeSpacing*2;spacing:Kirigami.Units.largeSpacing
+    Layout.fillWidth:true;Layout.fillHeight:true;Layout.margins:28;spacing:20
     RowLayout {
      Layout.fillWidth:true;Layout.bottomMargin:4
-     Kirigami.Heading {text:settings.categoryNames[settingsCategory.currentIndex];level:1;Layout.fillWidth:true}
-     Desktop.Label {text:controller.paused?"Input paused":"Input active"}
+     ColumnLayout {
+      Layout.fillWidth:true;spacing:6
+      Kirigami.Heading {text:settings.categoryNames[settingsCategory.currentIndex];level:1;font.weight:Font.DemiBold}
+      Desktop.Label {text:settings.categoryDescriptions[settingsCategory.currentIndex];opacity:0.6;wrapMode:Text.Wrap;Layout.fillWidth:true}
+     }
+     Rectangle {
+      implicitWidth:inputStatus.implicitWidth+28;implicitHeight:30;radius:15;color:controller.paused?Qt.rgba(0.8,0.6,0.2,0.12):Qt.rgba(0.2,0.75,0.5,0.12)
+      Desktop.Label {id:inputStatus;anchors.centerIn:parent;text:controller.paused?"Input paused":"Input active";font.pixelSize:12;color:controller.paused?"#d2a552":"#43b98a"}
+     }
     }
    Desktop.ScrollView {
     id:settingsScroll;Layout.fillWidth:true;Layout.fillHeight:true;contentWidth:availableWidth;clip:true;ScrollBar.horizontal.policy:ScrollBar.AlwaysOff
     ColumnLayout {
-     width:settingsScroll.availableWidth;spacing:12
-     Desktop.GroupBox {
+     width:settingsScroll.availableWidth-12;spacing:16
+     SettingsCard {
       title:settings.categoryNames[0];visible:settingsCategory.currentIndex==0;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
@@ -557,30 +603,30 @@ Window {
        Text {visible:text.length>0;text:controller.heldKeys.length?"Held: "+controller.heldKeys.join(", "):"";color:Kirigami.Theme.neutralTextColor}
        Text {visible:text.length>0;text:controller.heldPointerButtons.length?"Mouse held: "+controller.heldPointerButtons.join(", "):"";color:Kirigami.Theme.neutralTextColor}
        Tool {id:recover;text:"Home / recover";command:"Recover"}
-       Desktop.Button {text:"Quit GazeGrid";icon.name:"application-exit";onClicked:Qt.quit()}
+       SettingsButton {text:"Quit GazeGrid";icon.name:"application-exit";onClicked:Qt.quit()}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:settings.categoryNames[1];visible:settingsCategory.currentIndex==1;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        RowLayout {
         Desktop.Label {text:"Keyboard"}
-        Desktop.ComboBox {
+        SettingsComboBox {
          model:includeHidden.checked?controller.layoutNames:controller.menuLayoutNames
          currentIndex:model.indexOf(controller.layoutName)
          displayText:currentIndex<0?controller.layoutName:currentText
          Layout.fillWidth:true;onActivated:controller.openLayout(currentText)
         }
        }
-       Desktop.CheckBox {id:includeHidden;text:"Include layouts hidden by the XML pack"}
-       Desktop.CheckBox {
+       SettingsCheckBox {id:includeHidden;text:"Include layouts hidden by the XML pack"}
+       SettingsCheckBox {
         visible:controller.layout.layoutMode==="canvas"
         text:"Save move/resize changes to original XML"
         checked:controller.saveCanvasChanges
         onToggled:controller.saveCanvasChanges=checked
        }
-       Desktop.Button {
+       SettingsButton {
         visible:controller.layout.layoutMode==="canvas"
         text:"Save current positions and sizes to XML"
         onClicked:controller.saveCanvasGeometry()
@@ -591,12 +637,12 @@ Window {
        }
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:"Appearance";      visible:settingsCategory.currentIndex==1;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Desktop.Label {text:"Keyboard theme"}
-       Desktop.ComboBox {
+       SettingsComboBox {
         objectName:"keyboardThemeSelector";Layout.fillWidth:true
         model:root.themeNames
         currentIndex:Math.max(0,root.themeIds.indexOf(controller.keyboardTheme))
@@ -604,15 +650,15 @@ Window {
         Accessible.name:"Keyboard theme"
        }
        Desktop.Label {text:"Dwell progress style"}
-       Desktop.ComboBox {
+       SettingsComboBox {
         objectName:"dwellStyleSelector";Layout.fillWidth:true;model:root.dwellStyleNames
         currentIndex:Math.max(0,root.dwellStyleIds.indexOf(controller.dwellIndicatorStyle))
         onActivated:controller.dwellIndicatorStyle=root.dwellStyleIds[currentIndex]
         Accessible.name:"Dwell progress style"
        }
        Rectangle {
-        Layout.fillWidth:true;Layout.preferredHeight:72;color:root.keyboardBackground;border.color:root.keyboardBorder;radius:4
-        Desktop.Label {anchors.centerIn:parent;text:"Dwell preview"}
+        Layout.fillWidth:true;Layout.preferredHeight:80;color:root.keyboardBackground;border.color:root.keyboardBorder;radius:8
+        Desktop.Label {anchors.centerIn:parent;text:"Dwell preview";color:Kirigami.Theme.textColor}
         DwellIndicator {
          id:dwellPreview;anchors.fill:parent;style:controller.dwellIndicatorStyle;color:root.dwellColor
          NumberAnimation on progress {from:0;to:1;duration:controller.dwellMs;loops:Animation.Infinite;running:settings.visible&&settingsCategory.currentIndex===1}
@@ -621,42 +667,42 @@ Window {
        SettingSlider {label:"Keyboard height";displayValue:controller.keyboardScale+"%";from:50;to:150;stepSize:5;value:controller.keyboardScale;onMoved:controller.keyboardScale=value}
        SettingSlider {label:"Short key labels";displayValue:controller.shortLabelScale+"%";from:50;to:200;stepSize:5;value:controller.shortLabelScale;onMoved:controller.shortLabelScale=value}
        SettingSlider {label:"Long key labels";displayValue:controller.longLabelScale+"%";from:50;to:200;stepSize:5;value:controller.longLabelScale;onMoved:controller.longLabelScale=value}
-       Desktop.CheckBox {text:"Temporarily hide keyboard during mouse actions";checked:controller.hideKeyboardDuringMouseActions;onToggled:controller.hideKeyboardDuringMouseActions=checked}
+       SettingsCheckBox {text:"Temporarily hide keyboard during mouse actions";checked:controller.hideKeyboardDuringMouseActions;onToggled:controller.hideKeyboardDuringMouseActions=checked}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:"Restore button";      visible:settingsCategory.currentIndex==1;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        RowLayout {
         Desktop.Label {text:"Restore button corner"}
-        Desktop.ComboBox {model:["Top left","Top right","Bottom left","Bottom right"];currentIndex:controller.restoreCorner;onActivated:controller.restoreCorner=currentIndex}
+        SettingsComboBox {model:["Top left","Top right","Bottom left","Bottom right"];currentIndex:controller.restoreCorner;onActivated:controller.restoreCorner=currentIndex}
        }
        SettingSlider {label:"Restore button width";displayValue:controller.restoreWidth+" px";from:40;to:128;stepSize:8;value:controller.restoreWidth;onMoved:controller.restoreWidth=value}
        SettingSlider {label:"Restore button height";displayValue:controller.restoreHeight+" px";from:40;to:128;stepSize:8;value:controller.restoreHeight;onMoved:controller.restoreHeight=value}
        SettingSlider {label:"Restore button opacity";displayValue:controller.restoreOpacity+"%";from:10;to:100;stepSize:5;value:controller.restoreOpacity;onMoved:controller.restoreOpacity=value}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:settings.categoryNames[2];visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
-       Desktop.CheckBox {text:"Enable gaze input";checked:root.gazeEnabled;enabled:!root.gazeCheck;focusPolicy:Qt.NoFocus;onToggled:controller.setGazeEnabled(checked)}
+       SettingsCheckBox {text:"Enable gaze input";checked:root.gazeEnabled;enabled:!root.gazeCheck;focusPolicy:Qt.NoFocus;onToggled:controller.setGazeEnabled(checked)}
        Tool {id:tobii;text:"Connect eye tracker";command:"Tobii"}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:"Gaze smoothing";      visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        RowLayout {
         Desktop.Label {text:"Gaze smoothing"}
-        Desktop.ComboBox {model:["0 — Off","1 — Low","2 — Medium","3 — High","4 — Extreme"];currentIndex:controller.gazeSmoothingLevel;onActivated:controller.gazeSmoothingLevel=currentIndex}
+        SettingsComboBox {model:["0 — Off","1 — Low","2 — Medium","3 — High","4 — Extreme"];currentIndex:controller.gazeSmoothingLevel;onActivated:controller.gazeSmoothingLevel=currentIndex}
        }
-       Desktop.CheckBox {text:"Smooth when changing gaze target";checked:controller.smoothWhenChangingGazeTarget;enabled:controller.gazeSmoothingLevel>0;onToggled:controller.smoothWhenChangingGazeTarget=checked}
+       SettingsCheckBox {text:"Smooth when changing gaze target";checked:controller.smoothWhenChangingGazeTarget;enabled:controller.gazeSmoothingLevel>0;onToggled:controller.smoothWhenChangingGazeTarget=checked}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:"Gaze indicator";      visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
@@ -667,69 +713,69 @@ Window {
         Rectangle {width:24;height:24;radius:12;color:controller.gazeIndicatorColor;opacity:controller.gazeIndicatorOpacity/100}
         Desktop.TextField {text:controller.gazeIndicatorColor;placeholderText:"#RRGGBB";Accessible.name:"Gaze indicator color, hexadecimal RGB";validator:RegularExpressionValidator {regularExpression:/#[0-9a-fA-F]{6}/} onEditingFinished:{if(acceptableInput)controller.gazeIndicatorColor=text}}
        }
-       Desktop.CheckBox {text:"Morph with gaze acceleration and direction";checked:controller.gazeIndicatorMorph;onToggled:controller.gazeIndicatorMorph=checked}
+       SettingsCheckBox {text:"Morph with gaze acceleration and direction";checked:controller.gazeIndicatorMorph;onToggled:controller.gazeIndicatorMorph=checked}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:"Keyboard selection";      visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Tool {text:"Button mode: "+controller.buttonMode+" (cycle)";command:"CycleButtonMode"}
        Tool {text:"Key mode: "+controller.keyMode+" (cycle)";command:"CycleKeyMode"}
        Desktop.Label {text:"Tap → Repeat → Hold → Toggle. Hold presses after dwell and releases when mouse or gaze leaves. Toggle keeps a key pressed until selected again. Applies to all physical keyboard keys except modifiers (Shift, Ctrl, Alt and Super/Windows).";wrapMode:Text.Wrap;Layout.fillWidth:true}
-       Desktop.CheckBox {text:"Preserve toggled keys between layouts";checked:controller.preserveTogglesBetweenLayouts;onToggled:controller.preserveTogglesBetweenLayouts=checked}
-       Desktop.CheckBox {text:"Cycle modifiers while hovering";checked:controller.cycleModifiersOnHover;onToggled:controller.cycleModifiersOnHover=checked}
+       SettingsCheckBox {text:"Preserve toggled keys between layouts";checked:controller.preserveTogglesBetweenLayouts;onToggled:controller.preserveTogglesBetweenLayouts=checked}
+       SettingsCheckBox {text:"Cycle modifiers while hovering";checked:controller.cycleModifiersOnHover;onToggled:controller.cycleModifiersOnHover=checked}
        SettingSlider {label:"Repeat rate";displayValue:(1000/controller.repeatIntervalMs).toFixed(1)+" / sec ("+controller.repeatIntervalMs+" ms)";from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
        SettingSlider {label:"Keyboard dwell";displayValue:controller.dwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.dwellMs;onMoved:controller.dwellMs=value}
 
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:"Zoom behavior";visible:settingsCategory.currentIndex==3;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        SettingSlider {label:"Magnifier zoom";displayValue:controller.magnifierZoom+"×";from:2;to:8;stepSize:1;value:controller.magnifierZoom;onMoved:controller.magnifierZoom=value}
-       Desktop.CheckBox {text:"Progressive zoom";checked:controller.progressiveZoom;onToggled:controller.progressiveZoom=checked}
+       SettingsCheckBox {text:"Progressive zoom";checked:controller.progressiveZoom;onToggled:controller.progressiveZoom=checked}
        SettingSlider {label:"Zoom duration";displayValue:(controller.zoomDurationMs/1000).toFixed(1)+" s";from:500;to:5000;stepSize:100;value:controller.zoomDurationMs;enabled:controller.progressiveZoom;onMoved:controller.zoomDurationMs=value}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:"Target selection";      visible:settingsCategory.currentIndex==3;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
-       Desktop.CheckBox {text:"Select pointer targets by dwell";checked:controller.targetDwellEnabled;onToggled:controller.targetDwellEnabled=checked}
+       SettingsCheckBox {text:"Select pointer targets by dwell";checked:controller.targetDwellEnabled;onToggled:controller.targetDwellEnabled=checked}
        SettingSlider {label:"Start zoom / target dwell";displayValue:controller.targetStartDwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.targetStartDwellMs;enabled:controller.targetDwellEnabled;onMoved:controller.targetStartDwellMs=value}
        SettingSlider {label:"Confirm zoomed target dwell";displayValue:controller.targetConfirmDwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.targetConfirmDwellMs;enabled:controller.targetDwellEnabled;onMoved:controller.targetConfirmDwellMs=value}
        SettingSlider {label:"Target dwell movement tolerance";displayValue:controller.targetDwellRadius+" px";from:10;to:100;stepSize:5;value:controller.targetDwellRadius;enabled:controller.targetDwellEnabled;onMoved:controller.targetDwellRadius=value}
       }
      }
-     Desktop.GroupBox {
-      title:settings.categoryNames[4];visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
+     SettingsCard {
+      title:settings.categoryNames[4];visible:settingsCategory.currentIndex==4&&Qt.platform.os!=="windows";Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
-       Desktop.CheckBox {visible:Qt.platform.os!=="windows";text:"Literal keys (bypass platform mappings)";checked:controller.literal;onToggled:controller.literal=checked}
+       SettingsCheckBox {visible:Qt.platform.os!=="windows";text:"Literal keys (bypass platform mappings)";checked:controller.literal;onToggled:controller.literal=checked}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:"Word prediction";      visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Desktop.Label {text:"Prediction style"}
-       Desktop.ComboBox {
+       SettingsComboBox {
         objectName:"predictionModeSelector";Layout.fillWidth:true
         model:["Context-aware","Common words","Off"]
         currentIndex:["context","frequency","off"].indexOf(controller.predictionMode)
         onActivated:controller.predictionMode=["context","frequency","off"][currentIndex]
         Accessible.name:"Prediction style"
        }
-       Desktop.CheckBox {objectName:"suggestSentenceStartersToggle";text:"Suggest sentence starters when text is empty";enabled:controller.predictionMode!=="off";checked:controller.suggestSentenceStarters;onToggled:controller.suggestSentenceStarters=checked}
-       Desktop.CheckBox {objectName:"addSpaceAfterCompletionToggle";text:"Add a space after word completion";enabled:controller.predictionMode!=="off";checked:controller.addSpaceAfterCompletion;onToggled:controller.addSpaceAfterCompletion=checked}
-       Desktop.CheckBox {objectName:"predictNextWordToggle";text:"Suggest the next word after a space";enabled:controller.predictionMode!=="off";checked:controller.predictNextWord;onToggled:controller.predictNextWord=checked}
-       Desktop.CheckBox {text:"Use and learn personal words locally";checked:controller.learning;onToggled:controller.learning=checked}
-       Desktop.Button {text:"Reset learned words";onClicked:controller.resetLearning()}
+       SettingsCheckBox {objectName:"suggestSentenceStartersToggle";text:"Suggest sentence starters when text is empty";enabled:controller.predictionMode!=="off";checked:controller.suggestSentenceStarters;onToggled:controller.suggestSentenceStarters=checked}
+       SettingsCheckBox {objectName:"addSpaceAfterCompletionToggle";text:"Add a space after word completion";enabled:controller.predictionMode!=="off";checked:controller.addSpaceAfterCompletion;onToggled:controller.addSpaceAfterCompletion=checked}
+       SettingsCheckBox {objectName:"predictNextWordToggle";text:"Suggest the next word after a space";enabled:controller.predictionMode!=="off";checked:controller.predictNextWord;onToggled:controller.predictNextWord=checked}
+       SettingsCheckBox {text:"Use and learn personal words locally";checked:controller.learning;onToggled:controller.learning=checked}
+       SettingsButton {text:"Reset learned words";onClicked:controller.resetLearning()}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:"Speech";      visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
@@ -741,32 +787,32 @@ Window {
        Desktop.TextArea {text:controller.scratchpad;readOnly:true;Layout.fillWidth:true;Layout.preferredHeight:70;wrapMode:Text.Wrap}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:settings.categoryNames[5];visible:settingsCategory.currentIndex==5;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Tool {id:authorize;text:"Connect desktop control";command:"Connect"}
-       Desktop.CheckBox {visible:Qt.platform.os!=="windows";text:"Remember desktop-control permission, if supported";checked:controller.rememberDesktop;onToggled:controller.rememberDesktop=checked}
-       Desktop.Button {visible:Qt.platform.os!=="windows";text:"Disconnect and forget desktop permission";onClicked:controller.forgetDesktopPermission()}
+       SettingsCheckBox {visible:Qt.platform.os!=="windows";text:"Remember desktop-control permission, if supported";checked:controller.rememberDesktop;onToggled:controller.rememberDesktop=checked}
+       SettingsButton {visible:Qt.platform.os!=="windows";text:"Disconnect and forget desktop permission";onClicked:controller.forgetDesktopPermission()}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:settings.categoryNames[6];visible:settingsCategory.currentIndex==6;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Desktop.Label {text:Qt.platform.os==="windows"?"Windows uses the keyboard pack’s original shortcuts.":"Linux shortcut mappings"}
        Desktop.ScrollView {visible:Qt.platform.os!=="windows";Layout.fillWidth:true;Layout.preferredHeight:180;Desktop.TextArea {id:mappingEditor;text:controller.mappingJson;wrapMode:Text.Wrap;font.family:"monospace";selectByMouse:true}}
-       Desktop.Button {visible:Qt.platform.os!=="windows";text:"Save mappings";onClicked:controller.saveMappings(mappingEditor.text)}
+       SettingsButton {visible:Qt.platform.os!=="windows";text:"Save mappings";onClicked:controller.saveMappings(mappingEditor.text)}
        Desktop.Label {text:controller.actionStatus;wrapMode:Text.Wrap;Layout.fillWidth:true}
       }
      }
-     Desktop.GroupBox {
+     SettingsCard {
       title:settings.categoryNames[7];visible:settingsCategory.currentIndex==7;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        SettingSlider {label:"Scroll speed";displayValue:controller.scrollSpeed+"%";from:10;to:300;stepSize:10;value:controller.scrollSpeed;onMoved:controller.scrollSpeed=value}
        SettingSlider {label:"Centre dead zone";displayValue:controller.scrollDeadzone+" px";from:10;to:200;stepSize:5;value:controller.scrollDeadzone;onMoved:controller.scrollDeadzone=value}
-       RowLayout {Desktop.Label {text:"Direction"} Desktop.ComboBox {model:["Both axes","Vertical only","Horizontal only"];currentIndex:controller.scrollAxis;onActivated:controller.scrollAxis=currentIndex}}
+       RowLayout {Desktop.Label {text:"Direction"} SettingsComboBox {model:["Both axes","Vertical only","Horizontal only"];currentIndex:controller.scrollAxis;onActivated:controller.scrollAxis=currentIndex}}
       }
      }
     }
@@ -775,10 +821,10 @@ Window {
    Kirigami.Separator {Layout.fillWidth:true}
    RowLayout {
     Layout.fillWidth:true;spacing:12
-    Desktop.Button {text:"Reset preferences";onClicked:controller.resetPreferences()}
+    SettingsButton {text:"Reset preferences";onClicked:controller.resetPreferences()}
     Item {Layout.fillWidth:true}
-    Desktop.Button {text:"Close";onClicked:settings.close()}
-    Desktop.Button {text:"Save preferences";icon.name:"document-save";highlighted:true;onClicked:controller.savePreferences()}
+    SettingsButton {text:"Close";onClicked:settings.close()}
+    SettingsButton {text:"Save preferences";icon.name:"document-save";highlighted:true;onClicked:controller.savePreferences()}
    }
   }
  }
