@@ -3,6 +3,6 @@ Type=Application
 Name=GazeGrid
 Comment=Gaze-controlled keyboard and pointer
 Exec=@GAZEGRID_EXECUTABLE@
-Icon=input-keyboard
+Icon=@GAZEGRID_ICON@
 Terminal=false
 Categories=Utility;Accessibility;

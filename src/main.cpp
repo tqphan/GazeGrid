@@ -87,6 +87,7 @@ int main(int argc,char **argv){
  if(diagnose||audit)qputenv("QT_QPA_PLATFORM","offscreen");
  QQuickWindow::setDefaultAlphaBuffer(true);
  QApplication app(argc,argv);app.setOrganizationName("GazeGrid");app.setApplicationName("GazeGrid");app.setApplicationDisplayName("GazeGrid");app.setDesktopFileName("org.gazegrid.GazeGrid");
+ app.setWindowIcon(QIcon(":/resources/gazegrid.svg"));
  if(app.arguments().contains("--editor")){
   KeyboardEditor editor;
   int index=app.arguments().indexOf("--editor");
@@ -116,7 +117,7 @@ int main(int argc,char **argv){
   auto reportTarget=[target]{QTextStream(stdout)<<QJsonDocument(QJsonObject{{"active",target->isActive()},{"width",target->width()},{"height",target->height()}}).toJson(QJsonDocument::Compact)<<Qt::endl;};
   QObject::connect(target,&QWindow::activeChanged,&app,reportTarget);
   QObject::connect(target,&QWindow::widthChanged,&app,reportTarget);QObject::connect(target,&QWindow::heightChanged,&app,reportTarget);
-  if(pointerTarget)target->showFullScreen();else target->show();target->requestActivate();QTimer::singleShot(pointerTarget?120000:60000,&app,&QCoreApplication::quit);return app.exec();
+  if(pointerTarget){auto screen=QGuiApplication::primaryScreen();target->setScreen(screen);if(screen)target->setGeometry(screen->geometry());target->showFullScreen();}else target->show();target->requestActivate();QTimer::singleShot(pointerTarget?120000:60000,&app,&QCoreApplication::quit);return app.exec();
  }
  if(diagnose||audit){
   QVariantMap report;
@@ -259,7 +260,7 @@ int main(int argc,char **argv){
  if(!settings)return 1;
  settings->setTransientParent(nullptr);
  app.setQuitOnLastWindowClosed(false);
- QSystemTrayIcon tray(QIcon::fromTheme("input-keyboard",QIcon(":/resources/gazegrid-tray.svg")));
+ QSystemTrayIcon tray(app.windowIcon());
  tray.setToolTip("GazeGrid");
  QMenu trayMenu;
  auto openSettings=trayMenu.addAction(QIcon::fromTheme("configure"),"Settings…");
@@ -313,6 +314,10 @@ int main(int argc,char **argv){
    x=corner%2?size.width()-width:0;
    y=corner>=2?size.height()-height:0;
   }
+#ifdef _WIN32
+  // Match primary-display capture and normalized gaze coordinates on Windows.
+  if(target){target->setScreen(screen);target->setGeometry(screen->geometry());}
+#endif
   window->setScreen(screen);window->resize(width,height);
   window->setProperty("screenWidth",size.width());window->setProperty("screenHeight",size.height());window->setProperty("logicalX",x);window->setProperty("logicalY",y);
 #ifdef GAZEGRID_LINUX

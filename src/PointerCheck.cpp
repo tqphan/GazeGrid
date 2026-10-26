@@ -54,8 +54,14 @@ void PointerCheck::tick(){
  if(ending||!active||!controller->ready())return;
  if(!started){
   const auto screen=QGuiApplication::primaryScreen();
-  if(!screen||QGuiApplication::screens().size()!=1||receiverSize!=screen->size()||!controller->output()->absoluteAvailable()){
-   fail("Pointer check requires a full-screen receiver and one mapped EIS display");return;
+  const bool displayMapped=
+#ifdef _WIN32
+   true; // Windows output and capture are explicitly mapped to the primary screen.
+#else
+   QGuiApplication::screens().size()==1;
+#endif
+  if(!screen||!displayMapped||receiverSize!=screen->size()||!controller->output()->absoluteAvailable()){
+   fail("Pointer check requires a full-screen receiver on the mapped target display");return;
   }
   presses=releases=dragMoves=wheels=targets=0;pressTimes.clear();releasePoint={};settled.invalidate();started=true;everStarted=true;
   if(magnifierTest)controller->setProperty("magnifierEnabled",true);
@@ -72,7 +78,7 @@ void PointerCheck::tick(){
     const auto colour=image.pixelColor(image.width()/2+x*image.width()/8,image.height()/2+y*image.height()/8);
     if(colour.green()-colour.red()>=15&&colour.blue()>=150)++matching;
    }
-   if(matching<5){fail("Magnifier image does not match the disposable receiver target");return;}
+   if(matching<5){const auto path=qEnvironmentVariable("GAZEGRID_SCREENSHOT");if(!path.isEmpty())image.save(path);fail(QString("Magnifier image does not match the disposable receiver target (%1/%2 samples)").arg(matching).arg(9));return;}
    captureSeen=true;
   }
   const QPointF point=magnified?QPointF(.5,.5):phase==2?(targets==0?QPointF(.3,.25):QPointF(.65,.4)):QPointF(.4,.25);
@@ -88,7 +94,7 @@ void PointerCheck::tick(){
  if(phase==3)ok=wheels>0;
  if(magnifierTest)ok=ok&&captureSeen;
  if(!ok){fail(actions[phase]+QString(" receiver mismatch (press %1, release %2, drag moves %3, wheel %4)").arg(presses).arg(releases).arg(dragMoves).arg(wheels));return;}
- QTextStream(stdout)<<"PASS: "<<(magnifierTest?"portal magnification and precise target click":actions[phase])<<" received by the focused Wayland test window"<<Qt::endl;
+ QTextStream(stdout)<<"PASS: "<<(magnifierTest?"portal magnification and precise target click":actions[phase])<<" received by the focused test window"<<Qt::endl;
  ++phase;started=false;
  if(phase==actions.size()){ending=true;timer.stop();controller->togglePause();QCoreApplication::exit(0);}
 }

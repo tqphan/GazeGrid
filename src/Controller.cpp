@@ -580,7 +580,9 @@ void Controller::targetAt(double x,double y){
   const auto point=MagnifierGeometry::map(magnifierCrop,captureSize,{x,y});clearCapture();pointer.select(point);emit changed();return;
  }
  if(magnifierEnabled){
+#ifndef _WIN32
   if(QGuiApplication::screens().size()!=1){actionStatus="Magnification requires one display";emit changed();return;}
+#endif
   pointDwell.reset();coarseTarget={x,y};capturePending=true;const auto epoch=++captureEpoch;emit changed();
   QTimer::singleShot(150,this,[this,epoch]{if(epoch==captureEpoch&&capturePending&&!paused&&targeting)screenshot.capture();});return;
  }
@@ -599,8 +601,15 @@ double Controller::dwellAt(double x,double y,bool valid){
 void Controller::receiveMagnifierFrame(QImage image){
  if(!targeting||paused||!capturePending)return;
  auto screen=QGuiApplication::primaryScreen();
- if(image.isNull()||!screen||QGuiApplication::screens().size()!=1||qAbs(double(image.width())/image.height()-double(screen->size().width())/screen->size().height())>.01){
-  clearCapture();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();actionStatus="Capture does not match the single display; target selection cancelled";emit changed();return;
+ // Windows captures the primary display independently of additional monitors.
+ const bool displayMatches=
+#ifdef _WIN32
+  true;
+#else
+  QGuiApplication::screens().size()==1;
+#endif
+ if(image.isNull()||!screen||!displayMatches||qAbs(double(image.width())/image.height()-double(screen->size().width())/screen->size().height())>.01){
+  clearCapture();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();actionStatus="Capture does not match the target display; target selection cancelled";emit changed();return;
  }
  capturedImage=image;captureSize=image.size();capturePending=false;magnifierReady=true;
  activeZoom=qBound(2,magnifierZoom,8);activeZoomDurationMs=qBound(500,zoomDurationMs,5000);
