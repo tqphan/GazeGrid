@@ -7,12 +7,12 @@ class PortalInput:public QObject {
  Q_OBJECT
 public:
  explicit PortalInput(QObject *parent=nullptr):QObject(parent){}
- ~PortalInput() override {close();}
+ ~PortalInput() override = default; // WindowsInput releases silently during destruction.
  static QVariantMap probe();
  void connectPortal(){available=true;emit status("Windows desktop input connected");emit readyChanged();}
  void setRememberPermission(bool){}
  void forgetPermission(){}
- void close(){releaseAll();available=false;emit readyChanged();}
+ void close(){releaseAll();if(available){available=false;emit readyChanged();}}
  bool key(int code,bool down);
  bool move(double dx,double dy){return available&&input.move(dx,dy);}
  bool click(){if(!button(272,true))return false;return button(272,false);}

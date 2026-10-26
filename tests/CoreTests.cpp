@@ -260,7 +260,10 @@ private slots:
  void desktopPermissionTokensArePrivateAndSingleUse(){
   QTemporaryDir dir;const auto path=dir.filePath("nested/permission.json");PortalPermissionStore store(path);QString error;
   QVERIFY(store.save("private-test-token",error));QVERIFY(error.isEmpty());
+#ifndef _WIN32
+  // Portal permission persistence is Linux-only; these bits do not describe Windows ACLs.
   const auto permissions=QFile::permissions(path);QVERIFY(!(permissions&(QFileDevice::ReadGroup|QFileDevice::WriteGroup|QFileDevice::ReadOther|QFileDevice::WriteOther)));
+#endif
   QCOMPARE(store.take(error),QString("private-test-token"));QVERIFY(error.isEmpty());QVERIFY(!QFile::exists(path));
   QVERIFY(store.take(error).isEmpty());QVERIFY(error.isEmpty());
   QVERIFY(store.save("replacement-token",error));QVERIFY(store.forget(error));QVERIFY(!QFile::exists(path));

@@ -187,3 +187,10 @@ endif()
 qt_add_executable(windows-gamepad-tests tests/WindowsGamepadTests.cpp)
 target_link_libraries(windows-gamepad-tests PRIVATE gazegrid_core Qt6::Test)
 add_test(NAME windows-gamepad-tests COMMAND windows-gamepad-tests)
+
+if(WIN32)
+  # QtTest diagnostics must reach CTest's console on Windows.
+  set_target_properties(core-tests controller-tests speech-tests game-controller-tests
+    keyboard-editor-tests windows-input-tests windows-gamepad-tests prediction-eval
+    PROPERTIES WIN32_EXECUTABLE FALSE)
+endif()

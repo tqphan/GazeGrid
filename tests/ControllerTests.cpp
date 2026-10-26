@@ -556,7 +556,7 @@ private slots:
   QVERIFY(controller.property("actionStatus").toString().contains("standalone mode"));
  }
  void corruptMappingsUseDefaultsAndPreserveSavedFile(){
-  const auto path=QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);QVERIFY(QDir().mkpath(path));
+  const auto path=appConfigDirectory();QVERIFY(QDir().mkpath(path));
   QFile file(QDir(path).filePath("linux-mappings.json"));QVERIFY(file.open(QIODevice::WriteOnly));file.write("{broken");file.close();
 #ifndef _WIN32
   {Controller controller;QVERIFY(controller.property("profileStatus").toString().contains("Using default mappings"));
@@ -572,7 +572,7 @@ private slots:
    controller.resetPreferences();QCOMPARE(controller.property("keyboardTheme").toString(),QString("system"));QCOMPARE(controller.keyboardScale(),100);QCOMPARE(controller.property("shortLabelScale").toInt(),150);QCOMPARE(controller.property("longLabelScale").toInt(),100);}
  }
  void legacyHighContrastMigratesToTheme(){
-  const auto path=QDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).filePath("profile.json");
+  const auto path=QDir(appConfigDirectory()).filePath("profile.json");
   QVERIFY(QDir().mkpath(QFileInfo(path).absolutePath()));
   QFile file(path);auto values=ProfileStore::defaults();
   values["highContrast"]=true;values["keyboardTheme"]="ocean";
@@ -790,6 +790,7 @@ private slots:
 int main(int argc,char **argv){
  QTemporaryDir dir;if(!dir.isValid())return 1;
  qputenv("XDG_CONFIG_HOME",dir.path().toUtf8());
+ qputenv("GAZEGRID_CONFIG_DIR",dir.path().toUtf8());
  qputenv("QT_QPA_PLATFORM","offscreen");
  QGuiApplication app(argc,argv);app.setOrganizationName("GazeGridTests");app.setApplicationName("Controller");
  ControllerTests tests;return QTest::qExec(&tests,argc,argv);

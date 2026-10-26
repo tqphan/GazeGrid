@@ -175,7 +175,7 @@ Window {
    }
   }
  }
- Rectangle {anchors.fill:parent;visible:!root.transparentBackground;color:root.keyboardBackground}
+ Rectangle {objectName:"keyboardBackdrop";anchors.fill:parent;visible:!root.transparentBackground;color:root.keyboardBackground}
  Repeater {
   id:keys
   onItemAdded: root.hitTestRevision++

@@ -5,6 +5,8 @@
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QQuickItem>
+#include <QQuickItemGrabResult>
+#include <QEventLoop>
 #include <QScreen>
 #include <QJsonDocument>
 #include <QTextStream>
@@ -62,6 +64,16 @@ public:
   return false;
  }
 };
+// Inspect rendered scene alpha without the platform backing store's RGB conversion.
+// Native window composition is checked separately during desktop acceptance.
+static QImage grabSceneForCheck(QQuickWindow *window){
+ auto result=window->contentItem()->grabToImage();
+ if(!result)return {};
+ QEventLoop loop;
+ QObject::connect(result.data(),&QQuickItemGrabResult::ready,&loop,&QEventLoop::quit);
+ QTimer::singleShot(2000,&loop,&QEventLoop::quit);
+ loop.exec();return result->image();
+}
 int main(int argc,char **argv){
  bool inputMethodMode=false;for(int i=1;i<argc;++i)inputMethodMode|=QString::fromLocal8Bit(argv[i])=="--input-method";
  if(inputMethodMode&&qEnvironmentVariableIsEmpty("WAYLAND_SOCKET")){QTextStream(stderr)<<"Input-method mode must be launched by KWin through Virtual Keyboard settings or a nested test session.\n";return 2;}
@@ -323,10 +335,20 @@ int main(int argc,char **argv){
   controller.openLayout("size-move-demo",false);controller.setProperty("saveCanvasChanges",false);
   QTimer::singleShot(250,&app,[&]{
    const auto image=window->grabWindow();
+   bool transparent=!image.isNull();
+#ifdef GAZEGRID_WINDOWS
+   // The Windows offscreen backing store returns RGB pixels. Check the actual
+   // backdrop item and transparent window color there; Linux retains pixel coverage.
+   if(QGuiApplication::platformName()=="offscreen"){
+    auto backdrop=window->findChild<QQuickItem*>("keyboardBackdrop");
+    transparent=backdrop&&!backdrop->isVisible()&&window->color().alpha()==0;
+   }else
+#endif
+   transparent=transparent&&image.pixelColor(window->width()*99/100,window->height()/2).alpha()==0;
    const QPoint gap(window->width()*99/100,window->height()/2);
-   if(image.isNull()||image.pixelColor(gap).alpha()!=0||window->mask().isEmpty()||
+   if(!transparent||window->mask().isEmpty()||
       window->mask().contains(gap)||!window->mask().contains(QPoint(window->width()/10,window->height()/10))){
-    QTextStream(stderr)<<"FAIL: transparent background or key input mask"<<Qt::endl;app.exit(2);return;
+    QTextStream(stderr)<<"FAIL: transparent background or key input mask: alpha="<<(image.isNull()?-1:image.pixelColor(gap).alpha())<<" size="<<image.width()<<"x"<<image.height()<<" maskEmpty="<<window->mask().isEmpty()<<" gapInMask="<<window->mask().contains(gap)<<Qt::endl;app.exit(2);return;
    }
    controller.setProperty("sizeMoveMode",true);
    QTimer::singleShot(50,&app,[&]{
@@ -385,7 +407,7 @@ int main(int argc,char **argv){
   controller.setProperty("layout",QVariantMap{{"rows",1},{"cols",1},{"keys",QVariantList{key}}});
   emit controller.layoutChanged();
   QTimer::singleShot(250,&app,[&]{
-   const auto image=window->grabWindow();
+   const auto image=grabSceneForCheck(window);
    std::function<QQuickItem*(QQuickItem*)> findKey=[&](QQuickItem *item)->QQuickItem*{
     if(item->objectName()=="keyMouseArea:0")return item->parentItem();
     for(auto child:item->childItems())if(auto found=findKey(child))return found;
@@ -406,8 +428,9 @@ int main(int argc,char **argv){
   controller.openLayout("minimized-off-screen-bottom",false);
   auto poll=new QTimer(&app);poll->setInterval(60);
   QObject::connect(poll,&QTimer::timeout,&app,[&,stage=0]()mutable{
+   poll->stop();
    if(stage>0){
-    const auto image=window->grabWindow();const int opacity=(stage-1)/4==0?25:(stage-1)/4==1?50:100;
+    const auto image=grabSceneForCheck(window);const int opacity=(stage-1)/4==0?25:(stage-1)/4==1?50:100;
     if(image.isNull()||qAbs(image.pixelColor(2,2).alpha()-qRound(255*opacity/100.0))>2){
      QTextStream(stderr)<<"FAIL: unstable restore-button alpha at frame "<<stage<<Qt::endl;app.exit(2);return;
     }
@@ -415,7 +438,7 @@ int main(int argc,char **argv){
    if(stage==12){app.quit();return;}
    controller.setProperty("restoreOpacity",stage/4==0?25:stage/4==1?50:100);
    window->setProperty("hovered",stage%2?"key:0":"");window->setProperty("progress",stage%2?.5:0.0);
-   window->update();++stage;
+   window->update();++stage;poll->start();
   });
   poll->start();return app.exec();
  }
