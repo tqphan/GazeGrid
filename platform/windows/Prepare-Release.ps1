@@ -34,7 +34,8 @@ GazeGrid $version for Windows x64.
 - Certificate trust remains after uninstall. Administrators can revoke it using certlm.msc in Trusted Root Certification Authorities / Certificates.
 - Certificate thumbprint: $thumbprint
 - SHA-256 checksums are in SHA256SUMS.txt.
-- This build supports mouse dwell; the proprietary Tobii SDK is not included.
+- This build supports mouse dwell; tracker support is not compiled in.
+- Tracker-enabled builds require the Tobii Gaming software and drivers from https://gaming.tobii.com/getstarted/. The vendor installation supplies the Stream Engine DLL; GazeGrid does not bundle it.
 - Virtual Xbox 360 gamepad output requires the separately installed ViGEmBus driver.
 - Native hardware acceptance remains pending.
 

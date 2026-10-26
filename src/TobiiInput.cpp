@@ -1,5 +1,8 @@
 #include "TobiiInput.h"
 #include <QLibrary>
+#ifdef _WIN32
+#include "WindowsTobiiLibrary.h"
+#endif
 #include <tobii/tobii.h>
 #include <tobii/tobii_streams.h>
 #include <vector>
@@ -8,7 +11,11 @@
 #include "GazeClock.h"
 namespace {
 struct Api {
+#ifdef _WIN32
+ WindowsTobiiLibrary library;
+#else
  QLibrary library{QStringLiteral(TOBII_LIBRARY_PATH)};
+#endif
  QString error;
 #define FN(name) decltype(&::name) name=nullptr;
  FN(tobii_get_api_version) FN(tobii_api_create) FN(tobii_api_destroy)
@@ -19,7 +26,17 @@ struct Api {
  bool load() {
   if(!library.load()) {error=library.errorString();return false;}
 #define LOAD(name) name=reinterpret_cast<decltype(name)>(library.resolve(#name)); if(!name){error="Missing SDK symbol: " #name;return false;}
-  LOAD(tobii_get_api_version) LOAD(tobii_api_create) LOAD(tobii_api_destroy)
+  LOAD(tobii_get_api_version)
+#ifdef _WIN32
+  // This adapter uses the Stream Engine 3 ABI (including device_create).
+  // Do not call newer incompatible exports merely because their names match.
+  tobii_version_t version{};
+  if(tobii_get_api_version(&version)!=TOBII_ERROR_NO_ERROR||version.major!=3){
+   error="The installed Tobii Gaming Stream Engine is incompatible with this build (requires API major 3). Install a compatible GazeGrid build; mouse dwell remains available.";
+   return false;
+  }
+#endif
+  LOAD(tobii_api_create) LOAD(tobii_api_destroy)
   LOAD(tobii_enumerate_local_device_urls) LOAD(tobii_device_create) LOAD(tobii_device_destroy)
   LOAD(tobii_get_device_info) LOAD(tobii_gaze_point_subscribe) LOAD(tobii_gaze_point_unsubscribe)
   LOAD(tobii_system_clock) LOAD(tobii_device_clear_callback_buffers) LOAD(tobii_stream_supported) LOAD(tobii_device_process_callbacks) LOAD(tobii_device_reconnect) LOAD(tobii_error_message)
@@ -34,6 +51,7 @@ TobiiInput::~TobiiInput(){requestInterruption();wait();}
 QVariantMap TobiiInput::probe(){
  Api a; QVariantMap result{{"library",QStringLiteral(TOBII_LIBRARY_PATH)}};
  if(!a.load()){result["error"]=a.error;return result;}
+ result["library"]=a.library.fileName();
  tobii_version_t v{}; auto e=a.tobii_get_api_version(&v);
  if(e!=TOBII_ERROR_NO_ERROR){result["error"]=a.message(e);return result;}
  result["version"]=QString("%1.%2.%3.%4").arg(v.major).arg(v.minor).arg(v.revision).arg(v.build);

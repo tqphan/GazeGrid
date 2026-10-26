@@ -66,9 +66,22 @@ embedded manifest, including `asInvoker` and `uiAccess=true`.
 tracker support is unavailable. CI uses this option because proprietary SDK
 headers and binaries are not stored in the repository. For eye-tracker builds,
 set `GAZEGRID_WITH_TOBII=ON`, `TOBII_SDK` to a matching Windows Stream Engine SDK
-with `include/tobii`, and provide its x64 runtime DLL. The existing adapter uses
+with `include/tobii`. The build needs SDK headers, but does not bundle a runtime DLL. The existing adapter uses
 the Stream Engine 3 API; a different SDK API may require adapting the loader.
-Only redistribute SDK files under your vendor license.
+Windows users must install the [Tobii Gaming software and drivers for their device](https://gaming.tobii.com/getstarted/),
+complete Tobii setup/calibration, and restart GazeGrid. This vendor installation
+supplies the Stream Engine runtime. GazeGrid searches the `Tobii` and
+`Tobii Gaming` installation trees under Program Files (including the x86 tree,
+since it may contain x64 components), then loads a compatible x64 DLL by absolute
+path. It does not search the working directory or PATH or follow directory
+links outside those trees. If your package installs elsewhere, report the
+package/version and installation path so discovery can be extended.
+
+The current adapter uses the Stream Engine **3** ABI; a DLL with a different
+major version is rejected before device/API calls. Installing a newer runtime
+alone does not make that ABI compatible. Missing or incompatible runtimes report
+setup guidance; mouse dwell remains available. The MSI explains this prerequisite
+and whether the particular GazeGrid build includes tracker support.
 
 ## Persistent GazeGrid signing identity
 
@@ -134,7 +147,7 @@ is trusted there so Authenticode verification can succeed. Then run:
 ./platform/windows/Build-Release.ps1 -CertificateThumbprint YOUR_THUMBPRINT
 # Tracker-enabled package:
 ./platform/windows/Build-Release.ps1 -CertificateThumbprint YOUR_THUMBPRINT `
-  -TobiiSdk C:/SDK/StreamEngine -TobiiRuntime C:/SDK/StreamEngine/lib/x64/tobii_stream_engine.dll
+  -TobiiSdk C:/SDK/StreamEngine
 ```
 
 The script builds/tests, relinks the UIAccess executable, checks its embedded

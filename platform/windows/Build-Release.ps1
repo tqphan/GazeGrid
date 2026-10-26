@@ -2,8 +2,7 @@
 param(
     [Parameter(Mandatory)][string]$CertificateThumbprint,
     [string]$BuildDirectory = 'build/windows',
-    [string]$TobiiSdk = '',
-    [string]$TobiiRuntime = ''
+    [string]$TobiiSdk = ''
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -23,7 +22,6 @@ if (!$signTool) {
 }
 $configure = @('-S', $root, '-B', $BuildDirectory, '-A', 'x64', '-DGAZEGRID_UIACCESS=OFF', "-DGAZEGRID_CERTIFICATE_THUMBPRINT=$CertificateThumbprint")
 if ($TobiiSdk) {
-    if (!(Test-Path $TobiiRuntime)) { throw 'Supply the matching redistributable Tobii DLL using -TobiiRuntime.' }
     $configure += @('-DGAZEGRID_WITH_TOBII=ON', "-DTOBII_SDK=$TobiiSdk")
 } else { $configure += '-DGAZEGRID_WITH_TOBII=OFF' }
 Invoke-Checked cmake $configure
@@ -69,7 +67,6 @@ Invoke-Checked windeployqt @('--release', '--no-compiler-runtime', '--qmldir', "
 $pluginDirectory = (& qmake -query QT_INSTALL_PLUGINS).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Could not locate Qt platform plugins.' }
 Copy-Item "$pluginDirectory/platforms/qoffscreen.dll" "$deploy/platforms/qoffscreen.dll"
-if ($TobiiSdk) { Copy-Item $TobiiRuntime "$deploy/tobii_stream_engine.dll" }
 Push-Location $build
 try { Invoke-Checked cpack @('-G', 'WIX', '-C', 'Release') }
 finally {
