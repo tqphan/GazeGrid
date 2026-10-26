@@ -1,7 +1,7 @@
 if(GAZEGRID_WITH_TOBII)
-  set(GAZEGRID_TOBII_INSTALL_MESSAGE "This build includes eye-tracker support. Install the Tobii Gaming software for your tracker before using eye tracking.")
+  set(GAZEGRID_TOBII_INSTALL_MESSAGE "This build includes eye-tracker support. Install the Tobii Experience software for your tracker before using eye tracking.")
 else()
-  set(GAZEGRID_TOBII_INSTALL_MESSAGE "This is a mouse-dwell build. Eye tracking also requires a tracker-enabled GazeGrid build; installing Tobii Gaming software alone will not enable it.")
+  set(GAZEGRID_TOBII_INSTALL_MESSAGE "This is a mouse-dwell build. Eye tracking also requires a tracker-enabled GazeGrid build; installing Tobii Experience software alone will not enable it.")
 endif()
 # Executables are mutually exclusive WiX components, selected by explicit consent.
 set(GAZEGRID_CERTIFICATE_THUMBPRINT "" CACHE STRING "Public signing certificate thumbprint")

@@ -73,7 +73,7 @@
       <Dialog Id="GazeGridTobiiDlg" Width="370" Height="270" Title="GazeGrid eye tracking setup">
         <Control Id="Title" Type="Text" X="15" Y="15" Width="340" Height="20" Text="{\WixUI_Font_Title}Tobii eye tracking prerequisites" />
         <Control Id="BuildSupport" Type="Text" X="15" Y="45" Width="340" Height="42" Text="@GAZEGRID_TOBII_INSTALL_MESSAGE@" />
-        <Control Id="Software" Type="Text" X="15" Y="96" Width="340" Height="50" Text="Install the Tobii Gaming software and drivers recommended for your device. That installation supplies the Tobii Stream Engine DLL. GazeGrid uses the installed DLL and does not bundle it." />
+        <Control Id="Software" Type="Text" X="15" Y="96" Width="340" Height="50" Text="Install the Tobii Experience driver package, then the Tobii Experience app. That installation supplies the Tobii Stream Engine DLL. GazeGrid uses the installed DLL and does not bundle it." />
         <Control Id="Download" Type="Text" X="15" Y="152" Width="340" Height="24" Text="Official setup: https://gaming.tobii.com/getstarted/" />
         <Control Id="Fallback" Type="Text" X="15" Y="185" Width="340" Height="40" Text="Complete Tobii setup and calibration, then restart GazeGrid. Mouse dwell remains available without Tobii software or a connected eye tracker." />
         <Control Id="Next" Type="PushButton" X="204" Y="245" Width="72" Height="17" Default="yes" Text="Next">

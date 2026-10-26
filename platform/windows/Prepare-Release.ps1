@@ -35,7 +35,7 @@ GazeGrid $version for Windows x64.
 - Certificate thumbprint: $thumbprint
 - SHA-256 checksums are in SHA256SUMS.txt.
 - This build supports mouse dwell; tracker support is not compiled in.
-- Tracker-enabled builds require the Tobii Gaming software and drivers from https://gaming.tobii.com/getstarted/. The vendor installation supplies the Stream Engine DLL; GazeGrid does not bundle it.
+- Tracker-enabled builds require the Tobii Experience software and drivers from https://gaming.tobii.com/getstarted/. The vendor installation supplies the Stream Engine DLL; GazeGrid does not bundle it.
 - Virtual Xbox 360 gamepad output requires the separately installed ViGEmBus driver.
 - Native hardware acceptance remains pending.
 

@@ -24,7 +24,7 @@ private slots:
  void missingRuntimeHasSetupGuidance(){
   QTemporaryDir dir;QVERIFY(dir.isValid());WindowsTobiiLibrary library;
   QVERIFY(!library.loadFromRoots({dir.path()}));
-  QVERIFY(library.errorString().contains("Tobii Gaming"));
+  QVERIFY(library.errorString().contains("Tobii Experience"));
   QVERIFY(library.errorString().contains("Mouse dwell"));
  }
  void invalidDllDoesNotLoad(){

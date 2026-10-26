@@ -68,9 +68,11 @@ headers and binaries are not stored in the repository. For eye-tracker builds,
 set `GAZEGRID_WITH_TOBII=ON`, `TOBII_SDK` to a matching Windows Stream Engine SDK
 with `include/tobii`. The build needs SDK headers, but does not bundle a runtime DLL. The existing adapter uses
 the Stream Engine 3 API; a different SDK API may require adapting the loader.
-Windows users must install the [Tobii Gaming software and drivers for their device](https://gaming.tobii.com/getstarted/),
+Windows users must install the [Tobii Experience driver package and app](https://help.tobii.com/hc/en-us/articles/360010104134-How-to-install-Tobii-Experience),
 complete Tobii setup/calibration, and restart GazeGrid. This vendor installation
-supplies the Stream Engine runtime. GazeGrid searches the `Tobii` and
+supplies the Stream Engine runtime. Install the device drivers and driver software
+before the Experience app; the Microsoft Store app alone is not the full runtime
+installation. GazeGrid searches the `Tobii` and
 `Tobii Gaming` installation trees under Program Files (including the x86 tree,
 since it may contain x64 components), then loads a compatible x64 DLL by absolute
 path. It does not search the working directory or PATH or follow directory
