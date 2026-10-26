@@ -1,7 +1,7 @@
 #include <QtTest>
 #include <QTemporaryDir>
 #include "TobiiRuntimePaths.h"
-#ifdef _WIN32
+#ifdef GAZEGRID_WINDOWS
 #include "WindowsTobiiLibrary.h"
 #endif
 class TobiiRuntimeTests:public QObject {
@@ -15,12 +15,12 @@ private slots:
   QFile outside(dir.path()+"/tobii_stream_engine.dll");QVERIFY(outside.open(QIODevice::WriteOnly));outside.close();
   QCOMPARE(tobiiRuntimePaths({vendor,vendor}),QStringList{QFileInfo(inside).canonicalFilePath()});
   QVERIFY(tobiiRuntimePaths({dir.path()+"/absent"}).isEmpty());
-#ifndef _WIN32
+#ifndef GAZEGRID_WINDOWS
   QVERIFY(QFile::link(dir.path(),vendor+"/outside"));
   QCOMPARE(tobiiRuntimePaths({vendor}),QStringList{QFileInfo(inside).canonicalFilePath()});
 #endif
  }
-#ifdef _WIN32
+#ifdef GAZEGRID_WINDOWS
  void missingRuntimeHasSetupGuidance(){
   QTemporaryDir dir;QVERIFY(dir.isValid());WindowsTobiiLibrary library;
   QVERIFY(!library.loadFromRoots({dir.path()}));
