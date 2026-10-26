@@ -9,6 +9,7 @@
 #include <QEventLoop>
 #include <QScreen>
 #include <QJsonDocument>
+#include <QSaveFile>
 #include <QTextStream>
 #include <QTimer>
 #include <QProcess>
@@ -117,7 +118,14 @@ int main(int argc,char **argv){
   QVariantMap report;
   if(diagnose){report["tobii"]=TobiiInput::probe();report["portal"]=PortalInput::probe();report["qtVersion"]=qVersion();}
   if(audit)report["keyboards"]=KeyboardPack::audit(keyboardPackDirectory());
-  QTextStream(stdout)<<QJsonDocument::fromVariant(report).toJson();
+  const auto json=QJsonDocument::fromVariant(report).toJson();
+  // ShellExecute is required for UIAccess launches and cannot redirect stdout.
+  const auto arguments=app.arguments();const int outputIndex=arguments.indexOf("--diagnostic-output");
+  if(outputIndex>=0){
+   if(outputIndex+1>=arguments.size()||arguments[outputIndex+1].isEmpty())return 2;
+   QSaveFile output(arguments[outputIndex+1]);
+   if(!output.open(QIODevice::WriteOnly)||output.write(json)!=json.size()||!output.commit())return 2;
+  }else QTextStream(stdout)<<json;
   return audit&&!report["keyboards"].toMap()["errors"].toStringList().isEmpty()?1:0;
  }
  if(portalCheck){

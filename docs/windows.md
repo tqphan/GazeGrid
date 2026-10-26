@@ -152,7 +152,9 @@ pull requests. Windows additionally packages a signed MSI with an ephemeral
 startup from outside the build tree, confirms Windows actually granted the
 process a UIAccess token via `--diagnose`, and checks the default unsigned mode, repair, and declining with a previously
 trusted certificate, then uninstalls. The installed smoke test
-removes Qt development search paths. CI artifacts include MSI and public CER,
+removes Qt development search paths and launches through Windows ShellExecute,
+matching a normal Start menu launch. `--diagnose --diagnostic-output PATH` writes
+the JSON report to a file because UIAccess launches cannot redirect stdout. CI artifacts include MSI and public CER,
 never the PFX. Do not distribute these changing CI identities as releases.
 
 `.github/workflows/windows-release.yml` runs when a `v*` tag is pushed or from

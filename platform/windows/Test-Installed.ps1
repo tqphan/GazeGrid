@@ -35,13 +35,16 @@ try {
     $env:GAZEGRID_CONFIG_DIR = "$env:RUNNER_TEMP/gazegrid-installed-test"
     if (!(Test-Path "$env:ProgramFiles/GazeGrid/keyboards/main-14x1-bottom.xml")) { throw 'Installed keyboard pack is missing.' }
     $report = "$env:RUNNER_TEMP/gazegrid-app-$mode-diagnose.json"
-    $diagnose = Start-Process $installed -ArgumentList @('--diagnose', '--validate-keyboards') -WorkingDirectory $env:TEMP -PassThru -RedirectStandardOutput $report -RedirectStandardError "$env:RUNNER_TEMP/gazegrid-app-$mode-diagnose.log"
+    # UIAccess must launch through ShellExecute, as it would from the Start menu.
+    # Redirecting stdout switches Start-Process to CreateProcess (error 740).
+    Remove-Item $report -ErrorAction SilentlyContinue
+    $diagnose = Start-Process $installed -Verb Open -ArgumentList @('--diagnose', '--validate-keyboards', '--diagnostic-output', "`"$report`"") -WorkingDirectory $env:TEMP -PassThru
     $null = $diagnose.Handle
     if (!$diagnose.WaitForExit(30000)) { $diagnose.Kill(); throw 'Installed diagnostics timed out.' }
     if ($diagnose.ExitCode -ne 0) { throw 'Installed diagnostics failed.' }
     $diagnostics = Get-Content $report -Raw | ConvertFrom-Json
     if (!$diagnostics.portal.tokenQuerySucceeded -or [bool]$diagnostics.portal.uiAccess -ne $expectedUIAccess) { throw "Unexpected UIAccess token in $mode installation." }
-    $process = Start-Process $installed -ArgumentList '--smoke' -WorkingDirectory $env:TEMP -PassThru -RedirectStandardError "$env:RUNNER_TEMP/gazegrid-app-$mode-smoke.log"
+    $process = Start-Process $installed -Verb Open -ArgumentList '--smoke' -WorkingDirectory $env:TEMP -PassThru
     $null = $process.Handle
     if (!$process.WaitForExit(30000)) { $process.Kill(); throw 'Installed application timed out.' }
     if ($process.ExitCode -ne 0) { throw "Installed application failed: $($process.ExitCode)" }
