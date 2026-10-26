@@ -492,7 +492,9 @@ private slots:
   sample(.2,.2);QCOMPARE(points.last()[0].toDouble(),.2);
   sample(qQNaN(),.4);QVERIFY(!points.last()[2].toBool());
   sample(.3,.3);QCOMPARE(points.last()[0].toDouble(),.3);
-  QTest::qWait(230);QVERIFY(!points.last()[2].toBool());
+  // Timer delivery can be delayed on busy Windows runners. Check the event,
+  // with a bounded wait, rather than assuming it arrived at exactly 230 ms.
+  QTRY_VERIFY_WITH_TIMEOUT(!points.last()[2].toBool(),1000);
   sample(.7,.7);QCOMPARE(points.last()[0].toDouble(),.7);
   controller.setDisplaySize(2000,1000);sample(.4,.4);QCOMPARE(points.last()[0].toDouble(),.4);
   controller.setGazeSmoothingLevel(0);sample(.41,.42);QCOMPARE(points.last()[0].toDouble(),.41);

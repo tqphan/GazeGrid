@@ -10,6 +10,7 @@ function Run-Msi([string]$Operation, [string[]]$Properties = @()) {
 }
 Remove-Item "Cert:\LocalMachine\Root\$CertificateThumbprint" -Force
 foreach ($mode in @('default', 'accept', 'decline-trusted')) {
+Write-Host "Checking installation mode: $mode"
 $expectedUIAccess = $mode -eq 'accept'
 $properties = if ($expectedUIAccess) { @('GAZEGRID_TRUST_CERTIFICATE=1') } else { @() }
 Run-Msi '/i' $properties
@@ -29,16 +30,19 @@ try {
     Remove-Item Env:QT_PLUGIN_PATH -ErrorAction SilentlyContinue
     Remove-Item Env:QML2_IMPORT_PATH -ErrorAction SilentlyContinue
     Remove-Item Env:QML_IMPORT_PATH -ErrorAction SilentlyContinue
+    $env:QT_LOGGING_TO_CONSOLE = '1'
     $env:PATH = "$env:SystemRoot/System32;$env:SystemRoot"
     $env:GAZEGRID_CONFIG_DIR = "$env:RUNNER_TEMP/gazegrid-installed-test"
     if (!(Test-Path "$env:ProgramFiles/GazeGrid/keyboards/main-14x1-bottom.xml")) { throw 'Installed keyboard pack is missing.' }
-    $report = "$env:TEMP/gazegrid-installed-diagnose.json"
-    $diagnose = Start-Process $installed -ArgumentList @('--diagnose', '--validate-keyboards') -WorkingDirectory $env:TEMP -PassThru -RedirectStandardOutput $report
+    $report = "$env:RUNNER_TEMP/gazegrid-app-$mode-diagnose.json"
+    $diagnose = Start-Process $installed -ArgumentList @('--diagnose', '--validate-keyboards') -WorkingDirectory $env:TEMP -PassThru -RedirectStandardOutput $report -RedirectStandardError "$env:RUNNER_TEMP/gazegrid-app-$mode-diagnose.log"
+    $null = $diagnose.Handle
     if (!$diagnose.WaitForExit(30000)) { $diagnose.Kill(); throw 'Installed diagnostics timed out.' }
     if ($diagnose.ExitCode -ne 0) { throw 'Installed diagnostics failed.' }
     $diagnostics = Get-Content $report -Raw | ConvertFrom-Json
     if (!$diagnostics.portal.tokenQuerySucceeded -or [bool]$diagnostics.portal.uiAccess -ne $expectedUIAccess) { throw "Unexpected UIAccess token in $mode installation." }
-    $process = Start-Process $installed -ArgumentList '--smoke' -WorkingDirectory $env:TEMP -PassThru
+    $process = Start-Process $installed -ArgumentList '--smoke' -WorkingDirectory $env:TEMP -PassThru -RedirectStandardError "$env:RUNNER_TEMP/gazegrid-app-$mode-smoke.log"
+    $null = $process.Handle
     if (!$process.WaitForExit(30000)) { $process.Kill(); throw 'Installed application timed out.' }
     if ($process.ExitCode -ne 0) { throw "Installed application failed: $($process.ExitCode)" }
 } finally { Run-Msi '/x' }

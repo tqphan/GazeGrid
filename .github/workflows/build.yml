@@ -68,4 +68,5 @@ jobs:
             build/windows/Testing/Temporary/LastTest.log
             build/windows/_CPack_Packages/win64/WIX/wix.log
             ${{ runner.temp }}/gazegrid-msi-*.log
+            ${{ runner.temp }}/gazegrid-app-*
           if-no-files-found: ignore

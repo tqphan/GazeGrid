@@ -65,6 +65,10 @@ New-Item -ItemType Directory $deploy | Out-Null
 # Only scan Qt-only generated QML; the source directory also contains KDE imports.
 Copy-Item "$root/ui/*.qml" "$build/windows-ui/" -Exclude Main.qml
 Invoke-Checked windeployqt @('--release', '--no-compiler-runtime', '--qmldir', "$build/windows-ui", '--dir', $deploy, $exe)
+# --diagnose uses Qt's offscreen platform, which windeployqt omits by default.
+$pluginDirectory = (& qmake -query QT_INSTALL_PLUGINS).Trim()
+if ($LASTEXITCODE -ne 0) { throw 'Could not locate Qt platform plugins.' }
+Copy-Item "$pluginDirectory/platforms/qoffscreen.dll" "$deploy/platforms/qoffscreen.dll"
 if ($TobiiSdk) { Copy-Item $TobiiRuntime "$deploy/tobii_stream_engine.dll" }
 Push-Location $build
 try { Invoke-Checked cpack @('-G', 'WIX', '-C', 'Release') }
