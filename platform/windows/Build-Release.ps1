@@ -21,14 +21,29 @@ $signTool = if ($signCommand) { $signCommand.Source } else { $null }
 if (!$signTool) {
     $signTool = (Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName
 }
-$configure = @('-S', $root, '-B', $BuildDirectory, '-A', 'x64', '-DGAZEGRID_UIACCESS=OFF')
+$configure = @('-S', $root, '-B', $BuildDirectory, '-A', 'x64', '-DGAZEGRID_UIACCESS=OFF', "-DGAZEGRID_CERTIFICATE_THUMBPRINT=$CertificateThumbprint")
 if ($TobiiSdk) {
     if (!(Test-Path $TobiiRuntime)) { throw 'Supply the matching redistributable Tobii DLL using -TobiiRuntime.' }
     $configure += @('-DGAZEGRID_WITH_TOBII=ON', "-DTOBII_SDK=$TobiiSdk")
 } else { $configure += '-DGAZEGRID_WITH_TOBII=OFF' }
 Invoke-Checked cmake $configure
 Invoke-Checked cmake @('--build', $BuildDirectory, '--config', 'Release', '--parallel')
-Invoke-Checked ctest @('--test-dir', $BuildDirectory, '-C', 'Release', '--output-on-failure')
+try { Invoke-Checked ctest @('--test-dir', $BuildDirectory, '-C', 'Release', '--output-on-failure') }
+finally {
+    Get-ChildItem "$BuildDirectory/*-qt-test.txt" | ForEach-Object { Get-Content $_.FullName }
+}
+$build = (Resolve-Path $BuildDirectory).Path
+New-Item -ItemType Directory -Force "$build/unsigned" | Out-Null
+Copy-Item "$build/Release/gazegrid.exe" "$build/unsigned/gazegrid.exe" -Force
+$manifestTool = Join-Path (Split-Path $signTool) 'mt.exe'
+Invoke-Checked $manifestTool @("-inputresource:$build/unsigned/gazegrid.exe;#1", "-out:$build/unsigned.manifest")
+[xml]$unsignedManifest = Get-Content "$build/unsigned.manifest"
+$unsignedExecution = $unsignedManifest.SelectSingleNode("//*[local-name()='requestedExecutionLevel']")
+if (!$unsignedExecution -or $unsignedExecution.uiAccess -ne 'false' -or $unsignedExecution.level -ne 'asInvoker' -or
+    (Get-AuthenticodeSignature "$build/unsigned/gazegrid.exe").Status -ne 'NotSigned') {
+    throw 'Fallback executable must be unsigned with asInvoker and uiAccess=false.'
+}
+Export-Certificate -Cert $cert -FilePath "$build/GazeGrid.cer" -Force | Out-Null
 # UIAccess builds cannot be run from the ordinary build directory. Test first,
 # then relink the exact application with the release manifest and sign it.
 Invoke-Checked cmake @('-S', $root, '-B', $BuildDirectory, '-DGAZEGRID_UIACCESS=ON')

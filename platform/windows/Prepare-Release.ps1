@@ -28,8 +28,10 @@ $thumbprint = (Get-PfxCertificate "$destination/GazeGrid.cer").Thumbprint
 @"
 GazeGrid $version for Windows x64.
 
-- The MSI and application executable are signed with the self-signed GazeGrid certificate.
-- Verify and trust the public GazeGrid.cer certificate in Local Computer / Trusted Root Certification Authorities, then install the MSI under Program Files for UIAccess.
+- The MSI is signed with the self-signed GazeGrid certificate.
+- Setup asks for consent to trust the GazeGrid certificate for all users. Verify its thumbprint before accepting. Accept installs the certificate and signed UIAccess app under Program Files.
+- Decline (the default) installs an unsigned app with UIAccess disabled: it cannot send input to higher-privilege windows or stay on top of all windows.
+- Certificate trust remains after uninstall. Administrators can revoke it using certlm.msc in Trusted Root Certification Authorities / Certificates.
 - Certificate thumbprint: $thumbprint
 - SHA-256 checksums are in SHA256SUMS.txt.
 - This build supports mouse dwell; the proprietary Tobii SDK is not included.

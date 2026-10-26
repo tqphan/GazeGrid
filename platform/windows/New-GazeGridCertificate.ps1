@@ -68,17 +68,19 @@ Write-Host @'
    and publish when ready. You can also download the
    GazeGrid-Windows-x64-signed artifact from the workflow run.
    It contains the signed MSI and public GazeGrid.cer certificate.
-   The application executable inside the MSI is signed with the same identity.
+   The UIAccess executable inside the MSI is signed with the same identity.
 
    Use Signed Windows MSI for releases. Build and test uses a temporary
    test certificate rather than this persistent signing identity.
 
-5. Before using the UIAccess application on a Windows machine:
-   Verify the public GazeGrid.cer certificate, then have an administrator
-   import it into Local Computer > Trusted Root Certification Authorities.
-   Install the MSI into its default Program Files location.
+5. On a Windows machine, run the MSI and review its certificate explanation.
+   Verify the GazeGrid certificate thumbprint before accepting trust.
+   Accept installs the public certificate for all users and the signed UIAccess
+   app in Program Files. Decline installs an unsigned, limited-access app that
+   cannot send input to higher-privilege windows or stay on top of all windows.
+   Trust remains after uninstall; administrators can revoke it with certlm.msc
+   under Trusted Root Certification Authorities > Certificates.
    Distribute only the MSI and public CER; keep the PFX/password private.
-   The MSI does not automatically change certificate trust.
 
 To copy the encoded PFX later, run this command in PowerShell:
 '@
