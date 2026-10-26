@@ -19,9 +19,14 @@ class ControllerTests:public QObject {
  static QVariantMap overlapKey(QString tag,QString text,int duration=10){
   return {{"kind","DynamicKey"},{"dwell",duration},{"commands",QVariantList{QVariantMap{{"tag",tag},{"text",text}}}}};
  }
+ static void addScratchpad(Controller &c){
+  auto layout=c.property("layout").toMap();auto keys=layout["keys"].toList();
+  keys<<QVariantMap{{"kind","Scratchpad"}};layout["keys"]=keys;c.setProperty("layout",layout);
+ }
  static void overlapLayout(Controller &c,const QVariantList &keys){
   c.openLayout("keyboard-conversation-fullscreen",false);c.setProperty("paused",false);
-  c.setProperty("layout",QVariantMap{{"layoutMode","canvas"},{"activateoverlappingkeys",true},{"keys",keys}});
+  auto content=keys;content<<QVariantMap{{"kind","Scratchpad"}};
+  c.setProperty("layout",QVariantMap{{"layoutMode","canvas"},{"activateoverlappingkeys",true},{"keys",content}});
  }
 private slots:
  void overlapDwellOrdersModifiersAndDoesNotRetrigger(){
@@ -249,6 +254,28 @@ private slots:
   c.clickCommand(findKey("Action","PreviousSuggestions"));QTRY_VERIFY(!c.executingCommands());
   QCOMPARE(c.property("suggestions").toStringList(),first.mid(0,6));
  }
+ void ordinaryKeyboardDoesNotCaptureOrEditScratchpad(){
+  Controller c;QString output;QStringList keys;
+  c.configureInputMethod([&](QString text){output+=text;return true;},[&](QString key,bool down){if(down)keys<<key;return true;});
+  c.inputContextChanged(true,false);c.setProperty("paused",false);
+  c.setProperty("scratchpad",QString("saved conversation"));
+  auto type=[&](QString text){QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text",text}}}));QTRY_VERIFY(!c.executingCommands());};
+  type("thank y");
+  QCOMPARE(output,QString("thank y"));
+  QCOMPARE(c.property("scratchpad").toString(),QString("saved conversation"));
+  QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
+  c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
+  QCOMPARE(output,QString("thank you "));
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","Backspace"}}}));QTRY_VERIFY(!c.executingCommands());
+  QVERIFY(!keys.isEmpty());
+  QCOMPARE(c.property("scratchpad").toString(),QString("saved conversation"));
+  c.openLayout("keyboard-conversation-fullscreen",false);
+  QCOMPARE(c.property("scratchpad").toString(),QString("saved conversation"));
+  type("!");QCOMPARE(c.property("scratchpad").toString(),QString("saved conversation!"));
+  c.openLayout("keyboard-alphabet-14x4-bottom",false);type("other");
+  c.openLayout("keyboard-conversation-fullscreen",false);
+  QCOMPARE(c.property("scratchpad").toString(),QString("saved conversation!"));
+ }
  void predictionsInsertCompletionsAndNextWordsWithoutLearning(){
   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
   c.setProperty("learning",false);
@@ -273,7 +300,7 @@ private slots:
     c.setAddSpaceAfterCompletion(addSpace);
     QString output;
     c.configureInputMethod([&](QString text){output+=text;return true;},[](QString,bool){return true;});
-    c.inputContextChanged(true,false);
+    c.inputContextChanged(true,false);addScratchpad(c);
     QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text",prefix}}}));QTRY_VERIFY(!c.executingCommands());
     QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
     c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
@@ -296,7 +323,7 @@ private slots:
   c.setPredictionMode("context");
   QString output;
   c.configureInputMethod([&](QString text){output+=text;return true;},[](QString,bool){return true;});
-  c.inputContextChanged(true,false);
+  c.inputContextChanged(true,false);addScratchpad(c);
   c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
   QCOMPARE(output,starters.first()+" ");
   QCOMPARE(c.property("scratchpad").toString(),output);
@@ -525,7 +552,7 @@ private slots:
  }
 
  void unicodeScratchpadBackspaceRemovesWholeGrapheme(){
-  Controller controller;controller.configureInputMethod([](QString){return true;},[](QString,bool){return true;});controller.inputContextChanged(true,false);
+  Controller controller;controller.configureInputMethod([](QString){return true;},[](QString,bool){return true;});controller.inputContextChanged(true,false);addScratchpad(controller);
   QVERIFY(controller.executeCommands({QVariantMap{{"tag","Text"},{"text",QString::fromUtf8("a😀é")}}}));QTRY_VERIFY(!controller.executingCommands());
   const QVariantMap back{{"tag","Action"},{"text","Backspace"}};
   QVERIFY(controller.executeCommands({back}));QTRY_VERIFY(!controller.executingCommands());QCOMPARE(controller.property("scratchpad").toString(),QString::fromUtf8("a😀"));
@@ -534,7 +561,7 @@ private slots:
  void nativeContextCancellationAndSensitiveText(){
   Controller controller;QString output;
   controller.configureInputMethod([&](QString text){output+=text;return true;},[](QString,bool){return true;});
-  controller.inputContextChanged(true,false);QVERIFY(controller.ready());
+  controller.inputContextChanged(true,false);addScratchpad(controller);QVERIFY(controller.ready());
   QVERIFY(controller.executeCommands({QVariantMap{{"tag","Text"},{"text","public"}}}));QTRY_VERIFY(!controller.executingCommands());
   QCOMPARE(controller.property("scratchpad").toString(),QString("public"));
   QVERIFY(controller.executeCommands({QVariantMap{{"tag","Wait"},{"text","50"}},QVariantMap{{"tag","Text"},{"text","stale"}}}));

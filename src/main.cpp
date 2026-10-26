@@ -379,6 +379,7 @@ int main(int argc,char **argv){
   QVariantList keys;
   for(int i=0;i<2;++i)keys<<QVariantMap{{"kind","DynamicKey"},{"col",i*.25},{"row",0},{"width",.75},{"height",1},
    {"label",i?"B":"A"},{"commands",QVariantList{QVariantMap{{"tag","Text"},{"text",i?"b":"a"}}}}};
+  keys<<QVariantMap{{"kind","Scratchpad"},{"col",0},{"row",0},{"width",0.1},{"height",0.1}};
   controller.setProperty("layout",QVariantMap{{"layoutMode","canvas"},{"activateoverlappingkeys",true},{"rows",1},{"cols",1},{"keys",keys}});
   emit controller.layoutChanged();window->show();
   auto stage=std::make_shared<int>(0);auto timer=new QTimer(&app);timer->setInterval(200);

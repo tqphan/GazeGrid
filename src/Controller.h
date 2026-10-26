@@ -255,6 +255,10 @@ private:
  int suggestionOffset=0;
  QString predictionModeValue="context";bool nextWordEnabled=true;bool completionSpaceEnabled=true;bool sentenceStartersEnabled=true;
  QStringList predictionSuggestions(int limit=8)const;
+ bool hasScratchpad()const;
+ QString &typingContext();
+ const QString &typingContext()const;
+ QString predictionContext;
  QString scratchpad;QStringList suggestions,dictionary;QMap<QString,int> frequencies;
  QJsonObject mappingProfile;
 };

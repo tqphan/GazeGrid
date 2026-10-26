@@ -150,7 +150,7 @@ void Controller::configureInputMethod(std::function<bool(QString)> text,std::fun
  actionStatus="Native text input enabled; authorize desktop control for pointer actions and held shortcuts";emit changed();
 }
 void Controller::invalidateInputContext(){
- runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();dwell.reset();speech.stop();scratchpad.clear();suggestions.clear();emit changed();
+ runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();dwell.reset();speech.stop();scratchpad.clear();predictionContext.clear();suggestions.clear();emit changed();
 }
 void Controller::inputContextChanged(bool active,bool sensitive){
  nativeActive=active;sensitiveInput=sensitive;
@@ -439,7 +439,7 @@ void Controller::activate(QString key){
  if(key.startsWith("suggest:")){
   bool valid=false;int i=key.mid(8).toInt(&valid);if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()||(!runner.textOnly&&!ready()))return;
   if(!runner.heldKeys().isEmpty()){actionStatus="Release held keys before accepting a suggestion";emit changed();return;}
-  QString prefix=WordPrediction::prefix(scratchpad);auto word=suggestions[i];
+  QString prefix=WordPrediction::prefix(typingContext());auto word=suggestions[i];
   runner.start({command("Text",word.mid(prefix.size())+(completionSpaceEnabled?QString(" "):QString()))});return;
  }
  if(!key.startsWith("key:"))return;
@@ -547,9 +547,10 @@ bool Controller::performAction(QString action){
  if(action=="Speak"){speak();return true;}
  if(action=="BackMany"){
   if(!runner.textOnly)return false;
-  int end=scratchpad.size();while(end>0&&scratchpad[end-1].isSpace())--end;
-  while(end>0&&!scratchpad[end-1].isSpace())--end;
-  scratchpad.truncate(end);updateSuggestions();return true;
+  auto &text=typingContext();
+  int end=text.size();while(end>0&&text[end-1].isSpace())--end;
+  while(end>0&&!text[end-1].isSpace())--end;
+  text.truncate(end);updateSuggestions();return true;
  }
  if(action=="NextSuggestions"||action=="PreviousSuggestions"){
   if(sensitiveInput){suggestions.clear();emit changed();return true;}
@@ -559,7 +560,7 @@ bool Controller::performAction(QString action){
   if(next>=0&&next<all.size())suggestionOffset=next;
   suggestions=all.mid(suggestionOffset,pageSize);emit changed();return true;
  }
- if(action=="ClearScratchpad"){scratchpad.clear();updateSuggestions();return true;}
+ if(action=="ClearScratchpad"){scratchpad.clear();predictionContext.clear();updateSuggestions();return true;}
  if(action=="Sleep"){togglePause();return true;}
  if(action=="MenuKeyboard"){recover();return true;}
  if(action=="BackFromKeyboard"){openLayout(backStack.isEmpty()?"main-14x1-bottom":backStack.takeLast(),false);return true;}
@@ -634,14 +635,23 @@ void Controller::setMagnifierEnabled(bool enabled){
  if(!enabled&&(capturePending||magnifierReady)){clearCapture();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}
  emit changed();
 }
+bool Controller::hasScratchpad()const{
+ for(const auto &entry:layout.value("keys").toList())
+  if(entry.toMap().value("kind").toString()=="Scratchpad")return true;
+ return false;
+}
+QString &Controller::typingContext(){return hasScratchpad()?scratchpad:predictionContext;}
+const QString &Controller::typingContext()const{return hasScratchpad()?scratchpad:predictionContext;}
 void Controller::updateText(QString text){
  if(sensitiveInput)return;
- for(auto ch:text){if(ch=='\b'){if(!scratchpad.isEmpty()){QTextBoundaryFinder boundary(QTextBoundaryFinder::Grapheme,scratchpad);boundary.toEnd();scratchpad.truncate(qMax(0,boundary.toPreviousBoundary()));}}else{if(ch.isSpace()&&learning){QString word=WordPrediction::completedWord(scratchpad);if(!word.isEmpty()&&word.size()<64)frequencies[word]=qMin(1000000,frequencies.value(word)+1);}scratchpad+=ch;}}
- if(scratchpad.size()>4096)scratchpad=scratchpad.right(4096);updateSuggestions();
+ auto &context=typingContext();
+ for(auto ch:text){if(ch=='\b'){if(!context.isEmpty()){QTextBoundaryFinder boundary(QTextBoundaryFinder::Grapheme,context);boundary.toEnd();context.truncate(qMax(0,boundary.toPreviousBoundary()));}}else{if(ch.isSpace()&&learning){QString word=WordPrediction::completedWord(context);if(!word.isEmpty()&&word.size()<64)frequencies[word]=qMin(1000000,frequencies.value(word)+1);}context+=ch;}}
+ if(context.size()>4096)context=context.right(4096);updateSuggestions();
 }
 QStringList Controller::predictionSuggestions(int limit)const{
- if(sensitiveInput||predictionModeValue=="off"||(!scratchpad.isEmpty()&&!nextWordEnabled&&WordPrediction::prefix(scratchpad).isEmpty()))return {};
- return WordPrediction::suggest(scratchpad,dictionary,learning?frequencies:QMap<QString,int>{},limit,predictionModeValue=="context",sentenceStartersEnabled);
+ const auto &context=typingContext();
+ if(sensitiveInput||predictionModeValue=="off"||(!context.isEmpty()&&!nextWordEnabled&&WordPrediction::prefix(context).isEmpty()))return {};
+ return WordPrediction::suggest(context,dictionary,learning?frequencies:QMap<QString,int>{},limit,predictionModeValue=="context",sentenceStartersEnabled);
 }
 void Controller::setPredictionMode(QString mode){
  if(!QStringList{"context","frequency","off"}.contains(mode)||predictionModeValue==mode)return;
