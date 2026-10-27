@@ -26,6 +26,8 @@ CMake and Ninja are installed locally in `.tools/`. The build uses the host Qt 6
 
 The default SDK is the exact user-supplied `stream_engine_linux_3.0.4.6031` directory. Its headers are used for compilation and its x64 shared library is loaded by absolute path at runtime. The sibling 4.24 SDK is not used. SDK files are not copied into this project. The CMake cache variable `TOBII_SDK` allows relocating the same SDK.
 
+The Tobii worker uses `tobii_wait_for_callbacks()` before processing subscribed samples, allowing the SDK to maintain clock synchronization. Waiting stays on the worker thread, with normal SDK timeouts allowing shutdown checks. No fixed polling sleep or separate synchronization timer is used.
+
 ## Current controls and implementation
 
 On Wayland, the standalone keyboard uses the overlay layer so it remains above fullscreen applications without taking keyboard focus. This includes top and bottom layouts and the minimized restore button. Experimental KWin input-method mode retains its native bottom input panel; its layer-shell layouts use the same overlay layer.
@@ -50,6 +52,8 @@ Preferences now use a versioned `profile.json` under the application configurati
 The same category has separate **Clamp off-screen gaze for keyboard keys** and **Clamp off-screen gaze for point selection** checkboxes. Keyboard clamping defaults to off; point-selection clamping defaults to on. Clamping moves valid off-screen coordinates to the nearest screen edge before smoothing; turning it off preserves those coordinates for the selected use. Being outside the screen does not make a tracker sample invalid or trigger invalid-gaze tolerance. Save preferences to retain these choices.
 
 **Settings → Typing & speech → Word prediction → Remove completion space before punctuation in conversation keyboards** is enabled by default. In conversation keyboards, after accepting a word with an automatically appended space, the next punctuation or ASCII symbol replaces that space: `hello ` followed by `.` becomes `hello.`. Shifted punctuation is supported. Manually typed spaces are preserved; typing another character or issuing a cursor/editing command ends the automatic replacement. Desktop output preserves the space because external caret movements cannot be tracked reliably. Save preferences to retain the setting.
+
+**Settings → Typing & speech → Speech → Scratchpad text size** adjusts the keyboard scratchpad and its settings preview from 50% to 300% (default 100%). Changes apply immediately; use **Save preferences and startup keyboard** to retain the size after restart.
 
 Writes are atomic and retain a validated `.bak` recovery copy. If the main profile is corrupt, startup uses that copy or defaults and reports recovery in Settings. Profiles from newer versions are preserved and cannot be overwritten without an explicit reset. This fresh format does not import the prototype's QSettings file or legacy OptiKey settings.
 

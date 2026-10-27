@@ -268,10 +268,10 @@ Window {
     border.width:controller.sizeMoveSelection===key.index?5:2;border.color:root.dwellColor
    }
    Text {
-    anchors.fill:parent;anchors.margins:12;visible:key.modelData.kind==="Scratchpad"
+    anchors.fill:parent;anchors.margins:12;visible:key.modelData.kind==="Scratchpad";clip:true
     opacity:key.foregroundOpacity
     text:controller.scratchpad;color:key.foreground;wrapMode:Text.Wrap
-    font.pixelSize:24;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
+    font.pixelSize:24*controller.scratchpadTextScale/100;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter
    }
    Column {
     anchors.centerIn:parent;spacing:4
@@ -807,8 +807,9 @@ Window {
         Tool {id:speakButton;text:"Speak";command:"Speak"}
         Tool {id:stopSpeechButton;text:"Stop speech";command:"StopSpeech"}
        }
+       SettingSlider {label:"Scratchpad text size";displayValue:controller.scratchpadTextScale+"%";from:50;to:300;stepSize:5;value:controller.scratchpadTextScale;onMoved:controller.scratchpadTextScale=value}
        Desktop.Label {text:"Scratchpad (text typed by GazeGrid only)"}
-       Desktop.TextArea {text:controller.scratchpad;readOnly:true;Layout.fillWidth:true;Layout.preferredHeight:70;wrapMode:Text.Wrap}
+       Desktop.TextArea {text:controller.scratchpad;placeholderText:"Scratchpad preview";readOnly:true;font.pixelSize:24*controller.scratchpadTextScale/100;Layout.fillWidth:true;Layout.preferredHeight:Math.max(70,font.pixelSize*3);wrapMode:Text.Wrap}
       }
      }
      SettingsCard {

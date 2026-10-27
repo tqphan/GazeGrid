@@ -53,6 +53,7 @@ class Controller:public QObject{
  Q_PROPERTY(QString keyboardTheme MEMBER keyboardTheme NOTIFY changed)
  Q_PROPERTY(int shortLabelScale MEMBER shortLabelScale NOTIFY changed)
  Q_PROPERTY(int longLabelScale MEMBER longLabelScale NOTIFY changed)
+ Q_PROPERTY(int scratchpadTextScale MEMBER scratchpadTextScale NOTIFY changed)
  Q_PROPERTY(bool rememberDesktop MEMBER rememberDesktop NOTIFY changed)
  Q_PROPERTY(int sizeMoveSelection MEMBER sizeMoveSelection NOTIFY changed)
  Q_PROPERTY(bool saveCanvasChanges MEMBER saveCanvasChanges NOTIFY changed)
@@ -277,6 +278,7 @@ private:
  QString keyboardTheme="system";
  int shortLabelScale=150;
  int longLabelScale=100;
+ int scratchpadTextScale=100;
  bool rememberDesktop=false;
  const bool signInMode;
  bool trackerConnected=false;

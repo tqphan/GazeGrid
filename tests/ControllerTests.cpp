@@ -788,9 +788,12 @@ private slots:
   QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),QByteArray("{broken"));file.close();QVERIFY(file.remove());
  }
  void visualPreferencesPersistAndReset(){
-  {Controller controller;controller.setProperty("keyboardTheme","ocean");controller.setProperty("keyboardScale",125);controller.setProperty("shortLabelScale",125);controller.setProperty("longLabelScale",150);QVERIFY(controller.savePreferences());}
-  {Controller controller;QCOMPARE(controller.property("keyboardTheme").toString(),QString("ocean"));QCOMPARE(controller.keyboardScale(),125);QCOMPARE(controller.property("shortLabelScale").toInt(),125);QCOMPARE(controller.property("longLabelScale").toInt(),150);
-   controller.resetPreferences();QCOMPARE(controller.property("keyboardTheme").toString(),QString("system"));QCOMPARE(controller.keyboardScale(),100);QCOMPARE(controller.property("shortLabelScale").toInt(),150);QCOMPARE(controller.property("longLabelScale").toInt(),100);}
+  ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
+  auto legacy=ProfileStore::defaults();legacy.remove("scratchpadTextScale");QVERIFY(store.save(legacy,error));
+  {Controller controller;QCOMPARE(controller.property("scratchpadTextScale").toInt(),100);}
+  {Controller controller;controller.setProperty("keyboardTheme","ocean");controller.setProperty("keyboardScale",125);controller.setProperty("shortLabelScale",125);controller.setProperty("longLabelScale",150);controller.setProperty("scratchpadTextScale",175);QVERIFY(controller.savePreferences());}
+  {Controller controller;QCOMPARE(controller.property("keyboardTheme").toString(),QString("ocean"));QCOMPARE(controller.keyboardScale(),125);QCOMPARE(controller.property("shortLabelScale").toInt(),125);QCOMPARE(controller.property("longLabelScale").toInt(),150);QCOMPARE(controller.property("scratchpadTextScale").toInt(),175);
+   controller.resetPreferences();QCOMPARE(controller.property("keyboardTheme").toString(),QString("system"));QCOMPARE(controller.keyboardScale(),100);QCOMPARE(controller.property("shortLabelScale").toInt(),150);QCOMPARE(controller.property("longLabelScale").toInt(),100);QCOMPARE(controller.property("scratchpadTextScale").toInt(),100);}
  }
  void legacyHighContrastMigratesToTheme(){
   const auto path=QDir(appConfigDirectory()).filePath("profile.json");
