@@ -46,7 +46,7 @@ try {
         if (!$helper.WaitForExit(30000)) { $helper.Kill(); throw 'Sign-in configuration helper timed out.' }
         if ($helper.ExitCode -ne 0) { throw 'Could not copy the selected keyboard to sign-in preferences.' }
         $shared = Get-ItemProperty 'HKLM:\SOFTWARE\GazeGrid\SignIn' -Name Profile
-        $profile = [Text.Encoding]::UTF8.GetString([byte[]]$shared.Profile) | ConvertFrom-Json
+        $profile = [string]$shared.Profile | ConvertFrom-Json
         if ($profile.startLayout -ne 'main-14x1-top' -or $profile.keyboardScale -ne 120 -or $profile.predictionMode -ne 'off' -or $profile.learning) { throw 'Unexpected sign-in keyboard preferences.' }
     }
     # Avoid inheriting Qt paths from the build environment: verify deployed plugins.

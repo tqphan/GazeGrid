@@ -46,7 +46,7 @@ int WindowsSignIn::setup(const QStringList &arguments){
  auto values=validatedProfile(QJsonDocument::fromJson(QByteArray::fromBase64(data)).object());
  if(values.isEmpty())return 2;
  QSettings settings(settingsPath,QSettings::NativeFormat);
- if(mode=="enable")settings.setValue("Profile",QJsonDocument(values).toJson(QJsonDocument::Compact));
+ if(mode=="enable")settings.setValue("Profile",QString::fromUtf8(QJsonDocument(values).toJson(QJsonDocument::Compact)));
  settings.sync();if(settings.status()!=QSettings::NoError)return 2;
  if(SignInRegistry::set(HKEY_LOCAL_MACHINE,SignInRegistry::key,mode=="enable")!=ERROR_SUCCESS)return 2;
  QSettings installer("HKEY_LOCAL_MACHINE\\SOFTWARE\\GazeGrid\\Installer",QSettings::NativeFormat);
