@@ -32,6 +32,9 @@
 #include "KeyboardLayout.h"
 #include "SymbolProvider.h"
 #include "PointerCheck.h"
+#ifdef _WIN32
+#include "WindowsTheme.h"
+#endif
 #ifdef GAZEGRID_LINUX
 #include <LayerShellQt/Window>
 #include "PlasmaInputMethod.h"
@@ -87,6 +90,10 @@ int main(int argc,char **argv){
  if(diagnose||audit)qputenv("QT_QPA_PLATFORM","offscreen");
  QQuickWindow::setDefaultAlphaBuffer(true);
  QApplication app(argc,argv);app.setOrganizationName("GazeGrid");app.setApplicationName("GazeGrid");app.setApplicationDisplayName("GazeGrid");app.setDesktopFileName("org.gazegrid.GazeGrid");
+#ifdef _WIN32
+ app.setStyle("Fusion"); // QWidget menus/editor must honor the same system palette as QML.
+ WindowsTheme windowsTheme;
+#endif
  app.setWindowIcon(QIcon(":/resources/gazegrid.svg"));
  if(app.arguments().contains("--editor")){
   KeyboardEditor editor;

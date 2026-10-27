@@ -7,6 +7,7 @@
 #include <QDBusMessage>
 #include <QDBusContext>
 #include <QSet>
+#include "DisplayMapping.h"
 #include <functional>
 struct ei;struct ei_device;class QSocketNotifier;
 class PortalInput:public QObject,protected QDBusContext {
@@ -53,6 +54,7 @@ private:
  QSet<ei_device*> devices;
  QSet<int> held,heldButtons;
  ei_device *device(int capability);
+ DisplayMapping::Mapping absoluteMapping(QList<ei_device*> &owners)const;
 };
 
 #endif

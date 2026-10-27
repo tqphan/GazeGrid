@@ -7,6 +7,9 @@
 #include <QImageReader>
 #include <QUrl>
 #include <QUuid>
+#include <QGuiApplication>
+#include <QScreen>
+#include "DisplayMapping.h"
 namespace {
 const QString service="org.freedesktop.portal.Desktop",requestInterface="org.freedesktop.portal.Request";
 }
@@ -22,7 +25,12 @@ void ScreenshotPortal::cancel(){
  bus.asyncCall(QDBusMessage::createMethodCall(service,path,requestInterface,"Close"));
 }
 void ScreenshotPortal::capture(){
- cancel();const auto epoch=generation;auto bus=QDBusConnection::sessionBus();
+ cancel();captureDisplays.clear();captureDisplay=-1;
+ if(qobject_cast<QGuiApplication*>(QCoreApplication::instance()))for(auto screen:QGuiApplication::screens()){
+  if(screen==QGuiApplication::primaryScreen())captureDisplay=captureDisplays.size();
+  captureDisplays<<QRectF(screen->geometry());
+ }
+ const auto epoch=generation;auto bus=QDBusConnection::sessionBus();
  if(!bus.isConnected()){emit failed("Desktop screenshot portal is unavailable");return;}
  QString token="gazegrid_magnifier_"+QUuid::createUuid().toString(QUuid::Id128);
  QString sender=bus.baseService().mid(1);sender.replace('.','_');
@@ -50,5 +58,10 @@ void ScreenshotPortal::response(uint code,const QVariantMap &results){
  if(!size.isValid()||qint64(size.width())*size.height()>64000000){emit failed("Desktop capture has unsupported dimensions");return;}
  auto image=reader.read();
  if(image.isNull()){emit failed("Could not read desktop capture");return;}
+ if(!captureDisplays.isEmpty()){
+  const auto crop=DisplayMapping::screenshot(captureDisplays,captureDisplay,image.size());
+  if(!crop.isValid()){emit failed("Desktop capture cannot be mapped to the target display; target selection cancelled");return;}
+  image=image.copy(crop);
+ }
  emit captured(image);
 }

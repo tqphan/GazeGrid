@@ -566,7 +566,7 @@ bool Controller::performAction(QString action){
  if(action=="BackFromKeyboard"){openLayout(backStack.isEmpty()?"main-14x1-bottom":backStack.takeLast(),false);return true;}
  if(PointerActions::supports(action)){
   if(PointerActions::needsAbsolute(action)&&!portal.absoluteAvailable()){
-   actionStatus="Pointer targeting requires one mapped EIS display region";emit changed();return false;
+   actionStatus="Pointer targeting requires an input region mapped to the primary display";emit changed();return false;
   }
   runner.suspend();
   if(!pointer.start(action,hideKeyboardDuringMouseActions?100:0)){actionStatus="Pointer action unavailable: release held buttons or complete an action before repeating";emit changed();return false;}
@@ -580,9 +580,6 @@ void Controller::targetAt(double x,double y){
   const auto point=MagnifierGeometry::map(magnifierCrop,captureSize,{x,y});clearCapture();pointer.select(point);emit changed();return;
  }
  if(magnifierEnabled){
-#ifndef _WIN32
-  if(QGuiApplication::screens().size()!=1){actionStatus="Magnification requires one display";emit changed();return;}
-#endif
   pointDwell.reset();coarseTarget={x,y};capturePending=true;const auto epoch=++captureEpoch;emit changed();
   QTimer::singleShot(150,this,[this,epoch]{if(epoch==captureEpoch&&capturePending&&!paused&&targeting)screenshot.capture();});return;
  }
@@ -601,14 +598,8 @@ double Controller::dwellAt(double x,double y,bool valid){
 void Controller::receiveMagnifierFrame(QImage image){
  if(!targeting||paused||!capturePending)return;
  auto screen=QGuiApplication::primaryScreen();
- // Windows captures the primary display independently of additional monitors.
- const bool displayMatches=
-#ifdef _WIN32
-  true;
-#else
-  QGuiApplication::screens().size()==1;
-#endif
- if(image.isNull()||!screen||!displayMatches||qAbs(double(image.width())/image.height()-double(screen->size().width())/screen->size().height())>.01){
+ // Both capture backends now return only the primary display.
+ if(image.isNull()||!screen||qAbs(double(image.width())/image.height()-double(screen->size().width())/screen->size().height())>.01){
   clearCapture();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();actionStatus="Capture does not match the target display; target selection cancelled";emit changed();return;
  }
  capturedImage=image;captureSize=image.size();capturePending=false;magnifierReady=true;

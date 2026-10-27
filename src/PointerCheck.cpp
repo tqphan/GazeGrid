@@ -54,13 +54,7 @@ void PointerCheck::tick(){
  if(ending||!active||!controller->ready())return;
  if(!started){
   const auto screen=QGuiApplication::primaryScreen();
-  const bool displayMapped=
-#ifdef _WIN32
-   true; // Windows output and capture are explicitly mapped to the primary screen.
-#else
-   QGuiApplication::screens().size()==1;
-#endif
-  if(!screen||!displayMapped||receiverSize!=screen->size()||!controller->output()->absoluteAvailable()){
+  if(!screen||receiverSize!=screen->size()||!controller->output()->absoluteAvailable()){
    fail("Pointer check requires a full-screen receiver on the mapped target display");return;
   }
   presses=releases=dragMoves=wheels=targets=0;pressTimes.clear();releasePoint={};settled.invalidate();started=true;everStarted=true;

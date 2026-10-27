@@ -4,6 +4,8 @@
 #include <QDBusContext>
 #endif
 #include <QImage>
+#include <QRectF>
+#include <QList>
 #include <QTimer>
 #include <QVariantMap>
 class ScreenshotPortal:public QObject
@@ -26,4 +28,6 @@ private:
  QString requestPath;
  quint64 generation=0;
  QTimer timeout;
+ QList<QRectF> captureDisplays;
+ int captureDisplay=-1;
 };

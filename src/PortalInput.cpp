@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include "AppPaths.h"
 #include <QDir>
+#include <QGuiApplication>
+#include <QScreen>
 #include "PortalPermissionStore.h"
 namespace {
 const QString service="org.freedesktop.portal.Desktop",path="/org/freedesktop/portal/desktop",iface="org.freedesktop.portal.RemoteDesktop";
@@ -155,20 +157,30 @@ bool PortalInput::button(int code,bool down){
  if(down)heldButtons.insert(code);else heldButtons.remove(code);return true;
 }
 bool PortalInput::click(){return button(272,true)&&button(272,false);}
+DisplayMapping::Mapping PortalInput::absoluteMapping(QList<ei_device*> &owners)const{
+ if(!available||!eisMode||!qobject_cast<QGuiApplication*>(QCoreApplication::instance()))return {};
+ QList<QRectF> screens,regions;int primary=-1;
+ for(auto screen:QGuiApplication::screens()){
+  if(screen==QGuiApplication::primaryScreen())primary=screens.size();
+  screens<<QRectF(screen->geometry());
+ }
+ for(auto d:devices)if(ei_device_has_capability(d,EI_DEVICE_CAP_POINTER_ABSOLUTE)){
+  for(size_t i=0;auto region=ei_device_get_region(d,i);++i){
+   regions<<QRectF(ei_region_get_x(region),ei_region_get_y(region),ei_region_get_width(region),ei_region_get_height(region));
+   owners<<d;
+  }
+ }
+ return DisplayMapping::input(screens,primary,regions);
+}
 bool PortalInput::absoluteAvailable()const{
- if(!available||!eisMode)return false;int regions=0;
- for(auto d:devices)if(ei_device_has_capability(d,EI_DEVICE_CAP_POINTER_ABSOLUTE))for(size_t i=0;ei_device_get_region(d,i);++i)++regions;
- return regions==1;
+ QList<ei_device*> owners;return absoluteMapping(owners).valid();
 }
 bool PortalInput::moveAbsolute(double x,double y){
- if(!absoluteAvailable())return false;
- for(auto d:devices)if(ei_device_has_capability(d,EI_DEVICE_CAP_POINTER_ABSOLUTE)){
-  auto region=ei_device_get_region(d,0);if(!region)continue;
-  double px=ei_region_get_x(region)+qBound(0.0,x,1.0)*qMax(0,int(ei_region_get_width(region))-1);
-  double py=ei_region_get_y(region)+qBound(0.0,y,1.0)*qMax(0,int(ei_region_get_height(region))-1);
-  ei_device_pointer_motion_absolute(d,px,py);ei_device_frame(d,ei_now(context));return true;
- }
- return false;
+ QList<ei_device*> owners;const auto mapping=absoluteMapping(owners);
+ if(!mapping.valid()||!std::isfinite(x)||!std::isfinite(y))return false;
+ const auto point=mapping.point({qBound(0.0,x,1.0),qBound(0.0,y,1.0)});
+ auto d=owners[mapping.region];
+ ei_device_pointer_motion_absolute(d,point.x(),point.y());ei_device_frame(d,ei_now(context));return true;
 }
 bool PortalInput::scroll(double y){
  return scrollAxes(0,y);
