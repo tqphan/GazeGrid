@@ -37,6 +37,7 @@
           <RegistryValue Name="SimpleProfile" Value="On-screen keyboard" Type="string" />
           <RegistryValue Name="Profile" Value="&lt;HCIModel&gt;&lt;Accommodation type=&quot;severe dexterity&quot;/&gt;&lt;Accommodation type=&quot;mild dexterity&quot;/&gt;&lt;/HCIModel&gt;" Type="string" />
           <RegistryValue Name="TerminateOnDesktopSwitch" Value="1" Type="integer" />
+          <RegistryValue Name="SecureDesktopAccommodation" Value="1" Type="integer" />
           <RegistryValue Name="PassiveAutoStartBehavior" Value="1" Type="integer" />
         </RegistryKey>
         <File Id="GazeGridSignedExe" Source="@CMAKE_BINARY_DIR@/Release/gazegrid.exe" KeyPath="yes">

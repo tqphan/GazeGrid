@@ -31,6 +31,7 @@ try {
     $registration = Get-ItemProperty "$accessibility\ATs\$atName" -ErrorAction SilentlyContinue
     if ($expectedUIAccess -and (!$registration -or $registration.StartParams -ne '--sign-in' -or [IO.Path]::GetFullPath($registration.StartExe) -ne [IO.Path]::GetFullPath($installed))) { throw 'Trusted sign-in registration is missing or incorrect.' }
     if (!$expectedUIAccess -and $registration) { throw 'Unsigned installation must not register secure-desktop startup.' }
+    if ($expectedUIAccess -and $registration.SecureDesktopAccommodation -ne 1) { throw 'Secure desktop accommodation must be enabled.' }
 
     $signature = Get-AuthenticodeSignature $installed
     if ($expectedUIAccess -and ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $CertificateThumbprint)) {

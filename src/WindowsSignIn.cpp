@@ -27,6 +27,11 @@ bool WindowsSignIn::secureDesktop(){
  return GetUserObjectInformationW(GetThreadDesktop(GetCurrentThreadId()),UOI_NAME,name,sizeof(name),&length)
      &&_wcsicmp(name,L"Winlogon")==0;
 }
+bool WindowsSignIn::enabled(){
+ std::wstring configuration;
+ return SignInRegistry::read(HKEY_LOCAL_MACHINE,SignInRegistry::key,configuration)==ERROR_SUCCESS
+     &&SignInRegistry::contains(configuration);
+}
 QJsonObject WindowsSignIn::profile(){
  QSettings settings(settingsPath,QSettings::NativeFormat);
  auto bytes=settings.value("Profile").toByteArray();

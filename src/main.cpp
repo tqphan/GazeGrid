@@ -43,6 +43,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <dwmapi.h>
 #endif
 #ifdef GAZEGRID_LINUX
 #include <LayerShellQt/Window>
@@ -396,6 +397,15 @@ int main(int argc,char **argv){
  QObject::connect(&app,&QGuiApplication::screenRemoved,&app,displayChanged);
  QObject::connect(&app,&QGuiApplication::primaryScreenChanged,&app,displayChanged);
  applyGeometry();window->show();
+#ifdef _WIN32
+ // Prepare the translucent target surface before its first use and suppress
+ // Windows' show/hide fades, which otherwise flash over the selection point.
+ if(target&&QGuiApplication::platformName()=="windows"){
+  const auto handle=reinterpret_cast<HWND>(target->winId());
+  const BOOL disabled=TRUE;
+  DwmSetWindowAttribute(handle,DWMWA_TRANSITIONS_FORCEDISABLED,&disabled,sizeof(disabled));
+ }
+#endif
 #ifdef _WIN32
  if(signInCheck){
   window->setProperty("gazeCheck",true);window->setProperty("gazeEnabled",false);
@@ -812,6 +822,11 @@ int main(int argc,char **argv){
     QMouseEvent move(QEvent::MouseMove,point,point,Qt::NoButton,Qt::NoButton,Qt::NoModifier);QCoreApplication::sendEvent(target,&move);
    }
    if(stage==0&&controller.property("capturePending").toBool()){
+    auto ring=window->findChild<QQuickItem*>("targetProgressRing");
+    const bool stable=QGuiApplication::platformName()!="windows"||(target->isVisible()&&target->opacity()==0);
+    if(!stable||!ring||ring->isVisible()){
+     QTextStream(stderr)<<"FAIL: target overlay flashed during capture"<<Qt::endl;app.exit(2);return;
+    }
     QImage frame(QGuiApplication::primaryScreen()->size(),QImage::Format_RGB32);frame.fill(Qt::green);
     QMetaObject::invokeMethod(&controller,"receiveMagnifierFrame",Qt::DirectConnection,Q_ARG(QImage,frame));stage=1;
    }else if(stage==1&&!controller.property("zoomAnimating").toBool()){

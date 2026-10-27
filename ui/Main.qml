@@ -478,9 +478,9 @@ Window {
  Window {
   id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1100,root.screenWidth);height:Math.min(800,root.screenHeight-60);title:"GazeGrid settings";color:Kirigami.Theme.backgroundColor
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
-  property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Shortcuts","Look to scroll"]
-  property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","preferences-desktop-keyboard-shortcuts","transform-move"]
-  property var categoryDescriptions:["Connection health and recent activity.","Make your keyboard feel right for you.","Fine-tune eye tracking and selection timing.","Choose how you zoom and select targets.","Personalize prediction and spoken text.","Manage keyboard and pointer access.","Keyboard shortcuts for your desktop.","Adjust hands-free scrolling."]
+  property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Look to scroll"]
+  property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","transform-move"]
+  property var categoryDescriptions:["Connection health.","Make your keyboard feel right for you.","Fine-tune eye tracking and selection timing.","Choose how you zoom and select targets.","Personalize prediction and spoken text.","Manage keyboard and pointer access.","Adjust hands-free scrolling."]
   component SettingsButton:Desktop.Button {
    id:buttonControl;implicitHeight:38;implicitWidth:Math.max(88,contentItem.implicitWidth+32);leftPadding:16;rightPadding:16
    contentItem:Text {text:buttonControl.text;color:buttonControl.highlighted?"white":Kirigami.Theme.textColor;font.pixelSize:13;font.weight:Font.Medium;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter;opacity:buttonControl.enabled?1:0.4}
@@ -598,7 +598,6 @@ Window {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Desktop.Label {objectName:"inputModeStatus";text:!root.gazeEnabled?"Gaze off":root.usingGaze?"Gaze dwell active":"Mouse dwell active — eye tracker disconnected";Layout.fillWidth:true;wrapMode:Text.Wrap}
        Desktop.Label {text:"Desktop control: "+controller.portalStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
-       Desktop.Label {text:"Last action: "+controller.actionStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
        Desktop.Label {text:"Eye tracker: "+controller.tobiiStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
        Text {visible:text.length>0;text:controller.magneticCursor?"Cursor follows gaze":"";color:Kirigami.Theme.positiveTextColor}
        Text {visible:text.length>0;text:controller.lookScrolling?"Look to scroll active":"";color:Kirigami.Theme.positiveTextColor}
@@ -678,8 +677,10 @@ Window {
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Desktop.Label {text:"Use the current keyboard before entering your Windows password. This applies to this PC and disables prediction on the sign-in screen. Requires the trusted installation and administrator approval.";wrapMode:Text.Wrap;Layout.fillWidth:true}
-       SettingsButton {text:"Use this keyboard at sign-in";onClicked:controller.configureSignIn(true)}
-       SettingsButton {text:"Disable sign-in startup";onClicked:controller.configureSignIn(false)}
+       SettingsCheckBox {
+        objectName:"signInEnabledToggle";text:"Use this keyboard at sign-in";checked:controller.signInEnabled
+        onToggled:{controller.configureSignIn(checked);checked=Qt.binding(function(){return controller.signInEnabled})}
+       }
       }
      }
      SettingsCard {
@@ -812,16 +813,6 @@ Window {
       title:settings.categoryNames[6];visible:settingsCategory.currentIndex==6;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
-       Desktop.Label {text:Qt.platform.os==="windows"?"Windows uses the keyboard pack’s original shortcuts.":"Linux shortcut mappings"}
-       Desktop.ScrollView {visible:Qt.platform.os!=="windows";Layout.fillWidth:true;Layout.preferredHeight:180;Desktop.TextArea {id:mappingEditor;text:controller.mappingJson;wrapMode:Text.Wrap;font.family:"monospace";selectByMouse:true}}
-       SettingsButton {visible:Qt.platform.os!=="windows";text:"Save mappings";onClicked:controller.saveMappings(mappingEditor.text)}
-       Desktop.Label {text:controller.actionStatus;wrapMode:Text.Wrap;Layout.fillWidth:true}
-      }
-     }
-     SettingsCard {
-      title:settings.categoryNames[7];visible:settingsCategory.currentIndex==7;Layout.fillWidth:true
-      ColumnLayout {
-       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        SettingSlider {label:"Scroll speed";displayValue:controller.scrollSpeed+"%";from:10;to:300;stepSize:10;value:controller.scrollSpeed;onMoved:controller.scrollSpeed=value}
        SettingSlider {label:"Centre dead zone";displayValue:controller.scrollDeadzone+" px";from:10;to:200;stepSize:5;value:controller.scrollDeadzone;onMoved:controller.scrollDeadzone=value}
        RowLayout {Desktop.Label {text:"Direction"} SettingsComboBox {model:["Both axes","Vertical only","Horizontal only"];currentIndex:controller.scrollAxis;onActivated:controller.scrollAxis=currentIndex}}
@@ -843,7 +834,12 @@ Window {
  }
 
  Window {
-  id:targetWindow;objectName:"targetWindow";visible:controller.targeting&&!controller.capturePending;width:root.screenWidth;height:root.screenHeight
+  id:targetWindow;objectName:"targetWindow"
+  // Keep the Windows surface mapped through capture: remapping it can flash or fade.
+  // Other platforms still hide the surface so it cannot enter the screenshot.
+  visible:controller.targeting&&(Qt.platform.os==="windows"||!controller.capturePending)
+  opacity:controller.capturePending?0:1
+  width:root.screenWidth;height:root.screenHeight
   color:"transparent";flags:Qt.FramelessWindowHint|Qt.WindowDoesNotAcceptFocus|Qt.WindowStaysOnTopHint
   Image {anchors.fill:parent;visible:controller.magnifierReady;source:visible?"image://magnifier/"+controller.magnifierRevision:"";cache:false;fillMode:Image.Stretch}
   Rectangle {
@@ -861,7 +857,8 @@ Window {
   }
   MouseArea {id:targetPointer;objectName:"targetPointer";anchors.fill:parent;hoverEnabled:true;onClicked:mouse=>controller.targetAt(mouse.x/width,mouse.y/height)}
   Canvas {
-   visible:root.targetPointValid&&!controller.zoomAnimating
+   objectName:"targetProgressRing"
+   visible:controller.targeting&&root.targetPointValid&&!controller.capturePending&&!controller.zoomAnimating
    x:root.targetPoint.x*targetWindow.width-width/2;y:root.targetPoint.y*targetWindow.height-height/2
    width:56;height:56
    property real progress:root.targetProgress

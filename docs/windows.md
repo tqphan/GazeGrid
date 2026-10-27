@@ -167,8 +167,8 @@ or disable the secure desktop.
 After installation, open **Settings → Keyboard → Windows sign-in → Use this
 keyboard at sign-in**. Accept the administrator prompt to copy the selected
 installed layout, keyboard appearance, dwell timing, and gaze preferences to a
-protected machine-wide configuration. Use the button again after choosing a
-different keyboard. **Disable sign-in startup** removes GazeGrid from startup
+protected machine-wide configuration. Clear and select the checkbox again after choosing a
+different keyboard. Clearing **Use this keyboard at sign-in** removes GazeGrid from startup
 without changing other accessibility tools. Repair preserves the selected mode;
 uninstall removes GazeGrid's registration and startup entry.
 

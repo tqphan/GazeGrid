@@ -800,6 +800,13 @@ bool Controller::saveCanvasGeometry(){
  emit changed();return saved;
 }
 
+bool Controller::isSignInEnabled()const{
+#ifdef _WIN32
+ return WindowsSignIn::enabled();
+#else
+ return false;
+#endif
+}
 void Controller::configureSignIn(bool enabled){
  if(signInMode)return;
 #ifdef _WIN32

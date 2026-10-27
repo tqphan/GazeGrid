@@ -16,6 +16,7 @@
 class Controller:public QObject{
  Q_OBJECT
  Q_PROPERTY(bool signInMode READ isSignInMode CONSTANT)
+ Q_PROPERTY(bool signInEnabled READ isSignInEnabled NOTIFY changed)
  Q_PROPERTY(bool trackerConnected READ isTrackerConnected NOTIFY trackerConnectionChanged)
  Q_PROPERTY(QString portalStatus MEMBER portalStatus NOTIFY changed)
  Q_PROPERTY(QString tobiiStatus MEMBER tobiiStatus NOTIFY changed)
@@ -93,6 +94,7 @@ class Controller:public QObject{
 public:
  explicit Controller(bool signIn=false,const QJsonObject &signInProfile={});~Controller()override;
  bool isSignInMode()const{return signInMode;}
+ bool isSignInEnabled()const;
  bool isTrackerConnected()const{return trackerConnected;}
  Q_INVOKABLE void configureSignIn(bool enabled);
  Q_INVOKABLE void updateKeyboardMask(QObject *window,const QVariantList &rectangles,bool enabled);

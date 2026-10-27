@@ -3,6 +3,7 @@
 #include <QStringList>
 namespace WindowsSignIn {
 bool secureDesktop();
+bool enabled();
 QJsonObject profile();
 QJsonObject validatedProfile(const QJsonObject &source);
 bool configure(bool enabled,const QJsonObject &profile);
