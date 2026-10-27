@@ -4,10 +4,43 @@ param([Parameter(Mandatory)][string]$Msi, [Parameter(Mandatory)][string]$Certifi
 $ErrorActionPreference = 'Stop'
 $path = (Resolve-Path $Msi).Path
 & "$PSScriptRoot/Assert-NoTobiiRuntime.ps1" -Msi $path
-$installed = "$env:ProgramFiles/GazeGrid/gazegrid.exe"
+$installed = [IO.Path]::GetFullPath("$env:ProgramFiles/GazeGrid/gazegrid.exe")
 function Run-Msi([string]$Operation, [string[]]$Properties = @()) {
     $process = Start-Process msiexec.exe -ArgumentList (@($Operation, "`"$path`"", '/qn', '/norestart', '/l*v', "`"$env:RUNNER_TEMP/gazegrid-msi-$mode-$($Operation.TrimStart('/')).log`"") + $Properties) -Wait -PassThru
     if ($process.ExitCode -notin @(0, 3010)) { throw "MSI failed: $($process.ExitCode)" }
+}
+function Test-KeyboardInstanceLifecycle {
+    $sessionId = (Get-Process -Id $PID).SessionId
+    function Get-TestKeyboards {
+        @(Get-CimInstance Win32_Process -Filter "Name='gazegrid.exe'" | Where-Object {
+            $_.SessionId -eq $sessionId -and $_.ExecutablePath -eq $installed
+        })
+    }
+    if (@(Get-TestKeyboards).Count) { throw 'Unexpected keyboard process before the instance lifecycle test.' }
+    $passed = $false
+    try {
+        # Exercise the actual installed startup path; --smoke/--diagnose bypass
+        # both the singleton and accessibility notifications.
+        $owner = Start-Process $installed -Verb Open -WindowStyle Hidden -ArgumentList '--accessibility' -PassThru
+        $null = $owner.Handle
+        if ($owner.WaitForExit(1000)) { throw 'The owning keyboard exited during startup.' }
+        foreach ($attempt in 1..3) {
+            $duplicate = Start-Process $installed -Verb Open -WindowStyle Hidden -ArgumentList '--accessibility' -PassThru
+            $null = $duplicate.Handle
+            if (!$duplicate.WaitForExit(5000)) { throw 'A broker-style duplicate remained running.' }
+            if ($duplicate.ExitCode -ne 0) { throw 'A duplicate launch did not exit successfully.' }
+        }
+        $keyboards = @(Get-TestKeyboards)
+        if ($keyboards.Count -ne 1 -or $keyboards[0].ProcessId -ne $owner.Id) { throw 'Repeated launches created additional keyboard instances.' }
+        $passed = $true
+    } finally {
+        if (!$passed) {
+            # This fixture runs on an isolated machine. Break a regressed broker
+            # loop before cleanup so a failed test cannot exhaust the runner.
+            Remove-Item -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\GazeGrid_GazeGrid_v1' -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        Get-TestKeyboards | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    }
 }
 Remove-Item "Cert:\LocalMachine\Root\$CertificateThumbprint" -Force
 $accessibility = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility'
@@ -32,6 +65,7 @@ try {
     if ($expectedUIAccess) {
         New-ItemProperty "$accessibility\ATs\$atName" -Name SecureDesktopAccommodation -Value 1 -PropertyType DWord -Force | Out-Null
         New-ItemProperty "$accessibility\ATs\$atName" -Name StartParams -Value '--sign-in' -PropertyType String -Force | Out-Null
+        New-ItemProperty "$accessibility\ATs\$atName" -Name TerminateOnDesktopSwitch -Value 1 -PropertyType DWord -Force | Out-Null
     }
     # A repair with no consent property must preserve the original mode.
     Run-Msi '/fomus'
@@ -51,7 +85,8 @@ try {
     if ($expectedUIAccess -and (!$registration -or [IO.Path]::GetFullPath($registration.StartExe) -ne [IO.Path]::GetFullPath($installed))) { throw 'Trusted sign-in registration is missing or incorrect.' }
     if (!$expectedUIAccess -and $registration) { throw 'Unsigned installation must not register secure-desktop startup.' }
     if ($expectedUIAccess -and ($registration.PSObject.Properties.Name -contains 'SecureDesktopAccommodation')) { throw 'Same-app secure desktop support must use the default accommodation, without an override.' }
-    if ($expectedUIAccess -and ($registration.PSObject.Properties.Name -contains 'StartParams')) { throw 'Windows must be able to restart GazeGrid on either desktop without sign-in-only arguments.' }
+    if ($expectedUIAccess -and $registration.StartParams -ne '--accessibility') { throw 'Windows must use the desktop-independent accessibility launch marker.' }
+    if ($expectedUIAccess -and $registration.TerminateOnDesktopSwitch -ne 0) { throw 'Direct accessibility launches require the unmanaged desktop lifecycle.' }
 
     $signature = Get-AuthenticodeSignature $installed
     if ($expectedUIAccess -and ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $CertificateThumbprint)) {
@@ -94,6 +129,7 @@ try {
     $null = $process.Handle
     if (!$process.WaitForExit(30000)) { $process.Kill(); throw 'Installed application timed out.' }
     if ($process.ExitCode -ne 0) { throw "Installed application failed: $($process.ExitCode)" }
+    if ($mode -eq 'default') { Test-KeyboardInstanceLifecycle }
 } finally { Run-Msi '/x' }
 $remainingStartup = @(((Get-ItemProperty $accessibility -Name Configuration -ErrorAction SilentlyContinue).Configuration -split ',') | Where-Object { $_ })
 if ($atName -in $remainingStartup) { throw 'Sign-in startup remained after uninstall.' }

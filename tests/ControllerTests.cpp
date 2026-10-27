@@ -14,6 +14,28 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <QWindow>
+#include <QSemaphore>
+#include <atomic>
+namespace {
+class RetryTracker:public TobiiInput {
+public:
+ explicit RetryTracker(int failures=0):failures(failures){}
+ std::atomic<int> starts{0};
+ std::atomic<bool> disconnectRequested{false};
+ QSemaphore started;
+protected:
+ void run()override{
+  const int attempt=++starts;
+  if(attempt<=failures){emit status("Tracker service is not ready");started.release();return;}
+  emit status("Test tracker connected");emit connectionChanged(true);
+  emit gaze(.25,.75,true,GazeClock::now());started.release();
+  while(!isInterruptionRequested()&&!disconnectRequested.exchange(false))msleep(5);
+  emit connectionChanged(false);
+ }
+private:
+ int failures;
+};
+}
 class ControllerTests:public QObject {
  Q_OBJECT
  static QVariantMap overlapKey(QString tag,QString text,int duration=10){
@@ -1005,6 +1027,74 @@ private slots:
   QVERIFY(controller.property("actionStatus").toString().contains("Display configuration changed"));
   QVERIFY(controller.executeCommands({}));
  }
+ void inactiveDesktopCancelsCommandsAndRejectsInput(){
+  Controller controller;controller.openLayout("keyboard-conversation-fullscreen",false);
+  const auto name=controller.property("layoutName").toString();
+  QVERIFY(controller.executeCommands({QVariantMap{{"tag","KeyDown"},{"text","LeftShift"}},
+      QVariantMap{{"tag","Wait"},{"text","500"}},QVariantMap{{"tag","Text"},{"text","pending"}}}));
+  QTRY_VERIFY(!controller.heldKeys().isEmpty());
+  controller.setDesktopActive(false);
+  QVERIFY(!controller.isDesktopActive());QVERIFY(!controller.ready());QVERIFY(!controller.executingCommands());
+  QVERIFY(controller.heldKeys().isEmpty());QVERIFY(controller.heldPointerButtons().isEmpty());
+  QVERIFY(!controller.executeCommands({QVariantMap{{"tag","Text"},{"text","blocked"}}}));
+  controller.activate("Recover");controller.clickCommand("CycleKeyMode");controller.togglePause();
+  QCOMPARE(controller.hover("Pause"),0.0);QVERIFY(controller.hoverKeys({"key:0"}).isEmpty());
+  QCOMPARE(controller.dwellAt(.5,.5,true),0.0);QCOMPARE(controller.canvasEditAt(.5,.5,true),0.0);
+  QCOMPARE(controller.property("layoutName").toString(),name);QCOMPARE(controller.keyMode(),QString("Tap"));
+  QVERIFY(!controller.property("paused").toBool());
+  controller.setDesktopActive(true);QTest::qWait(550);
+  QVERIFY(controller.property("scratchpad").toString().isEmpty());
+  QVERIFY(controller.executeCommands({QVariantMap{{"tag","Text"},{"text","resumed"}}}));
+  QTRY_COMPARE(controller.property("scratchpad").toString(),QString("resumed"));
+ }
+ void desktopSuspensionPreservesDesiredGazeAndPause(){
+  RetryTracker tracker;Controller controller(false,{},&tracker);
+  controller.configureInputMethod([](QString){return true;},[](QString,bool){return true;});controller.inputContextChanged(true,false);
+  controller.setGazeEnabled(true);controller.setProperty("paused",true);QVERIFY(controller.savePreferences());
+  QTRY_VERIFY(controller.isTrackerConnected());QCOMPARE(tracker.starts.load(),1);
+  const auto path=QDir(appConfigDirectory()).filePath("profile.json");QFile before(path);QVERIFY(before.open(QIODevice::ReadOnly));const auto saved=before.readAll();before.close();
+  QSignalSpy preferenceChanged(&controller,&Controller::gazeEnabledChanged);
+  controller.setDesktopActive(false);controller.setDesktopActive(false);
+  QVERIFY(!tracker.isRunning());QVERIFY(!controller.isTrackerConnected());QVERIFY(controller.isGazeEnabled());
+  QVERIFY(!controller.ready());QVERIFY(controller.property("paused").toBool());QCOMPARE(preferenceChanged.size(),0);
+  controller.setDesktopActive(true);QTRY_VERIFY(controller.isTrackerConnected());
+  QCOMPARE(tracker.starts.load(),2);QVERIFY(controller.ready());QVERIFY(controller.property("paused").toBool());
+  QFile after(path);QVERIFY(after.open(QIODevice::ReadOnly));QCOMPARE(after.readAll(),saved);after.close();
+  QCOMPARE(preferenceChanged.size(),0);
+  controller.setGazeEnabled(false);QVERIFY(!tracker.isRunning());QVERIFY(!controller.isTrackerConnected());
+ }
+ void trackerRetriesServiceStartupAndCancelsRetryWhenDisabled(){
+  RetryTracker tracker(1);Controller controller(false,{},&tracker);controller.setGazeEnabled(true);
+  QTRY_VERIFY(controller.property("tobiiStatus").toString().startsWith("Retrying eye tracker in 1 s."));
+  QCOMPARE(tracker.starts.load(),1);QTest::qWait(100);QCOMPARE(tracker.starts.load(),1);
+  QTRY_VERIFY_WITH_TIMEOUT(controller.isTrackerConnected(),2500);QCOMPARE(tracker.starts.load(),2);
+  tracker.disconnectRequested=true;
+  // A real connection resets the retry delay instead of retaining prior failures.
+  QTRY_VERIFY(controller.property("tobiiStatus").toString().startsWith("Retrying eye tracker in 1 s."));
+  controller.setGazeEnabled(false);const auto attempts=tracker.starts.load();QTest::qWait(1150);
+  QCOMPARE(tracker.starts.load(),attempts);QVERIFY(!tracker.isRunning());QVERIFY(!controller.isTrackerConnected());
+ }
+ void suspendedTrackerDiscardsAlreadyQueuedSignals(){
+  RetryTracker tracker;Controller controller(false,{},&tracker);QSignalSpy samples(&controller,&Controller::gazePoint);
+  controller.setGazeEnabled(true);
+  // Wait without servicing GUI events so the worker's connected/sample signals
+  // are definitely queued when the desktop is suspended.
+  QVERIFY(tracker.started.tryAcquire(1,1000));controller.setDesktopActive(false);QCoreApplication::processEvents();
+  QVERIFY(!controller.isTrackerConnected());QVERIFY(!tracker.isRunning());
+  QCOMPARE(controller.property("tobiiStatus").toString(),QString("Desktop inactive; eye tracking suspended"));
+  for(const auto &sample:samples)QVERIFY(!sample[2].toBool());
+  controller.setDesktopActive(true);QTRY_VERIFY(controller.isTrackerConnected());QCOMPARE(tracker.starts.load(),2);
+  controller.setGazeEnabled(false);
+ }
+#ifdef GAZEGRID_WINDOWS
+ void desktopConnectionRequestedWhileInactiveStartsOnResume(){
+  Controller controller;controller.setDesktopActive(false);controller.connectDesktop();
+  QVERIFY(!controller.ready());QVERIFY(!controller.output()->ready());
+  controller.setDesktopActive(true);QVERIFY(controller.ready());QVERIFY(controller.output()->ready());
+  controller.setDesktopActive(false);QVERIFY(!controller.ready());QVERIFY(!controller.output()->ready());
+  controller.setDesktopActive(true);QVERIFY(controller.ready());
+ }
+#endif
  void resetStaysPausedAndPersists(){
   {Controller controller;controller.setProperty("dwellMs",1250);controller.setProperty("literal",true);
    QVERIFY(controller.savePreferences());}

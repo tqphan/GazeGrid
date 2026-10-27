@@ -37,6 +37,7 @@
 #ifdef _WIN32
 #include "WindowsTheme.h"
 #include "WindowsSignIn.h"
+#include "WindowsDesktopSession.h"
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -97,7 +98,10 @@ int main(int argc,char **argv){
  for(int i=1;i<argc;++i){const auto argument=QString::fromLocal8Bit(argv[i]);signInMode|=argument=="--sign-in";signInCheck|=argument=="--sign-in-ui-check";}
  if(secureDesktop){
   // Only the keyboard may run on Winlogon; editor/diagnostic modes stay on the user's desktop.
-  for(int i=1;i<argc;++i)if(QString::fromLocal8Bit(argv[i])!="--sign-in")return 2;
+  for(int i=1;i<argc;++i){
+   const auto argument=QString::fromLocal8Bit(argv[i]);
+   if(argument!="--sign-in"&&argument!="--accessibility")return 2;
+  }
   signInMode=true;
   wchar_t executable[32768]{};if(!GetModuleFileNameW(nullptr,executable,32768))return 2;
   const auto directory=QFileInfo(QString::fromWCharArray(executable)).absolutePath();
@@ -111,6 +115,18 @@ int main(int argc,char **argv){
  for(int i=1;i<argc;++i)if(QString::fromLocal8Bit(argv[i])=="--configure-sign-in"){
   // The elevated settings helper needs no GUI or user-supplied Qt plugins.
   QCoreApplication helper(argc,argv);return WindowsSignIn::setup(helper.arguments());
+ }
+ // A broker-started duplicate must exit before Qt UI, tracking, or either
+ // accessibility notification. Each desktop has its own independent owner.
+ QStringList startupArguments;
+ for(int i=0;i<argc;++i)startupArguments<<QString::fromLocal8Bit(argv[i]);
+ std::unique_ptr<WindowsDesktop::Instance> keyboardInstance;
+ if(WindowsDesktop::keyboardInvocation(startupArguments)){
+  keyboardInstance=std::make_unique<WindowsDesktop::Instance>();
+  if(keyboardInstance->duplicate())return 0;
+  if(!keyboardInstance->owner()){
+   fprintf(stderr,"Cannot acquire the keyboard desktop instance (Windows error %lu)\n",static_cast<unsigned long>(keyboardInstance->error()));return 2;
+  }
  }
 #endif
 #ifdef _WIN32
@@ -202,6 +218,18 @@ int main(int argc,char **argv){
 #endif
 #ifdef _WIN32
  Controller controller(signInMode,signInMode?WindowsSignIn::profile():QJsonObject{});
+ std::unique_ptr<WindowsDesktop::Monitor> desktopMonitor;
+ if(keyboardInstance){
+  desktopMonitor=std::make_unique<WindowsDesktop::Monitor>();
+  QObject::connect(desktopMonitor.get(),&WindowsDesktop::Monitor::activeChanged,&controller,[&](bool active){
+   controller.setDesktopActive(active);
+   // The user desktop persists. A secure copy exits when its desktop loses
+   // input, releasing the tracker before the user instance resumes.
+   if(secureDesktop&&!active)app.quit();
+  });
+  desktopMonitor->start();
+  if(secureDesktop&&!desktopMonitor->active())return 0;
+ }
 #else
  Controller controller;
 #endif
@@ -448,9 +476,15 @@ int main(int argc,char **argv){
  if(signInCheck){
   window->setProperty("gazeCheck",true);window->setProperty("gazeEnabled",false);
   QTimer::singleShot(100,&app,[&]{
+   auto status=window->findChild<QQuickItem*>("signInTrackerStatus");QVariant underStatus;
+   const bool statusVisible=status&&status->isVisible();
+   const bool statusBlocksKeys=statusVisible&&QMetaObject::invokeMethod(window,"keyAt",Q_RETURN_ARG(QVariant,underStatus),
+      Q_ARG(QVariant,status->x()+status->width()/2),Q_ARG(QVariant,status->y()+status->height()/2))&&underStatus.toString().isEmpty();
+   window->setProperty("trackerConnected",true);
    const bool ok=controller.isSignInMode()&&controller.predictionMode()=="off"
-      &&controller.property("suggestions").toStringList().isEmpty()&&!settings->isVisible();
-   QTextStream(stdout)<<(ok?"PASS: sign-in keyboard uses the existing UI without prediction or settings":"FAIL: sign-in keyboard privacy")<<Qt::endl;
+      &&controller.property("suggestions").toStringList().isEmpty()&&!settings->isVisible()
+      &&statusBlocksKeys&&!status->isVisible();
+   QTextStream(stdout)<<(ok?"PASS: sign-in keyboard privacy and tracker status":"FAIL: sign-in keyboard privacy or tracker status")<<Qt::endl;
    app.exit(ok?0:2);
   });return app.exec();
  }
@@ -1096,11 +1130,20 @@ int main(int argc,char **argv){
  bool diagnosticMode=smoke;
  for(const auto &arg:args)if(arg.endsWith("-check"))diagnosticMode=true;
 #ifdef _WIN32
- // Ease of Access must know about launches from Explorer/Start so it can
- // provide the registered keyboard when UAC switches to the secure desktop.
- if(!diagnosticMode&&WindowsSignIn::registered()){
-  if(!secureDesktop&&!WindowsSignIn::notify(true))qWarning("Could not notify Windows accessibility that GazeGrid started");
-  QObject::connect(&app,&QCoreApplication::aboutToQuit,&app,[]{WindowsSignIn::notify(false);});
+ // Only the owning normal-desktop instance announces itself. Secure copies
+ // and rejected broker duplicates never send Win+U or an exit notification.
+ bool accessibilityAnnounced=false;
+ if(keyboardInstance&&!secureDesktop&&WindowsSignIn::registered()){
+  auto announce=[&]{
+   if(!accessibilityAnnounced&&WindowsDesktop::inputDesktopActive())
+    accessibilityAnnounced=WindowsSignIn::notify(true);
+  };
+  announce();
+  QObject::connect(desktopMonitor.get(),&WindowsDesktop::Monitor::activeChanged,&app,[announce](bool active){if(active)announce();});
+  QObject::connect(&app,&QCoreApplication::aboutToQuit,&app,[&]{
+   controller.setDesktopActive(false);
+   if(accessibilityAnnounced&&WindowsDesktop::inputDesktopActive())WindowsSignIn::notify(false);
+  });
  }
 #endif
  if(!diagnosticMode&&

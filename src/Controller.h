@@ -17,6 +17,7 @@ class Controller:public QObject{
  Q_OBJECT
  Q_PROPERTY(bool signInMode READ isSignInMode CONSTANT)
  Q_PROPERTY(bool signInEnabled READ isSignInEnabled NOTIFY changed)
+ Q_PROPERTY(bool desktopActive READ isDesktopActive NOTIFY changed)
  Q_PROPERTY(bool trackerConnected READ isTrackerConnected NOTIFY trackerConnectionChanged)
  Q_PROPERTY(QString portalStatus MEMBER portalStatus NOTIFY changed)
  Q_PROPERTY(QString tobiiStatus MEMBER tobiiStatus NOTIFY changed)
@@ -102,16 +103,19 @@ class Controller:public QObject{
  Q_PROPERTY(bool magnifierReady MEMBER magnifierReady NOTIFY changed)
  Q_PROPERTY(int magnifierRevision MEMBER magnifierRevision NOTIFY magnifierFrameChanged)
 public:
- explicit Controller(bool signIn=false,const QJsonObject &signInProfile={});~Controller()override;
+ // An injected tracker must outlive this controller; production uses the owned worker.
+ explicit Controller(bool signIn=false,const QJsonObject &signInProfile={},TobiiInput *tracker=nullptr);~Controller()override;
  bool isSignInMode()const{return signInMode;}
  bool isSignInEnabled()const;
  bool isTrackerConnected()const{return trackerConnected;}
+ bool isDesktopActive()const{return desktopActive;}
+ void setDesktopActive(bool active);
  Q_INVOKABLE void configureSignIn(bool enabled);
  Q_INVOKABLE void updateKeyboardMask(QObject *window,const QVariantList &rectangles,bool enabled);
  bool isMagnifierEnabled()const{return magnifierEnabled;}
  void setMagnifierEnabled(bool enabled);
  PortalInput *output(){return &portal;}
- bool ready()const{return nativeActive||portal.ready();}
+ bool ready()const{return desktopActive&&(nativeActive||portal.ready());}
  void configureInputMethod(std::function<bool(QString)> text,std::function<bool(QString,bool)> key);
  void inputContextChanged(bool active,bool sensitive);
  void invalidateInputContext();
@@ -157,9 +161,9 @@ public:
  Q_INVOKABLE bool saveMappings(QString json);
  Q_INVOKABLE bool savePreferences();
  Q_INVOKABLE void resetPreferences();
- Q_INVOKABLE void connectDesktop(){portal.setRememberPermission(rememberDesktop);portal.connectPortal();}
+ Q_INVOKABLE void connectDesktop();
  Q_INVOKABLE void forgetDesktopPermission(){portal.forgetPermission();rememberDesktop=false;emit changed();}
- Q_INVOKABLE void connectTobii(){if(!tobii.isRunning())tobii.start();}
+ Q_INVOKABLE void connectTobii();
  Q_INVOKABLE void togglePause();
  Q_INVOKABLE void activate(QString key);
  Q_INVOKABLE bool saveCanvasGeometry();
@@ -196,7 +200,7 @@ public:
  Q_INVOKABLE void speak();
  Q_INVOKABLE void stopSpeech();
  // Used only by deterministic external-input integration checks.
- bool executeCommands(const QVariantList &commands){return runner.start(commands);}
+ bool executeCommands(const QVariantList &commands){return desktopActive&&runner.start(commands);}
  bool executingCommands()const{return runner.busy();}
 signals:
  void geometryPreferencesChanged();
@@ -208,6 +212,8 @@ signals:
  void layoutChanged();
  void gazePoint(double x,double y,bool valid);
 private:
+ void stopTracker();
+ void scheduleTrackerRetry();
  bool isSleepKey(const QString &key) const;
  bool performAction(QString action);
  void clearCapture();
@@ -246,7 +252,11 @@ private:
  bool smoothTargetChanges=false;
  GameController gameController;
  int activeJoystick=-1;
- PortalInput portal;TobiiInput tobii;Dwell dwell;ActionRunner runner;PointerActions pointer;QElapsedTimer clock,gazeAge;
+ PortalInput portal;TobiiInput ownedTracker;TobiiInput &tobii;Dwell dwell;ActionRunner runner;PointerActions pointer;QElapsedTimer clock,gazeAge;
+ QTimer trackerRetryTimer;
+ int trackerRetryDelayMs=1000;
+ quint64 trackerGeneration=0;
+ bool desktopActive=true,desktopOutputRequested=false;
  ScreenshotPortal screenshot;
  Q_SLOT void receiveMagnifierFrame(QImage image);
  QTimer zoomTimer;

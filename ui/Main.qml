@@ -23,7 +23,7 @@ Window {
  readonly property bool overlapEnabled:controller.layout.layoutMode==="canvas"&&controller.layout.activateoverlappingkeys===true&&!controller.sizeMoveMode
  readonly property var overlapTargets: {
   const revision=hitTestRevision
-  if(!overlapEnabled||!root.visible||controller.targeting||controller.keyboardTemporarilyHidden)return []
+  if(!controller.desktopActive||!overlapEnabled||!root.visible||controller.targeting||controller.keyboardTemporarilyHidden)return []
   if(root.usingGaze&&!root.gazeValid)return []
   if(!root.usingGaze&&!canvasHover.hovered)return []
   const point=root.usingGaze?Qt.point(gaze.x*screenWidth-logicalX,gaze.y*screenHeight-logicalY):canvasHover.point.position
@@ -34,7 +34,15 @@ Window {
  readonly property bool restoreButtonEnabled:Qt.platform.os === "linux"
  property bool minimizedRecovery:restoreButtonEnabled&&controller.layoutName.startsWith("minimized-off-screen-")
  property bool trackerConnected:controller.trackerConnected
- property bool usingGaze:gazeEnabled&&trackerConnected
+ property bool desktopActive:controller.desktopActive
+ onDesktopActiveChanged:{
+  if(!desktopActive){
+   root.hovered="";root.progress=0;root.overlapProgress=({});root.targetProgress=0
+   root.targetPointValid=false;root.gazeValid=false;root.gaze=Qt.point(-1,-1);root.canvasDragging=false
+   keyboardGazeIndicator.resetMotion()
+  }
+ }
+ property bool usingGaze:desktopActive&&gazeEnabled&&trackerConnected
  onUsingGazeChanged:{
   // Require fresh pointer motion after a gaze transition; stale hover must not
   // deflect a joystick again immediately after tracking loss.
@@ -79,6 +87,7 @@ Window {
  function updateInputMask() {
   let rectangles=[]
   for(let i=0;i<keys.count;++i){let key=keys.itemAt(i);if(key&&key.visible)rectangles.push(Qt.rect(key.x,key.y,key.width,key.height))}
+  if(signInTrackerStatus.visible)rectangles.push(Qt.rect(signInTrackerStatus.x,signInTrackerStatus.y,signInTrackerStatus.width,signInTrackerStatus.height))
   controller.updateKeyboardMask(root,rectangles,backgroundClickThrough)
  }
  Component.onCompleted:Qt.callLater(updateInputMask)
@@ -92,7 +101,12 @@ Window {
   const value=style&&style[name]!==undefined?Number(style[name]):1
   return isFinite(value)?Math.max(0,Math.min(1,value)):1
  }
+ function overSignInStatus(px,py) {
+  return signInTrackerStatus.visible&&px>=signInTrackerStatus.x&&py>=signInTrackerStatus.y
+     &&px<signInTrackerStatus.x+signInTrackerStatus.width&&py<signInTrackerStatus.y+signInTrackerStatus.height
+ }
  function keyAt(px,py) {
+  if(overSignInStatus(px,py))return ""
   for(let i=keys.count-1;i>=0;--i){let item=keys.itemAt(i);if(!item)continue
    if(px>=item.x&&py>=item.y&&px<item.x+item.width&&py<item.y+item.height){
     if(controller.sizeMoveMode)return "key:"+i
@@ -106,6 +120,7 @@ Window {
   return ""
  }
  function keysAt(px,py) {
+  if(overSignInStatus(px,py))return []
   // Joysticks and prediction slots retain their exclusive interaction model.
   const top=keyAt(px,py)
   if(!top.startsWith("key:"))return []
@@ -125,7 +140,7 @@ Window {
   function onChanged(){if(controller.keyboardTemporarilyHidden){root.hovered="";root.progress=0}if(!controller.targeting){root.targetProgress=0;root.targetPointValid=false}}
  }
  Timer {
-  interval:25;running:!root.gazeCheck;repeat:true
+  interval:25;running:!root.gazeCheck&&root.desktopActive;repeat:true
   onTriggered:{
    if(root.usingGaze&&controller.gazeDwellPaused){controller.pauseGazeDwell();return}
    if(controller.sizeMoveMode){
@@ -418,6 +433,25 @@ Window {
    Accessible.name:key.sleepKey?(controller.paused?"Resume input":"Pause input"):root.minimizedRecovery?"Restore keyboard":key.unavailableReason?key.unavailableReason:(key.label||key.modelData.symbol)
    Accessible.onPressAction:controller.clickCommand(key.command)
   }
+ }
+ Rectangle {
+  id:signInTrackerStatus;objectName:"signInTrackerStatus"
+  visible:controller.signInMode&&root.desktopActive&&root.visible&&!root.trackerConnected
+  anchors.horizontalCenter:parent.horizontalCenter;y:6;z:90
+  width:Math.min(720,Math.max(0,root.width-16));height:signInTrackerText.implicitHeight+12
+  radius:6;color:root.keyboardBackground;border.width:1;border.color:root.trackerConnected?root.dwellColor:root.keyboardBorder
+  onVisibleChanged:Qt.callLater(root.updateInputMask)
+  onWidthChanged:Qt.callLater(root.updateInputMask)
+  onHeightChanged:Qt.callLater(root.updateInputMask)
+  Text {
+   id:signInTrackerText;objectName:"signInTrackerText"
+   anchors.left:parent.left;anchors.right:parent.right;anchors.verticalCenter:parent.verticalCenter;anchors.margins:12
+   text:!root.gazeEnabled?"Eye tracking is off — mouse dwell available":root.trackerConnected?"Eye tracking connected":"Eye tracker: "+controller.tobiiStatus
+   color:root.keyboardForeground;font.pixelSize:13;wrapMode:Text.Wrap;maximumLineCount:2;elide:Text.ElideRight
+   Accessible.role:Accessible.StaticText;Accessible.name:text
+  }
+  // The status is read-only; never activate the keyboard key beneath it.
+  MouseArea {anchors.fill:parent;hoverEnabled:true;acceptedButtons:Qt.AllButtons;onEntered:{root.hovered="";root.progress=0}}
  }
  Rectangle {
   z:45;visible:controller.sizeMoveMode&&controller.canvasEditPreview.col!==undefined

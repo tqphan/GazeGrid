@@ -6,6 +6,8 @@ On Windows with Qt 6 MinGW installed in C:\Qt, double-click **run.cmd** to build
 
 The trusted Windows installation enables startup before sign-in by default. Uncheck **Start GazeGrid before Windows sign-in** in setup or pass `GAZEGRID_SIGN_IN=0` for a silent installation to turn it off. Unsigned installations keep sign-in startup disabled, and repairs preserve the selected choice. In **Settings → Keyboard → Windows sign-in**, clear and select **Use this keyboard at sign-in** to copy your current installed keyboard and gaze preferences before entering your password. Prediction is disabled there. Administrator approval is required; actual sign-in and Tobii hardware acceptance remain pending. See the [sign-in setup notes](docs/windows.md#keyboard-before-windows-sign-in).
 
+Windows runs one keyboard instance per desktop. The normal instance releases eye tracking and suspends input while the login/UAC desktop is active. Login defaults enable gaze without requiring copied preferences, preserve an explicit gaze-off choice, and retry if Tobii is not ready. The login keyboard displays connection errors and retry timing.
+
 Windows app integration, Linux/Windows CI, and signed UIAccess MSI packaging are
 configured. See [Windows build and release instructions](docs/windows.md) for
 signing setup, SDK options, and remaining native acceptance checks.

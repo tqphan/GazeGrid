@@ -42,7 +42,7 @@ QString panelPlacementReason(const QVariantMap &layout){
  return {};
 }
 }
-Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(signIn){
+Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *tracker):tobii(tracker?*tracker:ownedTracker),signInMode(signIn){
  sensitiveInput=signInMode;
  zoomTimer.setInterval(33);connect(&zoomTimer,&QTimer::timeout,this,&Controller::updateMagnifierZoom);
  connect(&speech,&SpeechOutput::status,this,[this](QString message){actionStatus=message;emit changed();});
@@ -114,11 +114,11 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(
  }
  if(!mappingError.isEmpty())profileStatus+=(profileStatus.isEmpty()?QString():QString(" "))+mappingError+". Using default mappings; saved file was preserved.";
 #endif
- pointer.move=[this](double x,double y){return portal.moveAbsolute(x,y);};
- pointer.moveRelative=[this](double x,double y){return portal.move(x,y);};
- pointer.button=[this](int code,bool down){return portal.button(code,down);};
- pointer.scroll=[this](double amount){return portal.scroll(amount);};
- pointer.scrollAxes=[this](double x,double y){return portal.scrollAxes(x,y);};
+ pointer.move=[this](double x,double y){return desktopActive&&portal.moveAbsolute(x,y);};
+ pointer.moveRelative=[this](double x,double y){return desktopActive&&portal.move(x,y);};
+ pointer.button=[this](int code,bool down){return (!down||desktopActive)&&portal.button(code,down);};
+ pointer.scroll=[this](double amount){return desktopActive&&portal.scroll(amount);};
+ pointer.scrollAxes=[this](double x,double y){return desktopActive&&portal.scrollAxes(x,y);};
  pointer.releaseAll=[this]{portal.releaseButtons();};
  connect(&pointer,&PointerActions::changed,this,[this]{targeting=pointer.targeting();if(!targeting)clearCapture();emit changed();});
  connect(&screenshot,&ScreenshotPortal::failed,this,[this](QString error){
@@ -126,13 +126,13 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(
  });
  connect(&screenshot,&ScreenshotPortal::captured,this,[this](QImage image){receiveMagnifierFrame(image);});
  connect(&pointer,&PointerActions::completed,this,[this](bool ok){actionStatus=pointer.prompt();runner.resume(ok);emit changed();});
- runner.sendKey=[this](QString name,bool down){return portal.key(KeyNames::linuxCode(name),down);};
+ runner.sendKey=[this](QString name,bool down){return (!down||desktopActive)&&portal.key(KeyNames::linuxCode(name),down);};
  connect(&gameController,&GameController::changed,this,&Controller::changed);
  connect(&gameController,&GameController::failed,this,[this](QString error){activeJoystick=-1;actionStatus=error;emit changed();});
  runner.performAction=[this](QString action){return performAction(action);};
- runner.speakLabel=[this](QString label){if(!sensitiveInput)speech.speak(label);};
+ runner.speakLabel=[this](QString label){if(desktopActive&&!sensitiveInput)speech.speak(label);};
  runner.supportsAction=ActionCatalog::supported;
- runner.navigate=[this](QString name,bool back){openLayout(name,back);};
+ runner.navigate=[this](QString name,bool back){if(desktopActive)openLayout(name,back);};
  connect(&runner,&ActionRunner::failed,this,[this](QString m){endButtonHold();gameController.reset();activeJoystick=-1;actionStatus=m.contains("Gamepad")&&!gameController.error().isEmpty()?gameController.error():m;emit changed();});
  connect(&runner,&ActionRunner::stateChanged,this,&Controller::changed);
  connect(&runner,&ActionRunner::cancelled,this,&Controller::clearOverlap);
@@ -147,10 +147,8 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(
  connect(&runner,&ActionRunner::cancelled,this,[this]{pendingCompletionText.clear();});
  connect(&portal,&PortalInput::status,this,[this](QString m){portalStatus=m;emit changed();});
  connect(&portal,&PortalInput::readyChanged,this,[this]{dwell.reset();if(!ready()){runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}emit changed();});
- connect(&tobii,&TobiiInput::status,this,[this](QString m){tobiiStatus=m;emit changed();});
- connect(&tobii,&TobiiInput::gaze,this,&Controller::receiveGaze);
- connect(&tobii,&TobiiInput::connectionChanged,this,&Controller::setTrackerConnected);
- connect(&tobii,&QThread::finished,this,[this]{setTrackerConnected(false);});
+ trackerRetryTimer.setSingleShot(true);
+ connect(&trackerRetryTimer,&QTimer::timeout,this,&Controller::connectTobii);
  auto timer=new QTimer(this);timer->setInterval(25);connect(timer,&QTimer::timeout,this,[this]{
   if(!overlapDwells.isEmpty()&&clock.elapsed()-lastHoldHover>200)clearOverlap();
   if(!buttonHoldTarget.isEmpty()&&clock.elapsed()-lastHoldHover>200){endButtonHold();dwell.reset();}
@@ -161,16 +159,82 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(
  if(!layoutNames.contains(start)){start=ProfileStore::defaults()["startLayout"].toString();profileStatus="Saved keyboard is unavailable. Opened the default keyboard.";}
  openLayout(start,false);
 }
-Controller::~Controller(){runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();portal.close();
+Controller::~Controller(){desktopActive=false;stopTracker();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();portal.close();
  if(signInMode)return;
  QJsonObject obj;for(auto it=frequencies.begin();it!=frequencies.end();++it)obj[it.key()]=it.value();QSaveFile file(configFile("learned.json"));if(file.open(QIODevice::WriteOnly)){file.write(QJsonDocument(obj).toJson());file.commit();}
 }
+void Controller::connectDesktop(){
+ desktopOutputRequested=true;
+ if(!desktopActive)return;
+ portal.setRememberPermission(rememberDesktop);portal.connectPortal();
+}
+void Controller::setDesktopActive(bool active){
+ if(desktopActive==active)return;
+ desktopActive=active;
+ if(!active){
+  clearCapture();clearOverlap();runner.cancel();endButtonHold();heldDwellTarget.clear();
+  gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();portal.close();speech.stop();
+  dwell.reset();pointDwell.reset();canvasDwell.reset();resetCanvasPlacement();
+  pendingCompletionText.clear();completionSpaceContext.clear();stopTracker();
+  tobiiStatus="Desktop inactive; eye tracking suspended";
+  actionStatus="Desktop inactive; input suspended";
+ }else{
+  // Windows may reject key-up events after the input desktop changes. Retry
+  // retained releases on the active desktop before allowing new output.
+  portal.releaseAll();
+  if(desktopOutputRequested)connectDesktop();
+  if(gazeEnabled)connectTobii();
+  else tobiiStatus="Gaze input is off";
+  actionStatus="Desktop active";
+ }
+ emit changed();
+}
+void Controller::stopTracker(){
+ trackerRetryTimer.stop();++trackerGeneration;
+ disconnect(&tobii,nullptr,this,nullptr);
+ if(tobii.isRunning())tobii.requestInterruption();
+ tobii.wait();
+ gazeAge.invalidate();gazeSmoothing.reset();gazeLossStarted=0;lastGazeSample=0;
+ if(trackerConnected){trackerConnected=false;emit trackerConnectionChanged();}
+ emit gazePoint(0,0,false);
+}
+void Controller::connectTobii(){
+ if(!desktopActive||tobii.isRunning())return;
+ trackerRetryTimer.stop();disconnect(&tobii,nullptr,this,nullptr);
+ const auto generation=++trackerGeneration;
+ // Queued samples/status from an interrupted worker must not reach a newly
+ // resumed desktop or replace the new worker's connection state.
+ connect(&tobii,&TobiiInput::status,this,[this,generation](QString message){
+  if(generation!=trackerGeneration||!desktopActive)return;
+  tobiiStatus=message;emit changed();
+ });
+ connect(&tobii,&TobiiInput::gaze,this,[this,generation](double x,double y,bool valid,qint64 sampledAt){
+  if(generation==trackerGeneration&&desktopActive)receiveGaze(x,y,valid,sampledAt);
+ });
+ connect(&tobii,&TobiiInput::connectionChanged,this,[this,generation](bool connected){
+  if(generation!=trackerGeneration||!desktopActive)return;
+  if(connected){trackerRetryDelayMs=1000;trackerRetryTimer.stop();}
+  setTrackerConnected(connected);
+ });
+ connect(&tobii,&QThread::finished,this,[this,generation]{
+  if(generation!=trackerGeneration)return;
+  setTrackerConnected(false);scheduleTrackerRetry();
+ });
+ tobiiStatus="Connecting to eye tracker";emit changed();tobii.start();
+}
+void Controller::scheduleTrackerRetry(){
+ if(!gazeEnabled||!desktopActive||tobii.isRunning()||trackerRetryTimer.isActive())return;
+ const auto delay=trackerRetryDelayMs;
+ trackerRetryDelayMs=qMin(trackerRetryDelayMs*2,30000);
+ tobiiStatus=QString("Retrying eye tracker in %1 s. %2").arg((delay+999)/1000).arg(tobiiStatus);
+ trackerRetryTimer.start(delay);emit changed();
+}
 void Controller::configureInputMethod(std::function<bool(QString)> text,std::function<bool(QString,bool)> key){
  nativeMode=true;sensitiveInput=true;
- runner.sendText=std::move(text);
- runner.canCommitText=[this]{return nativeActive;};
- runner.sendKey=[this,key=std::move(key)](QString name,bool down){return portal.ready()?portal.key(KeyNames::linuxCode(name),down):key(name,down);};
- runner.supportsPhysicalKey=[this](QString){return portal.ready();};
+ runner.sendText=[this,text=std::move(text)](QString value){return desktopActive&&nativeActive&&text(value);};
+ runner.canCommitText=[this]{return desktopActive&&nativeActive;};
+ runner.sendKey=[this,key=std::move(key)](QString name,bool down){return (!down||desktopActive)&&(portal.ready()?portal.key(KeyNames::linuxCode(name),down):key(name,down));};
+ runner.supportsPhysicalKey=[this](QString){return desktopActive&&portal.ready();};
  openLayout("keyboard-alphabet-14x4-bottom",false);
  actionStatus="Native text input enabled; authorize desktop control for pointer actions and held shortcuts";emit changed();
 }
@@ -253,12 +317,14 @@ QVariantList Controller::mapped(const QVariantList &commands,bool &ok){
  auto result=ShortcutMappings::resolve(commands,mappingProfile,bypassPlatformMappings(literal));ok=result.allowed;actionStatus=result.message;return result.commands;
 }
 void Controller::setTrackerConnected(bool connected){
+ connected=connected&&desktopActive;
  if(trackerConnected==connected)return;
  trackerConnected=connected;
  if(!connected)receiveGaze(0,0,false,0);
  emit trackerConnectionChanged();
 }
 void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
+ if(!desktopActive)return;
  const auto now=GazeClock::now();
  valid=valid&&GazeClock::fresh(sampledAt,now,lastGazeSample)&&std::isfinite(x)&&std::isfinite(y);
  if(valid){
@@ -331,7 +397,7 @@ void Controller::setSmoothWhenChangingGazeTarget(bool enabled){
  if(enabled==smoothTargetChanges)return;
  smoothTargetChanges=enabled;gazeSmoothing.reset();dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();emit changed();
 }
-void Controller::togglePause(){paused=!paused;dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.cancel();emit changed();}
+void Controller::togglePause(){if(!desktopActive)return;paused=!paused;dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.cancel();emit changed();}
 void Controller::setGazeEnabled(bool enabled){
  const bool preferenceChanged=gazeEnabled!=enabled;
  gazeEnabled=enabled;dwell.reset();gazeSmoothing.reset();
@@ -342,11 +408,12 @@ void Controller::setGazeEnabled(bool enabled){
   if(!store.save(saved,error))profileStatus=error;
  }
  if(enabled)connectTobii();
- if(!enabled){runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}
+ if(!enabled){stopTracker();tobiiStatus="Gaze input is off";runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}
  if(preferenceChanged)emit gazeEnabledChanged();
  emit changed();
 }
 void Controller::trackGaze(double x,double y,bool overDesktop){
+ if(!desktopActive)return;
  pointer.configureScroll(scrollSpeed,scrollDeadzone,scrollAxis);
  if(gazeEnabled&&!paused&&ready()&&gazeAge.isValid()&&GazeClock::now()-lastGazeSample<=200000)pointer.follow({x,y},overDesktop);
 }
@@ -372,6 +439,7 @@ void Controller::endButtonHold(){
  if(!action.isEmpty())gameController.perform(action);
 }
 double Controller::hover(QString key){
+ if(!desktopActive)return 0;
  if(gazeLossStarted){pauseGazeDwell();return dwell.progress(clock.elapsed(),dwellMs,repeatIntervalMs);}
  if(!collectingOverlap)clearOverlap();
  if(sizeMoveMode){
@@ -447,6 +515,7 @@ void Controller::clearOverlap(){
  for(const auto &target:targets)releaseOverlapTarget(target);
 }
 QVariantMap Controller::hoverKeys(const QStringList &targets){
+ if(!desktopActive)return {};
  if(layout["layoutMode"]!="canvas"||!layout["activateoverlappingkeys"].toBool()||sizeMoveMode){
   const auto target=targets.value(0);return {{target,hover(target)}};
  }
@@ -487,6 +556,7 @@ QVariantMap Controller::hoverKeys(const QStringList &targets){
  dispatchOverlap();return progress;
 }
 void Controller::dispatchOverlap(){
+ if(!desktopActive){clearOverlap();return;}
  if(gazeLossStarted)return;
  if(paused||sizeMoveMode||targeting){clearOverlap();return;}
  while(!runner.busy()&&!overlapPending.isEmpty()){
@@ -504,11 +574,13 @@ void Controller::dispatchOverlap(){
  }
 }
 void Controller::clickCommand(QString key){
+ if(!desktopActive)return;
  activate(key);dwell.consume(key,clock.elapsed());
  if(!sizeMoveMode&&layout["layoutMode"]=="canvas"&&layout["activateoverlappingkeys"].toBool()&&key.startsWith("key:"))
   overlapDwells[key].consume(key,clock.elapsed());
 }
 void Controller::activate(QString key){
+ if(!desktopActive)return;
  if(!dispatchingOverlap)clearOverlap();
  if(sizeMoveMode&&(key.startsWith("key:")||key.startsWith("suggest:"))&&!isSizeMoveKey(key)){
   if(paused)return;
@@ -595,8 +667,9 @@ void Controller::openLayout(QString name,bool backReturnsHere){
  saveCanvasChanges=!signInMode&&compiled["persistkeygeometry"].toString().compare("true",Qt::CaseInsensitive)==0;canvasSaveStatus.clear();
  resetCanvasPlacement();canvasEditMode.clear();sizeMoveMode=false;layout=compiled;layoutName=name;updateSuggestions();emit layoutChanged();emit changed();
 }
-void Controller::recover(){paused=false;backStack.clear();openLayout("main-14x1-bottom",false);}
+void Controller::recover(){if(!desktopActive)return;paused=false;backStack.clear();openLayout("main-14x1-bottom",false);}
 void Controller::joystick(int index,double x,double y,bool active){
+ if(!desktopActive)active=false;
  const auto keys=layout["keys"].toList();
  if(!active||sizeMoveMode||paused||runner.textOnly||index<0||index>=keys.size()){
   if(activeJoystick>=0&&activeJoystick<keys.size())gameController.stick(keys[activeJoystick].toMap()["style"].toMap().value("stick","Left").toString(),0,0);
@@ -610,6 +683,7 @@ void Controller::joystick(int index,double x,double y,bool active){
  }
 }
 bool Controller::performAction(QString action){
+ if(!desktopActive)return false;
  completionSpaceContext.clear();
  if(action=="MoveModeToggle"||action=="SizeModeToggle"){
   if(layout["layoutMode"]!="canvas"){actionStatus="Size/move mode requires a Canvas layout";emit changed();return true;}
@@ -671,6 +745,7 @@ bool Controller::performAction(QString action){
  actionStatus="Not implemented yet: "+action;emit changed();return false;
 }
 void Controller::targetAt(double x,double y){
+ if(!desktopActive)return;
  if(gazeLossStarted)return;
  if(paused||!ready()||!targeting||capturePending||zoomAnimating||!MagnifierGeometry::validPoint({x,y}))return;
  if(magnifierReady){
@@ -683,6 +758,7 @@ void Controller::targetAt(double x,double y){
  pointer.select(QPointF(x,y));
 }
 double Controller::dwellAt(double x,double y,bool valid){
+ if(!desktopActive)return 0;
  if(gazeLossStarted){pauseGazeDwell();return pointDwell.progress(clock.elapsed(),magnifierReady?targetConfirmDwellMs:targetStartDwellMs);}
  if(!valid||!targetDwellEnabled||!targeting||paused||!ready()||capturePending||zoomAnimating||!MagnifierGeometry::validPoint({x,y})){
   pointDwell.reset();return 0;
@@ -742,6 +818,7 @@ bool Controller::hasScratchpad()const{
 QString &Controller::typingContext(){return hasScratchpad()?scratchpad:predictionContext;}
 const QString &Controller::typingContext()const{return hasScratchpad()?scratchpad:predictionContext;}
 void Controller::updateText(QString text){
+ if(!desktopActive)return;
  const bool completion=!pendingCompletionText.isEmpty()&&text==pendingCompletionText;
  pendingCompletionText.clear();completionSpaceContext.clear();
  if(sensitiveInput)return;
@@ -796,7 +873,7 @@ void Controller::updateSuggestions(){
  suggestions=predictionSuggestions();emit changed();
 }
 void Controller::resetLearning(){if(signInMode)return;frequencies.clear();QFile::remove(configFile("learned.json"));updateSuggestions();}
-void Controller::speak(){if(!sensitiveInput)speech.speak(scratchpad);}
+void Controller::speak(){if(desktopActive&&!sensitiveInput)speech.speak(scratchpad);}
 void Controller::stopSpeech(){speech.stop();}
 
 bool Controller::keyToggled(const QVariantList &commands)const{
@@ -812,6 +889,7 @@ bool Controller::isSizeMoveKey(const QString &key) const{
  return commands.size()==1&&commands[0].toMap()["tag"]=="Action"&&(commands[0].toMap()["text"].toString().trimmed()=="MoveModeToggle"||commands[0].toMap()["text"].toString().trimmed()=="SizeModeToggle");
 }
 bool Controller::setCanvasKeyRect(int index,double x,double y,double width,double height){
+ if(!desktopActive)return false;
  auto keys=layout["keys"].toList();
  if(!sizeMoveMode||paused||layout["layoutMode"]!="canvas"||index<0||index>=keys.size()||
     !std::isfinite(x)||!std::isfinite(y)||!std::isfinite(width)||!std::isfinite(height)||
@@ -827,6 +905,7 @@ void Controller::resetCanvasPlacement(){
  sizeMoveSelection=-1;canvasEditPreview.clear();canvasAnchorValid=false;canvasPlacementArmed=false;canvasPlacementBlocked=false;canvasDwell.reset();
 }
 double Controller::canvasEditAt(double x,double y,bool valid){
+ if(!desktopActive)return 0;
  if(gazeLossStarted){pauseGazeDwell();return canvasDwell.progress(clock.elapsed(),dwellMs);}
  if(runner.busy()){canvasDwell.reset();return 0;}
  if(!sizeMoveMode||paused||!valid||!std::isfinite(x)||!std::isfinite(y)||x<0||y<0||x>1||y>1){
@@ -905,7 +984,7 @@ bool Controller::isSignInEnabled()const{
 #endif
 }
 void Controller::configureSignIn(bool enabled){
- if(signInMode)return;
+ if(signInMode||!desktopActive)return;
 #ifdef _WIN32
  QJsonObject values{{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
  values["invalidGazeToleranceMs"]=gazeToleranceMs;

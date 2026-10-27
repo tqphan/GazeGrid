@@ -6,7 +6,10 @@
 #include <QJsonDocument>
 #include <QSettings>
 #include <QFileInfo>
+#include <QEventLoop>
+#include <QThread>
 #include <shellapi.h>
+#include <objbase.h>
 namespace {
 const QString settingsPath="HKEY_LOCAL_MACHINE\\SOFTWARE\\GazeGrid\\SignIn";
 }
@@ -34,7 +37,8 @@ bool WindowsSignIn::registered(){
 }
 bool WindowsSignIn::notify(bool running){
  // Portable/development copies must not announce the installed application's ID.
- if(!registered())return false;
+ // Windows already owns secure-desktop launches; Win+U there can start another AT.
+ if(secureDesktop()||!registered())return false;
  return SignInRegistry::notify(HKEY_CURRENT_USER,SignInRegistry::temporaryKey,running,
      [](INPUT *inputs,UINT count){return SendInput(count,inputs,sizeof(INPUT));});
 }
@@ -44,10 +48,23 @@ bool WindowsSignIn::enabled(){
      &&SignInRegistry::contains(configuration);
 }
 QJsonObject WindowsSignIn::profile(){
- QSettings settings(settingsPath,QSettings::NativeFormat);
- auto bytes=settings.value("Profile").toByteArray();
- auto result=bytes.size()<=16384?validatedProfile(QJsonDocument::fromJson(bytes).object()):QJsonObject{};
- if(result.isEmpty())result=validatedProfile(ProfileStore::defaults());
+ QSettings settings(settingsPath,QSettings::Registry64Format);
+ return profileFromData(settings.value("Profile").toByteArray());
+}
+QJsonObject WindowsSignIn::profileFromData(const QByteArray &data){
+ // Installer startup must be usable before the user can copy personal settings.
+ // An explicitly saved gaze opt-out still wins over this login-only default.
+ auto defaults=ProfileStore::defaults();defaults["gazeEnabled"]=true;
+ QJsonObject result;
+ if(data.size()<=16384){
+  const auto document=QJsonDocument::fromJson(data);
+  if(document.isObject()){
+   auto source=document.object();
+   if(!source.contains("gazeEnabled"))source["gazeEnabled"]=true;
+   result=validatedProfile(source);
+  }
+ }
+ if(result.isEmpty())result=validatedProfile(defaults);
  return result;
 }
 int WindowsSignIn::setup(const QStringList &arguments){
@@ -72,9 +89,25 @@ bool WindowsSignIn::configure(bool enabled,const QJsonObject &values){
  const auto safe=validatedProfile(enabled?values:ProfileStore::defaults());if(safe.isEmpty())return false;
  auto parameters=QString("--configure-sign-in %1 %2").arg(enabled?"enable":"disable",QString::fromLatin1(QJsonDocument(safe).toJson(QJsonDocument::Compact).toBase64()));
  const auto executable=QCoreApplication::applicationFilePath().toStdWString();const auto args=parameters.toStdWString();
- SHELLEXECUTEINFOW info{};info.cbSize=sizeof(info);info.fMask=SEE_MASK_NOCLOSEPROCESS;info.lpVerb=L"runas";info.lpFile=executable.c_str();info.lpParameters=args.c_str();info.nShow=SW_HIDE;
- if(!ShellExecuteExW(&info))return false;
- DWORD exitCode=2;
- if(WaitForSingleObject(info.hProcess,120000)==WAIT_OBJECT_0)GetExitCodeProcess(info.hProcess,&exitCode);
- CloseHandle(info.hProcess);return exitCode==0;
+ bool success=false;
+ // ShellExecuteEx can itself wait for UAC. Keep the UI event loop running so
+ // the desktop monitor can release tracking hardware for the secure instance.
+ auto worker=QThread::create([&]{
+  const auto initialized=CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED|COINIT_DISABLE_OLE1DDE);
+  SHELLEXECUTEINFOW info{};info.cbSize=sizeof(info);info.fMask=SEE_MASK_NOCLOSEPROCESS|SEE_MASK_NOASYNC;info.lpVerb=L"runas";info.lpFile=executable.c_str();info.lpParameters=args.c_str();info.nShow=SW_HIDE;
+  if(ShellExecuteExW(&info)){
+   DWORD exitCode=2;
+   if(info.hProcess){
+    if(WaitForSingleObject(info.hProcess,120000)==WAIT_OBJECT_0)GetExitCodeProcess(info.hProcess,&exitCode);
+    CloseHandle(info.hProcess);
+   }
+   success=exitCode==0;
+  }
+  if(SUCCEEDED(initialized))CoUninitialize();
+ });
+ QEventLoop loop;
+ QObject::connect(worker,&QThread::finished,&loop,&QEventLoop::quit);
+ worker->start();loop.exec(QEventLoop::ExcludeUserInputEvents);
+ worker->wait();delete worker;
+ return success;
 }

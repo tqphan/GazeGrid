@@ -36,15 +36,15 @@
           <RegistryValue Name="Description" Value="@[INSTALL_ROOT]gazegrid.exe,-102" Type="string" />
           <RegistryValue Name="ATExe" Value="gazegrid.exe" Type="string" />
           <RegistryValue Name="StartExe" Value="[INSTALL_ROOT]gazegrid.exe" Type="string" />
+          <RegistryValue Name="StartParams" Value="--accessibility" Type="string" />
           <RegistryValue Name="SimpleProfile" Value="On-screen keyboard" Type="string" />
           <RegistryValue Name="Profile" Value="&lt;HCIModel&gt;&lt;Accommodation type=&quot;severe dexterity&quot;/&gt;&lt;Accommodation type=&quot;mild dexterity&quot;/&gt;&lt;/HCIModel&gt;" Type="string" />
-          <RegistryValue Name="TerminateOnDesktopSwitch" Value="1" Type="integer" />
+          <RegistryValue Name="TerminateOnDesktopSwitch" Value="0" Type="integer" />
           <RegistryValue Name="PassiveAutoStartBehavior" Value="1" Type="integer" />
         </RegistryKey>
-        <!-- With no alternate accommodation, Windows launches this executable on
-             both desktops. main.cpp selects the restricted UI on Winlogon.
-             Remove the old values on repair as well as upgrade: accommodation
-             is an optional REG_SZ AT name, never a DWORD enable flag. -->
+        <!-- Direct launches use the unmanaged AT lifecycle and one instance per
+             desktop. The normal instance releases tracking while inactive;
+             Winlogon selects the restricted UI and never sends Win+U. -->
         <RemoveRegistryValue Id="RemoveLegacySecureDesktopAccommodation" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\GazeGrid_GazeGrid_v1" Name="SecureDesktopAccommodation" />
         <RemoveRegistryValue Id="RemoveLegacySignInStartParams" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\GazeGrid_GazeGrid_v1" Name="StartParams" />
         <File Id="GazeGridSignedExe" Source="@CMAKE_BINARY_DIR@/Release/gazegrid.exe" KeyPath="yes">

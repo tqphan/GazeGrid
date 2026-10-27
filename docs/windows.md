@@ -176,17 +176,29 @@ different keyboard. Clearing **Use this keyboard at sign-in** removes GazeGrid f
 without changing other accessibility tools. Repair preserves the selected mode;
 uninstall removes GazeGrid's registration and startup entry.
 
-Windows launches the same `gazegrid.exe` on either desktop without additional
-arguments. GazeGrid detects the Winlogon desktop and selects the restricted
-sign-in interface there; restarts on the normal desktop use the personal profile.
+Windows launches the same `gazegrid.exe` with `--accessibility` on either desktop.
+GazeGrid acquires a session-local lock for the window station and desktop before
+loading its interface or starting eye tracking. Repeated launches, including
+broker launches, exit without sending accessibility notifications. GazeGrid
+detects the Winlogon desktop and selects the restricted sign-in interface there.
 It uses the existing keyboard rendering, navigation, key output, and dwell logic.
 Prediction stays off even after switching layouts. Typed text is not retained
 in scratchpads or learned words. Personal profile files are not read or written,
-and Settings, the editor, and magnifier are unavailable in this mode. Windows
-terminates and restarts the accessibility instance when changing desktops.
-Normal desktop preferences and prediction remain unchanged. Until a keyboard
-is copied from Settings, the sign-in keyboard uses the default alphabet layout
-with mouse dwell.
+and Settings, the editor, and magnifier are unavailable in this mode. The
+registration uses `TerminateOnDesktopSwitch=0`: the normal instance stays alive
+and suspends input and eye tracking while its desktop is inactive. It resumes
+when that desktop becomes active again. A secure instance exits when its desktop
+loses input. The eye-tracker worker is stopped and joined during suspension;
+queued samples from the previous connection are discarded on resume.
+
+Normal desktop preferences and prediction remain unchanged. Until preferences
+are copied from Settings, the sign-in keyboard uses the default alphabet layout
+with gaze enabled. An explicitly copied gaze-off preference is preserved. Failed
+tracker startup retries after 1, 2, 4 seconds and so on, capped at 30 seconds,
+while gaze is enabled and the desktop is active. A status message on the sign-in
+keyboard shows connection errors and retry timing; it disappears after connecting.
+Mouse dwell remains available when the tracker is disconnected. The Tobii runtime,
+services, device, and calibration must be usable by the Windows sign-in session.
 
 Registration and startup follow [Microsoft's assistive-technology
 registration](https://learn.microsoft.com/en-us/windows/win32/winauto/ease-of-access---assistive-technology-registration).
@@ -196,20 +208,29 @@ The administrator helper accepts only validated layout names and keyboard/gaze
 preferences; it cannot load arbitrary paths or copy typed text.
 
 The same trusted registration also lets Windows launch the restricted keyboard
-on UAC prompts while GazeGrid is running. GazeGrid notifies Ease of Access when
-the installed application starts or exits, using the documented
-`AccessibilityTemp` signal and Windows+U notification. The installer leaves
+on UAC prompts while GazeGrid is running. Only the owning normal-desktop instance
+notifies Ease of Access when it starts or exits, using the documented
+`AccessibilityTemp` signal and Windows+U notification. Secure instances never
+send those notifications. The elevation helper runs on a worker thread so the
+UI can keep monitoring desktop changes during its own administrator prompt.
+The installer leaves
 `SecureDesktopAccommodation` unset so Windows uses GazeGrid itself. That value
 is an optional **string naming an alternate registered accessibility app**, not
 a numeric enable flag. Repairing an updated MSI removes the old DWORD override
-and the old `--sign-in` startup arguments. Install the trusted signed build in
+and replaces the old `--sign-in` startup arguments. Repair also switches the
+registration from the incompatible managed-job mode to the direct-launch mode.
+Install the trusted signed build in
 Program Files, restart GazeGrid, then check a UAC prompt on the secure desktop.
 Enabling startup before sign-in is a separate choice and is not required for
 UAC support while GazeGrid is already running.
 
 Automated checks cover the existing UI in sign-in mode, prediction/learning and
 text-retention suppression, validated preferences, and accessibility-list
-preservation. Installer CI covers default startup, opt-out, repair, and uninstall.
+preservation, tracker startup recovery, desktop suspension, and stale queued
+samples. Native subprocess tests cover duplicate rejection, process death, and
+independent desktop locks. Installer CI exercises a real owning keyboard and
+repeated broker-style launches in addition to default startup, opt-out, repair,
+and uninstall.
 Actual sign-in, lock/unlock, and UAC desktop transitions require acceptance on a signed Windows
 installation. Test PIN/password entry, top/bottom placement, gaze loss, and
 return to the user's normal keyboard. Tobii must be available to the Windows

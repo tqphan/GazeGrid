@@ -6,6 +6,20 @@
 class WindowsSignInTests:public QObject {
  Q_OBJECT
 private slots:
+ void loginDefaultsEnableGazeWithoutReadingPersonalPreferences(){
+  for(const QByteArray data:{QByteArray{},QByteArray("{broken"),QByteArray("[]"),QByteArray(16385,'x'),QByteArray("{}"),QByteArray("{\"gazeEnabled\":\"true\"}")}){
+   const auto values=WindowsSignIn::profileFromData(data);
+   QVERIFY(ProfileStore::valid(values));QVERIFY(values["gazeEnabled"].toBool());
+   QCOMPARE(values["predictionMode"].toString(),QString("off"));QVERIFY(!values["learning"].toBool());
+  }
+  QVERIFY(!ProfileStore::defaults()["gazeEnabled"].toBool());
+ }
+ void loginPreservesExplicitGazeChoiceAndKeyboard(){
+  const auto disabled=WindowsSignIn::profileFromData("{\"gazeEnabled\":false,\"startLayout\":\"main-14x1-top\"}");
+  QVERIFY(!disabled["gazeEnabled"].toBool());QCOMPARE(disabled["startLayout"].toString(),QString("main-14x1-top"));
+  const auto enabled=WindowsSignIn::profileFromData("{\"gazeEnabled\":true,\"keyboardScale\":120}");
+  QVERIFY(enabled["gazeEnabled"].toBool());QCOMPARE(enabled["keyboardScale"].toInt(),120);
+ }
  void accessibilityNotificationWritesSignalBeforeSendingShortcut(){
   const auto path=(QStringLiteral("SOFTWARE\\GazeGrid\\Tests\\")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();
   struct Cleanup {const std::wstring &path;~Cleanup(){RegDeleteKeyW(HKEY_CURRENT_USER,path.c_str());}} cleanup{path};
