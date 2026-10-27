@@ -260,6 +260,29 @@ private slots:
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","GamepadAPress"}}}));
   QTRY_VERIFY(!c.executingCommands());QVERIFY(!c.gamepadHeld("GamepadAPress"));
  }
+ void typedWordSuggestionModesApplyAndPersist(){
+  {
+   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+   QCOMPARE(c.typedWordSuggestionMode(),QString("fallback"));
+   QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank y"}}}));QTRY_VERIFY(!c.executingCommands());
+   QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
+   c.setTypedWordSuggestionMode("always");QCOMPARE(c.property("suggestions").toStringList().first(),QString("y"));
+   c.setTypedWordSuggestionMode("never");QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
+   c.setTypedWordSuggestionMode("invalid");QCOMPARE(c.typedWordSuggestionMode(),QString("never"));
+   c.setPredictionMode("off");QVERIFY(c.property("suggestions").toStringList().isEmpty());
+   QVERIFY(c.savePreferences());
+  }
+  {Controller c;QCOMPARE(c.typedWordSuggestionMode(),QString("never"));c.resetPreferences();QCOMPARE(c.typedWordSuggestionMode(),QString("fallback"));}
+ }
+ void literalSuggestionAcceptsUnknownWord(){
+  for(bool addSpace:{false,true}){
+   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);c.setTypedWordSuggestionMode("always");c.setAddSpaceAfterCompletion(addSpace);
+   QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","say Zorblax"}}}));QTRY_VERIFY(!c.executingCommands());
+   QCOMPARE(c.property("suggestions").toStringList().first(),QString("Zorblax"));
+   c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
+   QCOMPARE(c.property("scratchpad").toString(),QString("say Zorblax")+(addSpace?" ":""));
+  }
+ }
  void experimentalConversationEditing(){
   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
   QCOMPARE(c.property("layoutName").toString(),QString("keyboard-conversation-fullscreen"));
@@ -327,13 +350,73 @@ private slots:
     c.configureInputMethod([&](QString text){output+=text;return true;},[](QString,bool){return true;});
     c.inputContextChanged(true,false);addScratchpad(c);
     QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text",prefix}}}));QTRY_VERIFY(!c.executingCommands());
-    QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
-    c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
+    const int index=0;
+    QCOMPARE(c.property("suggestions").toStringList().at(index),QString("you"));
+    c.clickCommand(QString("suggest:%1").arg(index));QTRY_VERIFY(!c.executingCommands());
     const QString expected=addSpace?"thank you ":"thank you";
     QCOMPARE(c.property("scratchpad").toString(),expected);
     QCOMPARE(output,expected);
    }
   }
+ }
+ void punctuationReplacesOnlyTheSpaceInsertedByCompletion(){
+  for(bool desktop:{false,true})for(bool enabled:{false,true}){
+   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+   QString output;int backspaces=0;
+   if(desktop){
+    c.configureInputMethod([&](QString text){output+=text;return true;},[&](QString key,bool down){if(key=="BACK"&&down){output.chop(1);++backspaces;}return true;});
+    c.inputContextChanged(true,false);addScratchpad(c);
+   }
+   c.setAddSpaceAfterCompletion(true);c.setRemoveCompletionSpaceBeforePunctuation(enabled);
+   auto type=[&](QString text){QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text",text}}}));QTRY_VERIFY(!c.executingCommands());};
+   type("thank y");QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
+   c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());QCOMPARE(c.property("scratchpad").toString(),QString("thank you "));
+   type(".");const QString expected=enabled&&!desktop?"thank you.":"thank you .";
+   QCOMPARE(c.property("scratchpad").toString(),expected);
+   if(desktop){QCOMPARE(output,expected);QCOMPARE(backspaces,0);}
+   type("!");QCOMPARE(c.property("scratchpad").toString(),expected+"!");
+   type(" hello ");type(",");QVERIFY(c.property("scratchpad").toString().endsWith(" hello ,"));
+  }
+ }
+ void desktopPunctuationPreservesTextAfterExternalCaretMovement(){
+  Controller c;QString output;int caret=0,backspaces=0;
+  c.configureInputMethod([&](QString text){output.insert(caret,text);caret+=text.size();return true;},
+   [&](QString key,bool down){if(key=="BACK"&&down){++backspaces;if(caret>0)output.remove(--caret,1);}return true;});
+  c.inputContextChanged(true,false);addScratchpad(c);
+  c.setAddSpaceAfterCompletion(true);c.setRemoveCompletionSpaceBeforePunctuation(true);
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank y"}}}));QTRY_VERIFY(!c.executingCommands());
+  QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
+  c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());QCOMPARE(output,QString("thank you "));
+  // A physical click moves the caret inside the same external field without
+  // notifying GazeGrid or changing its prediction context.
+  caret=5;
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","."}}}));QTRY_VERIFY(!c.executingCommands());
+  QCOMPARE(output,QString("thank. you "));QCOMPARE(backspaces,0);
+ }
+ void completionSpaceIsPreservedAfterLettersSpacesAndCursorMovement(){
+  for(const QString next:{QString("a"),QString(" "),QString("Left")}){
+   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);c.setAddSpaceAfterCompletion(true);c.setRemoveCompletionSpaceBeforePunctuation(true);
+   QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank y"}}}));QTRY_VERIFY(!c.executingCommands());
+   c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
+   QVERIFY(c.executeCommands({QVariantMap{{"tag",next=="Left"?"Action":"Text"},{"text",next}}}));QTRY_VERIFY(!c.executingCommands());
+   QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","."}}}));QTRY_VERIFY(!c.executingCommands());
+   QCOMPARE(c.property("scratchpad").toString(),QString("thank you ")+(next=="Left"?QString():next)+".");
+  }
+ }
+ void shiftedPunctuationRemovesCompletionSpace(){
+  Controller c;c.openLayout("keyboard-conversation-fullscreen",false);c.setAddSpaceAfterCompletion(true);c.setRemoveCompletionSpaceBeforePunctuation(true);
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank y"}}}));QTRY_VERIFY(!c.executingCommands());
+  c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","LeftShift"}}}));QTRY_VERIFY(!c.executingCommands());
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","1"}}}));QTRY_VERIFY(!c.executingCommands());
+  QCOMPARE(c.property("scratchpad").toString(),QString("thank you!"));
+ }
+ void punctuationSpacePreferencePersistsAndResets(){
+  {Controller c;c.setRemoveCompletionSpaceBeforePunctuation(false);QVERIFY(c.savePreferences());}
+  {Controller c;QVERIFY(!c.removeCompletionSpaceBeforePunctuation());c.resetPreferences();QVERIFY(c.removeCompletionSpaceBeforePunctuation());}
+  auto values=ProfileStore::defaults();QVERIFY(values["removeCompletionSpaceBeforePunctuation"].toBool());
+  values.remove("removeCompletionSpaceBeforePunctuation");QVERIFY(ProfileStore::valid(values));
+  values["removeCompletionSpaceBeforePunctuation"]="true";QVERIFY(!ProfileStore::valid(values));
  }
  void sentenceStartersAppearAndInsertWhenEnabled(){
   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
@@ -647,6 +730,11 @@ private slots:
    QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,1.01),Q_ARG(double,.5),Q_ARG(bool,true),Q_ARG(qint64,GazeClock::now())));
    QVERIFY(points.last()[2].toBool());QCOMPARE(points.last()[0].toDouble(),selecting?1.:1.01);
   }
+ }
+ void exponentialPreferencesPersistAndReset(){
+  {Controller c;c.setGazeFilterType(1);c.setGazeFilterGain(0.35);c.setGazeSaccadeDistance(0.15);QVERIFY(c.savePreferences());}
+  {Controller c;QCOMPARE(c.gazeFilterType(),1);QCOMPARE(c.gazeFilterGain(),0.35);QCOMPARE(c.gazeSaccadeDistance(),0.15);
+   c.resetPreferences();QCOMPARE(c.gazeFilterType(),0);QCOMPARE(c.gazeFilterGain(),0.2);QCOMPARE(c.gazeSaccadeDistance(),0.1);}
  }
  void smoothingPreferencesPersistAndReset(){
   {Controller controller;controller.setGazeSmoothingLevel(4);controller.setSmoothWhenChangingGazeTarget(true);QVERIFY(controller.savePreferences());}

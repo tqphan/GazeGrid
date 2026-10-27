@@ -1,12 +1,57 @@
 #include <QtTest>
 #include <QTemporaryDir>
 #include "TobiiRuntimePaths.h"
+#include "TobiiTimeSync.h"
+#include "GazeClock.h"
 #ifdef GAZEGRID_WINDOWS
 #include "WindowsTobiiLibrary.h"
 #endif
 class TobiiRuntimeTests:public QObject {
  Q_OBJECT
 private slots:
+ void synchronizationKeepsDriftingSamplesFreshDuringLongSessions(){
+  // Cross the 32-bit microsecond and millisecond boundaries without real waits.
+  // Simulated drift of +/-100ppm would eventually exceed the freshness window
+  // (or date samples into the future) if polling omitted synchronization.
+  for(const int direction:{-1,1})for(const qint64 start:{qint64(0),qint64(1)<<31,(qint64(1)<<31)*1000}){
+   TobiiTimeSync sync;
+   qint64 lastSync=start,previous=0;int calls=0;
+   for(qint64 elapsed=0;elapsed<=12LL*60*60*1000000;elapsed+=100000){
+    const auto now=start+elapsed+1000000;
+    sync.update(now,[&]{lastSync=now;++calls;return true;});
+    const qint64 deviceDrift=direction*(now-lastSync)/10000;
+    const qint64 sampledAt=now-10000-deviceDrift;
+    if(!GazeClock::fresh(sampledAt,now,previous))QFAIL("Clock synchronization did not keep simulated gaze samples fresh");
+    previous=sampledAt;
+   }
+   QCOMPARE(calls,1441);
+   const qint64 end=start+12LL*60*60*1000000+1000000;
+   const qint64 unsynchronized=end-10000-direction*(end-start)/10000;
+   QVERIFY(!GazeClock::fresh(unsynchronized,end,0));
+  }
+ }
+ void synchronizationRetriesPacketLossWithoutFloodingCallbacks(){
+  TobiiTimeSync sync;int calls=0;int polls=0;
+  auto poll=[&](qint64 now){
+   ++polls;sync.update(now,[&]{++calls;return calls>=3;});
+  };
+  // Regular 8ms polling must continue while failed sync operations are retried.
+  for(qint64 now=0;now<2000000;now+=8000)poll(now);
+  QCOMPARE(calls,2);QCOMPARE(polls,250);
+  poll(2000000);QCOMPARE(calls,3);
+  poll(31999999);QCOMPARE(calls,3);
+  poll(32000000);QCOMPARE(calls,4);
+ }
+ void reconnectionSynchronizesBeforeTheNextSample(){
+  TobiiTimeSync sync;int calls=0;
+  auto synchronize=[&]{++calls;return true;};
+  sync.update(1000000,synchronize);QCOMPARE(calls,1);
+  sync.update(2000000,synchronize);QCOMPARE(calls,1);
+  sync.reset();
+  sync.update(2000001,synchronize);QCOMPARE(calls,2);
+  sync.update(32000000,synchronize);QCOMPARE(calls,2);
+  sync.update(32000001,synchronize);QCOMPARE(calls,3);
+ }
  void discoveryIsConfinedToVendorTrees(){
   QTemporaryDir dir;QVERIFY(dir.isValid());
   const auto vendor=dir.path()+"/Tobii";

@@ -9,6 +9,14 @@
 class GazeSmoothing {
 public:
  void reset(){initialized=false;estimate={};previous={};older={};}
+ // Exponential smoothing in normalized screen coordinates, snapping on saccades.
+ QPointF updateExponential(QPointF raw,double gain,double saccadeDistance){
+  if(!std::isfinite(raw.x())||!std::isfinite(raw.y())){reset();return raw;}
+  const auto delta=raw-estimate;
+  if(!initialized||std::hypot(delta.x(),delta.y())>saccadeDistance){initialized=true;estimate=raw;}
+  else estimate+=delta*gain;
+  return estimate;
+ }
  QPointF update(QPointF measurement,int level,bool smoothTargetChanges){
   if(!std::isfinite(measurement.x())||!std::isfinite(measurement.y())){reset();return measurement;}
   if(level<=0){reset();return measurement;}

@@ -12,6 +12,7 @@ public:
     std::function<bool(QString,bool)> sendKey;
     std::function<bool(QString)> sendText;
     std::function<bool()> canCommitText;
+    std::function<bool(QString)> removeSpaceBeforeText;
     std::function<bool(QString)> supportsPhysicalKey;
     std::function<bool(QString)> performAction;
     std::function<void(QString)> speakLabel;
@@ -41,6 +42,7 @@ signals:
     void stateChanged();
     void failed(QString message);
     void textCommitted(QString text);
+    void keyPressed(QString name);
     void finished();
     void cancelled();
 private:

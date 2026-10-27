@@ -78,6 +78,7 @@ void ActionRunner::fail(QString message){cancel();emit failed(message);}
 bool ActionRunner::key(QString name,bool down,bool persistent){
     name=KeyNames::canonical(name);
     if(held.contains(name)==down)return true;
+    if(down)emit keyPressed(name);
     if(!textOnly&&(!sendKey||!sendKey(name,down)))return false;
     if(textOnly&&name=="CAPITAL"&&down)capsLock=!capsLock;
     if(down){held.insert(name);if(!persistent)transient.insert(name);}else{held.remove(name);transient.remove(name);latched.remove(name);}
@@ -102,6 +103,12 @@ void ActionRunner::step(){
     else if(tag=="KeyToggle")ok=key(value,!isHeld(value),true);
     else if(tag=="Text"){
         bool shortcut=shortcutHeld();
+        QString effective=value;
+        if(textOnly||!held.isEmpty())for(auto &ch:effective)ch=KeyNames::usTypedCharacter(ch,shifted()||(capsLock&&ch.isLetter()));
+        if(!shortcut&&removeSpaceBeforeText&&removeSpaceBeforeText(effective)){
+            if(!textOnly&&!tap("BACK")){fail("Could not remove the completion space");return;}
+            emit textCommitted("\b");
+        }
         QString composed;
         if(textOnly){for(auto ch:value)composed+=KeyNames::usTypedCharacter(ch,shifted()||(capsLock&&ch.isLetter()));}
         else if(sendText&&(!canCommitText||canCommitText())&&held.isEmpty()){

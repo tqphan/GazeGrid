@@ -79,7 +79,7 @@ const Index &vocabulary(const QStringList &dictionary){
 }
 }
 void WordPrediction::prepare(const QStringList &dictionary){vocabulary(dictionary);}
-QStringList WordPrediction::suggest(const QString &text,const QStringList &dictionary,const QMap<QString,int> &frequencies,int limit,bool useContext,bool suggestWhenEmpty){
+QStringList WordPrediction::suggest(const QString &text,const QStringList &dictionary,const QMap<QString,int> &frequencies,int limit,bool useContext,bool suggestWhenEmpty,const QString &typedWordMode){
  if(limit<=0||(text.isEmpty()&&!suggestWhenEmpty))return {};
  const auto current=prefix(text);
  // Never offer an insertion inside numbers/unsupported alphabets or directly
@@ -134,12 +134,15 @@ QStringList WordPrediction::suggest(const QString &text,const QStringList &dicti
   const auto word=it.key().toLower();
   if(it.value()>0&&!word.isEmpty()&&letter(word.front())&&std::all_of(word.begin(),word.end(),wordCharacter)&&!index.byWord.contains(word))add(word,1e-7);
  }
- const int count=std::min(limit,int(ranked.size()));
+ // Reserve the literal slot before ranking to keep pagination consistent.
+ const bool includeTyped=!current.isEmpty()&&(typedWordMode=="always"||(typedWordMode=="fallback"&&ranked.isEmpty()));
+ const int count=std::min(limit-(includeTyped?1:0),int(ranked.size()));
  std::partial_sort(ranked.begin(),ranked.begin()+count,ranked.end(),[](const Result &a,const Result &b){
   if(a.score!=b.score)return a.score>b.score;
   return a.word<b.word;
  });
  QStringList result;
+ if(includeTyped)result<<current;
  for(int i=0;i<count;++i){
   auto word=ranked[i].word;
   if(!current.isEmpty()){

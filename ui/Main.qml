@@ -709,11 +709,11 @@ Window {
       title:"Gaze smoothing";      visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
-       RowLayout {
-        Desktop.Label {text:"Gaze smoothing"}
-        SettingsComboBox {model:["0 — Off","1 — Low","2 — Medium","3 — High","4 — Extreme"];currentIndex:controller.gazeSmoothingLevel;onActivated:controller.gazeSmoothingLevel=currentIndex}
-       }
-       SettingsCheckBox {text:"Smooth when changing gaze target";checked:controller.smoothWhenChangingGazeTarget;enabled:controller.gazeSmoothingLevel>0;onToggled:controller.smoothWhenChangingGazeTarget=checked}
+       SettingsComboBox {model:["OptiKey Kalman","Exponential with saccade snap"];currentIndex:controller.gazeFilterType;onActivated:controller.gazeFilterType=currentIndex}
+       SettingSlider {visible:controller.gazeFilterType==1;label:"Filter gain";displayValue:controller.gazeFilterGain.toFixed(2);from:0.01;to:1;stepSize:0.01;value:controller.gazeFilterGain;onMoved:controller.gazeFilterGain=value}
+       SettingSlider {visible:controller.gazeFilterType==1;label:"Saccade distance";displayValue:controller.gazeSaccadeDistance.toFixed(2)+" (screen coordinates)";from:0.01;to:1;stepSize:0.01;value:controller.gazeSaccadeDistance;onMoved:controller.gazeSaccadeDistance=value}
+       SettingSlider {visible:controller.gazeFilterType==0;label:"Gaze smoothing";displayValue:controller.gazeSmoothingLevel+" - "+["Off","Low","Medium","High","Extreme"][controller.gazeSmoothingLevel];from:0;to:4;stepSize:1;value:controller.gazeSmoothingLevel;onMoved:controller.gazeSmoothingLevel=Math.round(value)}
+       SettingsCheckBox {visible:controller.gazeFilterType==0;text:"Smooth when changing gaze target";checked:controller.smoothWhenChangingGazeTarget;enabled:controller.gazeSmoothingLevel>0;onToggled:controller.smoothWhenChangingGazeTarget=checked}
       }
      }
      SettingsCard {
@@ -782,8 +782,18 @@ Window {
         onActivated:controller.predictionMode=["context","frequency","off"][currentIndex]
         Accessible.name:"Prediction style"
        }
+       Desktop.Label {text:"Show the word I'm typing"}
+       SettingsComboBox {
+        objectName:"typedWordSuggestionModeSelector";Layout.fillWidth:true
+        model:["Always, as the first suggestion","Only when there are no predictions","Never"]
+        enabled:controller.predictionMode!=="off"
+        currentIndex:["always","fallback","never"].indexOf(controller.typedWordSuggestionMode)
+        onActivated:controller.typedWordSuggestionMode=["always","fallback","never"][currentIndex]
+        Accessible.name:"Show the word I'm typing"
+       }
        SettingsCheckBox {objectName:"suggestSentenceStartersToggle";text:"Suggest sentence starters when text is empty";enabled:controller.predictionMode!=="off";checked:controller.suggestSentenceStarters;onToggled:controller.suggestSentenceStarters=checked}
        SettingsCheckBox {objectName:"addSpaceAfterCompletionToggle";text:"Add a space after word completion";enabled:controller.predictionMode!=="off";checked:controller.addSpaceAfterCompletion;onToggled:controller.addSpaceAfterCompletion=checked}
+       SettingsCheckBox {text:"Remove completion space before punctuation in conversation keyboards";enabled:controller.predictionMode!=="off"&&controller.addSpaceAfterCompletion;checked:controller.removeCompletionSpaceBeforePunctuation;onToggled:controller.removeCompletionSpaceBeforePunctuation=checked}
        SettingsCheckBox {objectName:"predictNextWordToggle";text:"Suggest the next word after a space";enabled:controller.predictionMode!=="off";checked:controller.predictNextWord;onToggled:controller.predictNextWord=checked}
        SettingsCheckBox {text:"Use and learn personal words locally";checked:controller.learning;onToggled:controller.learning=checked}
        SettingsButton {text:"Reset learned words";onClicked:controller.resetLearning()}
@@ -839,7 +849,13 @@ Window {
   // Keep the Windows surface mapped through capture: remapping it can flash or fade.
   // Other platforms still hide the surface so it cannot enter the screenshot.
   visible:controller.targeting&&(Qt.platform.os==="windows"||!controller.capturePending)
-  opacity:controller.capturePending?0:1
+  property bool waitForFreshFrame:false
+  property bool frameReady:true
+  readonly property bool presentationActive:controller.targeting&&!controller.capturePending
+  onPresentationActiveChanged:{if(waitForFreshFrame)frameReady=false;if(presentationActive)requestUpdate()}
+  // A mapped surface may still hold the last magnified frame. Expose it only
+  // after the renderer has produced the current selection contents.
+  opacity:controller.capturePending||!frameReady?0:1
   width:root.screenWidth;height:root.screenHeight
   color:"transparent";flags:Qt.FramelessWindowHint|Qt.WindowDoesNotAcceptFocus|Qt.WindowStaysOnTopHint
   Image {anchors.fill:parent;visible:controller.magnifierReady;source:visible?"image://magnifier/"+controller.magnifierRevision:"";cache:false;fillMode:Image.Stretch}

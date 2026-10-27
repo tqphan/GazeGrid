@@ -29,6 +29,9 @@ class Controller:public QObject{
  Q_PROPERTY(bool gazeDwellPaused READ isGazeDwellPaused NOTIFY changed)
  Q_PROPERTY(bool clampGazeForKeyboard MEMBER clampGazeForKeyboard NOTIFY changed)
  Q_PROPERTY(bool clampGazeForPointSelection MEMBER clampGazeForPointSelection NOTIFY changed)
+ Q_PROPERTY(int gazeFilterType READ gazeFilterType WRITE setGazeFilterType NOTIFY changed)
+ Q_PROPERTY(double gazeFilterGain READ gazeFilterGain WRITE setGazeFilterGain NOTIFY changed)
+ Q_PROPERTY(double gazeSaccadeDistance READ gazeSaccadeDistance WRITE setGazeSaccadeDistance NOTIFY changed)
  Q_PROPERTY(int gazeSmoothingLevel READ gazeSmoothingLevel WRITE setGazeSmoothingLevel NOTIFY changed)
  Q_PROPERTY(bool smoothWhenChangingGazeTarget READ smoothWhenChangingGazeTarget WRITE setSmoothWhenChangingGazeTarget NOTIFY changed)
  Q_PROPERTY(int gazeIndicatorSize MEMBER gazeIndicatorSize NOTIFY changed)
@@ -69,9 +72,11 @@ class Controller:public QObject{
  Q_PROPERTY(QString scratchpad MEMBER scratchpad NOTIFY changed)
  Q_PROPERTY(QStringList suggestions MEMBER suggestions NOTIFY changed)
  Q_PROPERTY(bool learning READ learningEnabled WRITE setLearning NOTIFY changed)
+ Q_PROPERTY(QString typedWordSuggestionMode READ typedWordSuggestionMode WRITE setTypedWordSuggestionMode NOTIFY changed)
  Q_PROPERTY(QString predictionMode READ predictionMode WRITE setPredictionMode NOTIFY changed)
  Q_PROPERTY(bool suggestSentenceStarters READ suggestSentenceStarters WRITE setSuggestSentenceStarters NOTIFY changed)
  Q_PROPERTY(bool addSpaceAfterCompletion READ addSpaceAfterCompletion WRITE setAddSpaceAfterCompletion NOTIFY changed)
+ Q_PROPERTY(bool removeCompletionSpaceBeforePunctuation READ removeCompletionSpaceBeforePunctuation WRITE setRemoveCompletionSpaceBeforePunctuation NOTIFY changed)
  Q_PROPERTY(bool predictNextWord READ predictNextWord WRITE setPredictNextWord NOTIFY changed)
  Q_PROPERTY(bool hideKeyboardDuringMouseActions MEMBER hideKeyboardDuringMouseActions NOTIFY changed)
  Q_PROPERTY(bool keyboardTemporarilyHidden READ keyboardTemporarilyHidden NOTIFY changed)
@@ -138,6 +143,12 @@ public:
  Q_INVOKABLE void trackGaze(double x,double y,bool overDesktop);
  void displayChanged();
  void setDisplaySize(double width,double height);
+ int gazeFilterType()const{return filterType;}
+ void setGazeFilterType(int value);
+ double gazeFilterGain()const{return filterGain;}
+ void setGazeFilterGain(double value);
+ double gazeSaccadeDistance()const{return saccadeDistance;}
+ void setGazeSaccadeDistance(double value);
  int gazeSmoothingLevel()const{return smoothingLevel;}
  bool smoothWhenChangingGazeTarget()const{return smoothTargetChanges;}
  void setGazeSmoothingLevel(int level);
@@ -168,11 +179,15 @@ public:
  Q_INVOKABLE void targetAt(double x,double y);
  bool learningEnabled()const{return learning;}
  void setLearning(bool enabled);
+ QString typedWordSuggestionMode()const{return typedWordMode;}
+ void setTypedWordSuggestionMode(const QString &mode);
  QString predictionMode()const{return predictionModeValue;}
  void setPredictionMode(QString mode);
  bool suggestSentenceStarters()const{return sentenceStartersEnabled;}
  void setSuggestSentenceStarters(bool enabled);
  bool addSpaceAfterCompletion()const{return completionSpaceEnabled;}
+ bool removeCompletionSpaceBeforePunctuation()const{return removeCompletionSpaceEnabled;}
+ void setRemoveCompletionSpaceBeforePunctuation(bool enabled);
  void setAddSpaceAfterCompletion(bool enabled);
  bool predictNextWord()const{return nextWordEnabled;}
  void setPredictNextWord(bool enabled);
@@ -197,6 +212,7 @@ private:
  void clearCapture();
  void updateMagnifierZoom();
  void updateText(QString text);
+ bool takeCompletionSpace(const QString &text);
  void updateSuggestions();
  QVariantList mapped(const QVariantList &commands,bool &ok);
  Q_SLOT void receiveGaze(double x,double y,bool valid,qint64 sampledAt);
@@ -222,6 +238,9 @@ private:
  bool cycleModifiersOnHover=false;
  bool hideKeyboardDuringMouseActions=false;
  bool gazeIndicatorMorph=false;
+ int filterType=0;
+ double filterGain=0.2;
+ double saccadeDistance=0.1;
  int smoothingLevel=1;
  bool smoothTargetChanges=false;
  GameController gameController;
@@ -276,7 +295,10 @@ private:
  Dwell canvasDwell;
  QVariantMap layout;QString layoutName;QStringList layoutNames,menuLayoutNames,backStack;
  int suggestionOffset=0;
+ QString typedWordMode="fallback";
  QString predictionModeValue="context";bool nextWordEnabled=true;bool completionSpaceEnabled=true;bool sentenceStartersEnabled=true;
+ bool removeCompletionSpaceEnabled=true;
+ QString pendingCompletionText,completionSpaceContext;
  QStringList predictionSuggestions(int limit=8)const;
  bool hasScratchpad()const;
  QString &typingContext();

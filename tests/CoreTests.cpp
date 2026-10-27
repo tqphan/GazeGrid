@@ -184,6 +184,15 @@ private slots:
   QCOMPARE(dwell.progress(600,250),0.);
   dwell.reset();QCOMPARE(dwell.progress(650,250),0.);
  }
+ void exponentialSmoothingFormulaAndSaccades(){
+  GazeSmoothing filter;
+  QCOMPARE(filter.updateExponential({0.4,0.4},0.25,0.1),QPointF(0.4,0.4));
+  const auto smoothed=filter.updateExponential({0.44,0.48},0.25,0.1);
+  QVERIFY(QLineF(smoothed,QPointF(0.41,0.42)).length()<1e-12);
+  QCOMPARE(filter.updateExponential({0.8,0.8},0.25,0.1),QPointF(0.8,0.8));
+  filter.reset();
+  QCOMPARE(filter.updateExponential({0.2,0.3},0.25,0.1),QPointF(0.2,0.3));
+ }
  void smoothingMatchesOptikeyReference(){
   for(bool transitions:{false,true}){
    GazeSmoothing filter;QCOMPARE(filter.update({100,100},2,transitions),QPointF(100,100));
@@ -315,6 +324,28 @@ private slots:
   QCOMPARE(WordPrediction::completedWord("123"),QString());
   QCOMPARE(WordPrediction::completedWord("hello "),QString());
   QCOMPARE(WordPrediction::completedWord("hello !"),QString());
+ }
+ void typedWordModeProfileValidation(){
+  auto values=ProfileStore::defaults();QCOMPARE(values["typedWordSuggestionMode"].toString(),QString("fallback"));
+  values.remove("typedWordSuggestionMode");QVERIFY(ProfileStore::valid(values));
+  for(const QString mode:{"always","fallback","never"}){values["typedWordSuggestionMode"]=mode;QVERIFY(ProfileStore::valid(values));}
+  for(const QJsonValue invalid:{QJsonValue("invalid"),QJsonValue(1),QJsonValue(false)}){values["typedWordSuggestionMode"]=invalid;QVERIFY(!ProfileStore::valid(values));}
+ }
+ void predictionTypedWordModes(){
+  const QStringList words{"hello","help","helmet"};
+  for(const QString mode:{"always","fallback","never"}){
+   const auto unknown=WordPrediction::suggest("say Zorblax",words,{},8,true,false,mode);
+   QCOMPARE(unknown,mode=="never"?QStringList{}:QStringList{"Zorblax"});
+   const auto matched=WordPrediction::suggest("He",words,{},3,true,false,mode);
+   QCOMPARE(matched.size(),3);
+   QCOMPARE(matched.contains("He"),mode=="always");
+   if(mode=="always")QCOMPARE(matched.first(),QString("He"));
+   QVERIFY(matched.contains("Hello"));
+   QCOMPARE(WordPrediction::suggest("He",words,{},1,true,false,mode).size(),1);
+   QVERIFY(WordPrediction::suggest("He",words,{},0,true,false,mode).isEmpty());
+   QCOMPARE(WordPrediction::suggest("hello",words,{},8,true,false,mode).count("hello"),mode=="never"?0:1);
+   QCOMPARE(WordPrediction::suggest("say ",words,{},8,true,false,mode),WordPrediction::suggest("say ",words,{}));
+  }
  }
  void predictionRanksFrequencyAndPreservesCase(){
   const QStringList words{"Help","hello","HELLO","helmet","héllo"};

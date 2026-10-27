@@ -49,9 +49,11 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(
  clock.start();auto profile=signInMode?ProfileStore::Loaded{ProfileStore::valid(signInProfile)?signInProfile:ProfileStore::defaults(),{}}:ProfileStore(configFile("profile.json")).load();
  if(signInMode){profile.values["predictionMode"]="off";profile.values["learning"]=false;profile.values["magnifierEnabled"]=false;}
  gazeEnabled=profile.values["gazeEnabled"].toBool(false);
+ typedWordMode=profile.values["typedWordSuggestionMode"].toString("fallback");
  predictionModeValue=profile.values["predictionMode"].toString("context");
  nextWordEnabled=profile.values["predictNextWord"].toBool(true);
  completionSpaceEnabled=profile.values["addSpaceAfterCompletion"].toBool(true);
+ removeCompletionSpaceEnabled=profile.values["removeCompletionSpaceBeforePunctuation"].toBool(true);
  sentenceStartersEnabled=profile.values["suggestSentenceStarters"].toBool(true);
  dwellIndicatorStyle=profile.values.value("dwellIndicatorStyle").toString("bar");
  dwellMs=profile.values["dwellMs"].toInt();literal=profile.values["literal"].toBool();learning=profile.values["learning"].toBool();profileStatus=profile.message;
@@ -80,6 +82,9 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(
  cycleModifiersOnHover=profile.values["cycleModifiersOnHover"].toBool();
  hideKeyboardDuringMouseActions=profile.values["hideKeyboardDuringMouseActions"].toBool();
  gazeIndicatorMorph=profile.values["gazeIndicatorMorph"].toBool();
+ filterType=profile.values["gazeFilterType"].toInt(0);
+ filterGain=profile.values["gazeFilterGain"].toDouble(0.2);
+ saccadeDistance=profile.values["gazeSaccadeDistance"].toDouble(0.1);
  smoothingLevel=profile.values["gazeSmoothingLevel"].toInt(1);smoothTargetChanges=profile.values["smoothWhenChangingGazeTarget"].toBool();
  gazeToleranceMs=profile.values["invalidGazeToleranceMs"].toInt(250);
  clampGazeForKeyboard=profile.values["clampGazeForKeyboard"].toBool(false);
@@ -133,6 +138,12 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(
  connect(&runner,&ActionRunner::failed,this,[this]{clearOverlap();});
  connect(&runner,&ActionRunner::finished,this,&Controller::dispatchOverlap,Qt::QueuedConnection);
  connect(&runner,&ActionRunner::textCommitted,this,&Controller::updateText);
+ runner.removeSpaceBeforeText=[this](QString text){return takeCompletionSpace(text);};
+ connect(&runner,&ActionRunner::keyPressed,this,[this](QString name){
+  if(name!="LSHIFT"&&name!="RSHIFT"&&name!="CAPITAL")completionSpaceContext.clear();
+ });
+ connect(&runner,&ActionRunner::failed,this,[this]{pendingCompletionText.clear();completionSpaceContext.clear();});
+ connect(&runner,&ActionRunner::cancelled,this,[this]{pendingCompletionText.clear();});
  connect(&portal,&PortalInput::status,this,[this](QString m){portalStatus=m;emit changed();});
  connect(&portal,&PortalInput::readyChanged,this,[this]{dwell.reset();if(!ready()){runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}emit changed();});
  connect(&tobii,&TobiiInput::status,this,[this](QString m){tobiiStatus=m;emit changed();});
@@ -163,6 +174,7 @@ void Controller::configureInputMethod(std::function<bool(QString)> text,std::fun
  actionStatus="Native text input enabled; authorize desktop control for pointer actions and held shortcuts";emit changed();
 }
 void Controller::invalidateInputContext(){
+ pendingCompletionText.clear();completionSpaceContext.clear();
  runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();dwell.reset();speech.stop();scratchpad.clear();predictionContext.clear();suggestions.clear();emit changed();
 }
 void Controller::inputContextChanged(bool active,bool sensitive){
@@ -173,14 +185,16 @@ void Controller::inputContextChanged(bool active,bool sensitive){
 }
 bool Controller::savePreferences(){
  if(signInMode)return false;
- QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  values["invalidGazeToleranceMs"]=gazeToleranceMs;
+ values["removeCompletionSpaceBeforePunctuation"]=removeCompletionSpaceEnabled;
  values["clampGazeForKeyboard"]=clampGazeForKeyboard;
  values["clampGazeForPointSelection"]=clampGazeForPointSelection;
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?QString():error;emit changed();return ok;
 }
 void Controller::resetPreferences(){
+ pendingCompletionText.clear();completionSpaceContext.clear();
  if(signInMode)return;
  QString error;auto values=ProfileStore::defaults();
  if(!ProfileStore(configFile("profile.json")).save(values,error,true)){profileStatus=error;emit changed();return;}
@@ -188,9 +202,10 @@ void Controller::resetPreferences(){
  setMagnifierEnabled(false);
  setGazeEnabled(false);
  setInvalidGazeToleranceMs(250);
+ setRemoveCompletionSpaceBeforePunctuation(true);
  clampGazeForKeyboard=false;clampGazeForPointSelection=true;
  dwellIndicatorStyle="bar";
- dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";nextWordEnabled=true;completionSpaceEnabled=true;sentenceStartersEnabled=true;backStack.clear();
+ dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";typedWordMode="fallback";nextWordEnabled=true;completionSpaceEnabled=true;sentenceStartersEnabled=true;backStack.clear();
  repeatIntervalMs=750;
  preserveTogglesBetweenLayouts=false;
  cycleModifiersOnHover=false;
@@ -199,6 +214,9 @@ void Controller::resetPreferences(){
  gazeIndicatorSize=18;gazeIndicatorOpacity=100;gazeIndicatorColor="#00bfff";gazeIndicatorMorph=false;
  setRestoreCorner(2);setRestoreWidth(64);setRestoreHeight(64);restoreOpacity=100;
  setKeyboardScale(100);keyboardTheme="system";shortLabelScale=values["shortLabelScale"].toInt();longLabelScale=values["longLabelScale"].toInt();magnifierZoom=values["magnifierZoom"].toInt();progressiveZoom=false;zoomDurationMs=1500;targetDwellEnabled=true;targetStartDwellMs=750;targetConfirmDwellMs=1000;targetDwellRadius=40;rememberDesktop=false;
+ setGazeFilterType(values["gazeFilterType"].toInt(0));
+ setGazeFilterGain(values["gazeFilterGain"].toDouble(0.2));
+ setGazeSaccadeDistance(values["gazeSaccadeDistance"].toDouble(0.1));
  setGazeSmoothingLevel(values["gazeSmoothingLevel"].toInt());setSmoothWhenChangingGazeTarget(false);gazeSmoothing.reset();
  openLayout(values["startLayout"].toString(),false);
  profileStatus="Preferences reset. Input remains paused.";emit changed();
@@ -257,8 +275,13 @@ void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
   }
   if(!gazeAge.isValid()||now-lastGazeSample>200000)gazeSmoothing.reset();
   lastGazeSample=sampledAt;gazeAge.restart();
+  if(filterType==1){
+   const auto point=gazeSmoothing.updateExponential({x,y},filterGain,saccadeDistance);
+   x=point.x();y=point.y();
+  }else{
   const auto point=gazeSmoothing.update({x*gazeDisplaySize.width(),y*gazeDisplaySize.height()},smoothingLevel,smoothTargetChanges);
   x=point.x()/gazeDisplaySize.width();y=point.y()/gazeDisplaySize.height();
+  }
  }else{
   if(gazeAge.isValid()&&gazeEnabled&&trackerConnected&&gazeToleranceMs>0){
    if(!gazeLossStarted){
@@ -507,7 +530,9 @@ void Controller::activate(QString key){
   bool valid=false;int i=key.mid(8).toInt(&valid);if(!valid||i<0||i>=suggestions.size()||suggestions[i].trimmed().isEmpty()||(!runner.textOnly&&!ready()))return;
   if(!runner.heldKeys().isEmpty()){actionStatus="Release held keys before accepting a suggestion";emit changed();return;}
   QString prefix=WordPrediction::prefix(typingContext());auto word=suggestions[i];
-  runner.start({command("Text",word.mid(prefix.size())+(completionSpaceEnabled?QString(" "):QString()))});return;
+  const auto text=word.mid(prefix.size())+(completionSpaceEnabled?QString(" "):QString());
+  if(runner.start({command("Text",text)}))pendingCompletionText=completionSpaceEnabled?text:QString();
+  return;
  }
  if(!key.startsWith("key:"))return;
  bool valid=false;int i=key.mid(4).toInt(&valid);auto keys=layout["keys"].toList();if(!valid||i<0||i>=keys.size())return;
@@ -582,6 +607,7 @@ void Controller::joystick(int index,double x,double y,bool active){
  }
 }
 bool Controller::performAction(QString action){
+ completionSpaceContext.clear();
  if(action=="MoveModeToggle"||action=="SizeModeToggle"){
   if(layout["layoutMode"]!="canvas"){actionStatus="Size/move mode requires a Canvas layout";emit changed();return true;}
   const QString mode=action=="MoveModeToggle"?"move":"size";
@@ -713,15 +739,28 @@ bool Controller::hasScratchpad()const{
 QString &Controller::typingContext(){return hasScratchpad()?scratchpad:predictionContext;}
 const QString &Controller::typingContext()const{return hasScratchpad()?scratchpad:predictionContext;}
 void Controller::updateText(QString text){
+ const bool completion=!pendingCompletionText.isEmpty()&&text==pendingCompletionText;
+ pendingCompletionText.clear();completionSpaceContext.clear();
  if(sensitiveInput)return;
  auto &context=typingContext();
  for(auto ch:text){if(ch=='\b'){if(!context.isEmpty()){QTextBoundaryFinder boundary(QTextBoundaryFinder::Grapheme,context);boundary.toEnd();context.truncate(qMax(0,boundary.toPreviousBoundary()));}}else{if(ch.isSpace()&&learning){QString word=WordPrediction::completedWord(context);if(!word.isEmpty()&&word.size()<64)frequencies[word]=qMin(1000000,frequencies.value(word)+1);}context+=ch;}}
- if(context.size()>4096)context=context.right(4096);updateSuggestions();
+ if(context.size()>4096)context=context.right(4096);
+ if(completion&&runner.textOnly&&context.endsWith(' '))completionSpaceContext=context;
+ updateSuggestions();
+}
+bool Controller::takeCompletionSpace(const QString &text){
+ const auto context=completionSpaceContext;completionSpaceContext.clear();
+ // External applications can move their caret without updating our context.
+ // Only conversation keyboards own the text position needed for safe removal.
+ if(!runner.textOnly||!removeCompletionSpaceEnabled||sensitiveInput||context.isEmpty()
+    ||context!=typingContext()||text.size()!=1)return false;
+ const auto ch=text.front();
+ return ch.isPunct()||(ch.unicode()<128&&ch.isSymbol());
 }
 QStringList Controller::predictionSuggestions(int limit)const{
  const auto &context=typingContext();
  if(sensitiveInput||predictionModeValue=="off"||(!context.isEmpty()&&!nextWordEnabled&&WordPrediction::prefix(context).isEmpty()))return {};
- return WordPrediction::suggest(context,dictionary,learning?frequencies:QMap<QString,int>{},limit,predictionModeValue=="context",sentenceStartersEnabled);
+ return WordPrediction::suggest(context,dictionary,learning?frequencies:QMap<QString,int>{},limit,predictionModeValue=="context",sentenceStartersEnabled,typedWordMode);
 }
 void Controller::setPredictionMode(QString mode){
  if(signInMode)return;
@@ -735,6 +774,10 @@ void Controller::setSuggestSentenceStarters(bool enabled){
 void Controller::setAddSpaceAfterCompletion(bool enabled){
  if(completionSpaceEnabled==enabled)return;
  completionSpaceEnabled=enabled;dwell.reset();emit changed();
+}
+void Controller::setRemoveCompletionSpaceBeforePunctuation(bool enabled){
+ if(removeCompletionSpaceEnabled==enabled)return;
+ removeCompletionSpaceEnabled=enabled;completionSpaceContext.clear();emit changed();
 }
 void Controller::setPredictNextWord(bool enabled){
  if(nextWordEnabled==enabled)return;
@@ -861,11 +904,33 @@ bool Controller::isSignInEnabled()const{
 void Controller::configureSignIn(bool enabled){
  if(signInMode)return;
 #ifdef _WIN32
- QJsonObject values{{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
+ QJsonObject values{{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
  values["invalidGazeToleranceMs"]=gazeToleranceMs;
  values["clampGazeForKeyboard"]=clampGazeForKeyboard;
  values["clampGazeForPointSelection"]=clampGazeForPointSelection;
  profileStatus=WindowsSignIn::configure(enabled,values)?(enabled?"This keyboard will start before Windows sign-in. Prediction is disabled there.":"Windows sign-in startup is disabled."):"Could not change sign-in startup. Install the trusted version of GazeGrid and accept the administrator prompt.";
  emit changed();
 #endif
+}
+
+void Controller::setGazeFilterType(int value){
+ value=qBound(0,value,1);if(value==filterType)return;
+ filterType=value;gazeSmoothing.reset();dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();emit changed();
+}
+
+void Controller::setGazeFilterGain(double value){
+ if(!std::isfinite(value))return;
+ value=qBound(0.01,value,1.0);if(value==filterGain)return;
+ filterGain=value;gazeSmoothing.reset();dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();emit changed();
+}
+
+void Controller::setGazeSaccadeDistance(double value){
+ if(!std::isfinite(value))return;
+ value=qBound(0.01,value,1.0);if(value==saccadeDistance)return;
+ saccadeDistance=value;gazeSmoothing.reset();dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();emit changed();
+}
+
+void Controller::setTypedWordSuggestionMode(const QString &mode){
+ if(!QStringList{"always","fallback","never"}.contains(mode)||typedWordMode==mode)return;
+ typedWordMode=mode;dwell.reset();updateSuggestions();
 }

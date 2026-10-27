@@ -23,13 +23,14 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",250},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",false},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
+    return {{"removeCompletionSpaceBeforePunctuation",true},{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",250},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",false},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeFilterType",0},{"gazeFilterGain",0.2},{"gazeSaccadeDistance",0.1},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"typedWordSuggestionMode","fallback"},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"keyboardTheme","system"},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
     static const QRegularExpression layout("^[A-Za-z0-9_-]+$");
     return v["version"].isDouble()&&v["version"].toDouble()==1
         &&(!v.contains("gazeEnabled")||v["gazeEnabled"].isBool())
+        &&(!v.contains("removeCompletionSpaceBeforePunctuation")||v["removeCompletionSpaceBeforePunctuation"].isBool())
         &&(!v.contains("clampGazeForKeyboard")||v["clampGazeForKeyboard"].isBool())
         &&(!v.contains("clampGazeForPointSelection")||v["clampGazeForPointSelection"].isBool())
         &&(!v.contains("invalidGazeToleranceMs")||(v["invalidGazeToleranceMs"].isDouble()&&v["invalidGazeToleranceMs"].toDouble()==v["invalidGazeToleranceMs"].toInt()&&v["invalidGazeToleranceMs"].toInt()>=0&&v["invalidGazeToleranceMs"].toInt()<=1000))
@@ -44,6 +45,9 @@ bool ProfileStore::valid(const QJsonObject &v){
         &&(!v.contains("dwellIndicatorStyle")||(v["dwellIndicatorStyle"].isString()&&QStringList{"bar","top-bar","fill","outline","ring","pie","collapse"}.contains(v["dwellIndicatorStyle"].toString())))
         &&v["dwellMs"].isDouble()&&v["dwellMs"].toDouble()==v["dwellMs"].toInt()
         &&v["dwellMs"].toInt()>=250&&v["dwellMs"].toInt()<=3000
+        &&(!v.contains("gazeFilterType")||(v["gazeFilterType"].isDouble()&&(v["gazeFilterType"].toDouble()==0||v["gazeFilterType"].toDouble()==1)))
+        &&(!v.contains("gazeFilterGain")||(v["gazeFilterGain"].isDouble()&&v["gazeFilterGain"].toDouble()>=0.01&&v["gazeFilterGain"].toDouble()<=1))
+        &&(!v.contains("gazeSaccadeDistance")||(v["gazeSaccadeDistance"].isDouble()&&v["gazeSaccadeDistance"].toDouble()>=0.01&&v["gazeSaccadeDistance"].toDouble()<=1))
         &&(!v.contains("gazeSmoothingLevel")||(v["gazeSmoothingLevel"].isDouble()&&v["gazeSmoothingLevel"].toDouble()==v["gazeSmoothingLevel"].toInt()&&v["gazeSmoothingLevel"].toInt()>=0&&v["gazeSmoothingLevel"].toInt()<=4))
         &&(!v.contains("smoothWhenChangingGazeTarget")||v["smoothWhenChangingGazeTarget"].isBool())
         &&(!v.contains("restoreCorner")||(v["restoreCorner"].isDouble()&&v["restoreCorner"].toDouble()==v["restoreCorner"].toInt()&&v["restoreCorner"].toInt()>=0&&v["restoreCorner"].toInt()<=3))
@@ -52,6 +56,7 @@ bool ProfileStore::valid(const QJsonObject &v){
         &&(!v.contains("restoreHeight")||(v["restoreHeight"].isDouble()&&v["restoreHeight"].toDouble()==v["restoreHeight"].toInt()&&v["restoreHeight"].toInt()>=40&&v["restoreHeight"].toInt()<=128))
         &&(!v.contains("restoreSize")||(v["restoreSize"].isDouble()&&v["restoreSize"].toDouble()==v["restoreSize"].toInt()&&v["restoreSize"].toInt()>=40&&v["restoreSize"].toInt()<=128))
         &&v["literal"].isBool()&&v["learning"].isBool()
+        &&(!v.contains("typedWordSuggestionMode")||(v["typedWordSuggestionMode"].isString()&&QStringList{"always","fallback","never"}.contains(v["typedWordSuggestionMode"].toString())))
         &&(!v.contains("predictionMode")||(v["predictionMode"].isString()&&QStringList{"context","frequency","off"}.contains(v["predictionMode"].toString())))
         &&(!v.contains("suggestSentenceStarters")||v["suggestSentenceStarters"].isBool())
         &&(!v.contains("addSpaceAfterCompletion")||v["addSpaceAfterCompletion"].isBool())

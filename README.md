@@ -49,6 +49,8 @@ Preferences now use a versioned `profile.json` under the application configurati
 
 The same category has separate **Clamp off-screen gaze for keyboard keys** and **Clamp off-screen gaze for point selection** checkboxes. Keyboard clamping defaults to off; point-selection clamping defaults to on. Clamping moves valid off-screen coordinates to the nearest screen edge before smoothing; turning it off preserves those coordinates for the selected use. Being outside the screen does not make a tracker sample invalid or trigger invalid-gaze tolerance. Save preferences to retain these choices.
 
+**Settings → Typing & speech → Word prediction → Remove completion space before punctuation in conversation keyboards** is enabled by default. In conversation keyboards, after accepting a word with an automatically appended space, the next punctuation or ASCII symbol replaces that space: `hello ` followed by `.` becomes `hello.`. Shifted punctuation is supported. Manually typed spaces are preserved; typing another character or issuing a cursor/editing command ends the automatic replacement. Desktop output preserves the space because external caret movements cannot be tracked reliably. Save preferences to retain the setting.
+
 Writes are atomic and retain a validated `.bak` recovery copy. If the main profile is corrupt, startup uses that copy or defaults and reports recovery in Settings. Profiles from newer versions are preserved and cannot be overwritten without an explicit reset. This fresh format does not import the prototype's QSettings file or legacy OptiKey settings.
 
 ```sh
@@ -301,3 +303,19 @@ To activate overlapping keys by gaze or mouse hover dwell, add this per-keyboard
 ```
 
 This option applies only to Canvas layouts and defaults to `false`; Grid layouts ignore it. Each overlapping `DynamicKey` keeps its own dwell time and progress indicator. Keys completing dwell together activate modifiers first, then other keys in XML order. Actions run sequentially, preserving each key's macro and modifier behavior (a latched modifier still applies to the next ordinary key). Repeat, Hold, and Toggle modes remain available; held keys release independently when you leave their area. Leaving a key cancels its pending activation. Pausing, losing tracking, switching keyboards, or entering move/resize mode cancels pending overlap activations. Pause and mode-switch keys take priority over other overlapping keys. Joysticks and prediction slots retain their exclusive interaction when topmost, and mouse clicks still select the topmost key. Move/resize mode continues to select one item at a time.
+
+An alternative **Exponential with saccade snap** filter is available under
+**Settings > Gaze & dwell > Filter type**. It applies
+`filtered += gain * (raw - filtered)` and snaps directly to the raw point when
+its Euclidean distance from the filtered point exceeds the saccade threshold.
+Gain defaults to 0.20 and distance to 0.10 in normalized screen coordinates;
+these are adjustable and saved with preferences. Smaller gains smooth more.
+This option uses its own controls independently of the Kalman strength and
+optional target-change history. Existing profiles continue using Kalman.
+
+Under **Settings > Typing & speech > Word prediction**, **Show the word I'm typing**
+offers **Always, as the first suggestion**, **Only when there are no predictions**
+(the default), and **Never**. The typed word preserves its exact
+capitalization, including names and words absent from the dictionary. Selecting
+it keeps the word and applies the existing space-after-completion setting.
+Save preferences to retain the choice. Next-word predictions are unchanged.

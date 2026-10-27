@@ -18,6 +18,7 @@
 #include <QEnterEvent>
 #include <QWheelEvent>
 #include <memory>
+#include <atomic>
 #include <QJsonObject>
 #include <QDir>
 #include <QFileInfo>
@@ -328,6 +329,40 @@ int main(int argc,char **argv){
  auto target=window->findChild<QQuickWindow*>("targetWindow");
  // Target selection and cancellation must remain available while the panel is hidden.
  if(target)target->setTransientParent(nullptr);
+#ifdef _WIN32
+ if(target&&QGuiApplication::platformName()=="windows"){
+  target->setProperty("waitForFreshFrame",true);
+  target->setProperty("frameReady",false);
+  struct Presentation {
+   std::atomic<unsigned> epoch{0};
+   unsigned synchronizedEpoch=0; // Accessed only by the render thread.
+   bool active=false; // Accessed only by the GUI thread.
+  };
+  auto presentation=std::make_shared<Presentation>();
+  QObject::connect(&controller,&Controller::changed,target,[target,presentation]{
+   const bool active=target->property("presentationActive").toBool();
+   if(active==presentation->active)return;
+   presentation->active=active;++presentation->epoch;
+   target->setProperty("frameReady",false);
+   if(active)target->requestUpdate();
+  });
+  QObject::connect(target,&QQuickWindow::afterSynchronizing,target,[presentation]{
+   presentation->synchronizedEpoch=presentation->epoch.load();
+  },Qt::DirectConnection);
+  QObject::connect(target,&QQuickWindow::afterFrameEnd,target,[target,presentation]{
+   const auto epoch=presentation->synchronizedEpoch;
+   QMetaObject::invokeMethod(target,[target,presentation,epoch]{
+    if(epoch==presentation->epoch.load()&&presentation->active&&target->isVisible()
+       &&!target->property("frameReady").toBool()){
+     // Let the compositor consume the newly submitted transparent frame before
+     // restoring native opacity; render completion alone need not mean display.
+     DwmFlush();
+     target->setProperty("frameReady",true);
+    }
+   },Qt::QueuedConnection);
+  },Qt::DirectConnection);
+ }
+#endif
  bool hiddenForMouseAction=false,restoreAfterMouseAction=false;
  QObject::connect(&controller,&Controller::changed,&app,[&]{
   const bool hide=controller.keyboardTemporarilyHidden();
@@ -809,6 +844,36 @@ int main(int argc,char **argv){
   return app.exec();
  }
 
+ if(app.arguments().contains("--target-overlay-frame-check")){
+  if(!target||!target->property("waitForFreshFrame").toBool())return 2;
+  window->setProperty("gazeCheck",true);
+  controller.setProperty("targeting",true);controller.setProperty("capturePending",true);
+  controller.setProperty("magnifierEnabled",true);controller.setProperty("progressiveZoom",false);
+  QImage frame(QGuiApplication::primaryScreen()->size(),QImage::Format_RGB32);frame.fill(Qt::red);
+  QMetaObject::invokeMethod(&controller,"receiveMagnifierFrame",Qt::DirectConnection,Q_ARG(QImage,frame));
+  if(target->opacity()!=0){QTextStream(stderr)<<"FAIL: overlay exposed before its first frame"<<Qt::endl;return 2;}
+  auto poll=new QTimer(&app);poll->setInterval(25);
+  QObject::connect(poll,&QTimer::timeout,&app,[&,stage=0]()mutable{
+   if(!target->property("frameReady").toBool())return;
+   const auto image=target->grabWindow();
+   if(image.isNull()){QTextStream(stderr)<<"FAIL: no overlay frame"<<Qt::endl;app.exit(2);return;}
+   const auto color=image.pixelColor(image.width()/2,image.height()/2);
+   if(stage==0){
+    if(color!=QColor(Qt::red)){QTextStream(stderr)<<"FAIL: stale-frame fixture did not render"<<Qt::endl;app.exit(2);return;}
+    controller.clickCommand("CancelTarget");controller.setProperty("targeting",true);
+    if(target->opacity()!=0||target->property("frameReady").toBool()){
+     QTextStream(stderr)<<"FAIL: previous magnified frame exposed on restart"<<Qt::endl;app.exit(2);return;
+    }
+    stage=1;
+   }else{
+    if(color==QColor(Qt::red)||target->opacity()!=1){QTextStream(stderr)<<"FAIL: stale magnified frame remained visible"<<Qt::endl;app.exit(2);return;}
+    controller.clickCommand("CancelTarget");
+    QTextStream(stdout)<<"PASS: overlay waits for a fresh rendered frame on initial show and restart"<<Qt::endl;app.quit();
+   }
+  });
+  poll->start();QTimer::singleShot(5000,&app,[&]{QTextStream(stderr)<<"FAIL: overlay frame readiness timed out"<<Qt::endl;app.exit(2);});
+  return app.exec();
+ }
  if(app.arguments().contains("--target-dwell-ui-check")||app.arguments().contains("--pointer-dwell-ui-check")){
   // Synthetic gaze/pointer motion and screenshot, without mouse-button events.
   const bool gazeInput=app.arguments().contains("--target-dwell-ui-check");
