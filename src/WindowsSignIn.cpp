@@ -27,6 +27,17 @@ bool WindowsSignIn::secureDesktop(){
  return GetUserObjectInformationW(GetThreadDesktop(GetCurrentThreadId()),UOI_NAME,name,sizeof(name),&length)
      &&_wcsicmp(name,L"Winlogon")==0;
 }
+bool WindowsSignIn::registered(){
+ QSettings registration("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Accessibility\\ATs\\GazeGrid_GazeGrid_v1",QSettings::Registry64Format);
+ const auto installed=QFileInfo(registration.value("StartExe").toString()).canonicalFilePath();
+ return !installed.isEmpty()&&installed.compare(QFileInfo(QCoreApplication::applicationFilePath()).canonicalFilePath(),Qt::CaseInsensitive)==0;
+}
+bool WindowsSignIn::notify(bool running){
+ // Portable/development copies must not announce the installed application's ID.
+ if(!registered())return false;
+ return SignInRegistry::notify(HKEY_CURRENT_USER,SignInRegistry::temporaryKey,running,
+     [](INPUT *inputs,UINT count){return SendInput(count,inputs,sizeof(INPUT));});
+}
 bool WindowsSignIn::enabled(){
  std::wstring configuration;
  return SignInRegistry::read(HKEY_LOCAL_MACHINE,SignInRegistry::key,configuration)==ERROR_SUCCESS
@@ -46,8 +57,7 @@ int WindowsSignIn::setup(const QStringList &arguments){
  if(arguments.size()!=index+3||index!=1)return 2;
  auto mode=arguments[index+1];auto data=arguments[index+2].toLatin1();
  if((mode!="enable"&&mode!="disable")||data.size()>24000)return 2;
- QSettings registration("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Accessibility\\ATs\\GazeGrid_GazeGrid_v1",QSettings::NativeFormat);
- if(QFileInfo(registration.value("StartExe").toString()).canonicalFilePath()!=QFileInfo(QCoreApplication::applicationFilePath()).canonicalFilePath())return 2;
+ if(!registered())return 2;
  auto values=validatedProfile(QJsonDocument::fromJson(QByteArray::fromBase64(data)).object());
  if(values.isEmpty())return 2;
  QSettings settings(settingsPath,QSettings::NativeFormat);

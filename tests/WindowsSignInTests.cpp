@@ -2,9 +2,49 @@
 #include "SignInRegistry.h"
 #include "WindowsSignIn.h"
 #include "ProfileStore.h"
+#include <QUuid>
 class WindowsSignInTests:public QObject {
  Q_OBJECT
 private slots:
+ void accessibilityNotificationWritesSignalBeforeSendingShortcut(){
+  const auto path=(QStringLiteral("SOFTWARE\\GazeGrid\\Tests\\")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();
+  struct Cleanup {const std::wstring &path;~Cleanup(){RegDeleteKeyW(HKEY_CURRENT_USER,path.c_str());}} cleanup{path};
+  for(bool running:{true,false}){
+   DWORD observed=0;UINT count=0;bool shortcut=false;
+   const auto notified=SignInRegistry::notify(HKEY_CURRENT_USER,path.c_str(),running,[&](INPUT *inputs,UINT size){
+    DWORD bytes=sizeof(observed);
+    RegGetValueW(HKEY_CURRENT_USER,path.c_str(),SignInRegistry::id,RRF_RT_REG_DWORD,nullptr,&observed,&bytes);
+    count=size;
+    shortcut=size==4&&inputs[0].type==INPUT_KEYBOARD&&inputs[0].ki.wVk==VK_LWIN&&inputs[0].ki.dwFlags==0
+       &&inputs[1].type==INPUT_KEYBOARD&&inputs[1].ki.wVk=='U'&&inputs[1].ki.dwFlags==0
+       &&inputs[2].type==INPUT_KEYBOARD&&inputs[2].ki.wVk=='U'&&inputs[2].ki.dwFlags==KEYEVENTF_KEYUP
+       &&inputs[3].type==INPUT_KEYBOARD&&inputs[3].ki.wVk==VK_LWIN&&inputs[3].ki.dwFlags==KEYEVENTF_KEYUP;
+    return size;
+   });
+   QVERIFY(notified);QCOMPARE(count,UINT(4));QVERIFY(shortcut);QCOMPARE(observed,DWORD(running?3:2));
+  }
+ }
+ void rejectedAccessibilityShortcutDoesNotLeavePendingSignal(){
+  const auto path=(QStringLiteral("SOFTWARE\\GazeGrid\\Tests\\")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();
+  struct Cleanup {const std::wstring &path;~Cleanup(){RegDeleteKeyW(HKEY_CURRENT_USER,path.c_str());}} cleanup{path};
+  QVERIFY(!SignInRegistry::notify(HKEY_CURRENT_USER,path.c_str(),true,[](INPUT *,UINT){return UINT(0);}));
+  DWORD value=0,bytes=sizeof(value);
+  QCOMPARE(RegGetValueW(HKEY_CURRENT_USER,path.c_str(),SignInRegistry::id,RRF_RT_REG_DWORD,nullptr,&value,&bytes),LONG(ERROR_FILE_NOT_FOUND));
+ }
+ void partialAccessibilityShortcutReleasesKeysAndClearsSignal(){
+  const auto path=(QStringLiteral("SOFTWARE\\GazeGrid\\Tests\\")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();
+  struct Cleanup {const std::wstring &path;~Cleanup(){RegDeleteKeyW(HKEY_CURRENT_USER,path.c_str());}} cleanup{path};
+  int calls=0;bool released=false,pending=true;
+  QVERIFY(!SignInRegistry::notify(HKEY_CURRENT_USER,path.c_str(),true,[&](INPUT *inputs,UINT count){
+   if(++calls==1)return UINT(2);
+   DWORD value=0,bytes=sizeof(value);
+   pending=RegGetValueW(HKEY_CURRENT_USER,path.c_str(),SignInRegistry::id,RRF_RT_REG_DWORD,nullptr,&value,&bytes)==ERROR_SUCCESS;
+   released=count==2&&inputs[0].ki.wVk=='U'&&inputs[0].ki.dwFlags==KEYEVENTF_KEYUP
+       &&inputs[1].ki.wVk==VK_LWIN&&inputs[1].ki.dwFlags==KEYEVENTF_KEYUP;
+   return count;
+  }));
+  QCOMPARE(calls,2);QVERIFY(released);QVERIFY(!pending);
+ }
  void retainsOtherAccessibilityTools(){
   using namespace SignInRegistry;
   const std::wstring before=L"osk,narrator";

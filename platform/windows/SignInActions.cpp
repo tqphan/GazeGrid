@@ -15,7 +15,7 @@ UINT apply(MSIHANDLE install){
 extern "C" __declspec(dllexport) UINT __stdcall PrepareSignIn(MSIHANDLE install){
  std::wstring previous;if(SignInRegistry::read(HKEY_LOCAL_MACHINE,SignInRegistry::key,previous)!=ERROR_SUCCESS)return ERROR_INSTALL_FAILURE;
  bool remove=property(install,L"REMOVE")==L"ALL";
- bool enable=!remove&&property(install,L"GAZEGRID_SIGN_IN")==L"1";
+ bool enable=!remove&&property(install,L"GAZEGRID_TRUST_CERTIFICATE")==L"1"&&property(install,L"GAZEGRID_SIGN_IN")==L"1";
  if(MsiSetPropertyW(install,L"ApplySignIn",enable?L"1":L"0")!=ERROR_SUCCESS)return ERROR_INSTALL_FAILURE;
  return MsiSetPropertyW(install,L"RollbackSignIn",SignInRegistry::contains(previous)?L"1":L"0");
 }

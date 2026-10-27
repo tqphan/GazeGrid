@@ -12,6 +12,31 @@
 namespace SignInRegistry {
 inline constexpr wchar_t key[]=L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Accessibility";
 inline constexpr wchar_t id[]=L"GazeGrid_GazeGrid_v1";
+inline constexpr wchar_t temporaryKey[]=L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AccessibilityTemp";
+// Windows consumes the signal when it receives Win+U. Keeping the sender
+// injectable lets tests exercise registry ordering without sending real keys.
+template<class Sender>
+inline bool notify(HKEY root,const wchar_t *path,bool running,Sender send){
+ HKEY handle=nullptr;
+ if(RegCreateKeyExW(root,path,0,nullptr,0,KEY_SET_VALUE|KEY_WOW64_64KEY,nullptr,&handle,nullptr)!=ERROR_SUCCESS)return false;
+ const DWORD signal=running?0x0003:0x0002;
+ auto error=RegSetValueExW(handle,id,0,REG_DWORD,reinterpret_cast<const BYTE*>(&signal),sizeof(signal));
+ bool sent=false;
+ if(error==ERROR_SUCCESS){
+  INPUT inputs[4]{};
+  for(auto &input:inputs)input.type=INPUT_KEYBOARD;
+  inputs[0].ki.wVk=VK_LWIN;inputs[1].ki.wVk='U';
+  inputs[2].ki.wVk='U';inputs[2].ki.dwFlags=KEYEVENTF_KEYUP;
+  inputs[3].ki.wVk=VK_LWIN;inputs[3].ki.dwFlags=KEYEVENTF_KEYUP;
+  const auto inserted=send(inputs,UINT(4));sent=inserted==4;
+  if(!sent){
+   RegDeleteValueW(handle,id);
+   // A partial insertion must not leave Windows or U held down.
+   if(inserted>0)send(inputs+2,UINT(2));
+  }
+ }
+ RegCloseKey(handle);return sent;
+}
 inline std::wstring updated(const std::wstring &list,bool enabled){
  std::wstring result;bool found=false;
  for(size_t start=0;start<list.size();){

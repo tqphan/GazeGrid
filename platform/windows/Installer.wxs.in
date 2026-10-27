@@ -8,11 +8,14 @@
       <RegistrySearch Id="SavedMode" Root="HKLM" Key="Software\GazeGrid\Installer" Name="TrustCertificate" Type="raw" Win64="yes" />
     </Property>
     <SetProperty Id="GAZEGRID_TRUST_CERTIFICATE" Value="[GAZEGRID_SAVED_MODE]" After="AppSearch" Sequence="both">Installed AND GAZEGRID_SAVED_MODE</SetProperty>
-    <Property Id="GAZEGRID_SIGN_IN" Secure="yes" />
+    <Property Id="GAZEGRID_SIGN_IN" Value="1" Secure="yes" />
     <Property Id="GAZEGRID_SAVED_SIGN_IN" Secure="yes">
       <RegistrySearch Id="SavedSignIn" Root="HKLM" Key="Software\GazeGrid\Installer" Name="SignIn" Type="raw" Win64="yes" />
     </Property>
-    <SetProperty Id="GAZEGRID_SIGN_IN" Value="1" After="AppSearch" Sequence="both">Installed AND GAZEGRID_SAVED_SIGN_IN = "1"</SetProperty>
+    <!-- Restore unchecked (empty) and explicit silent opt-out (0) as well as 1.
+         Declining trust must also turn off the default during quiet setup. -->
+    <SetProperty Id="GAZEGRID_SIGN_IN" Value="[GAZEGRID_SAVED_SIGN_IN]" After="SetGAZEGRID_TRUST_CERTIFICATE" Sequence="both">Installed</SetProperty>
+    <SetProperty Id="GAZEGRID_SIGN_IN" Action="DisableUntrustedSignIn" Value="" After="SetGAZEGRID_SIGN_IN" Sequence="both">GAZEGRID_TRUST_CERTIFICATE &lt;&gt; "1"</SetProperty>
     <Condition Message="Starting before Windows sign-in requires accepting certificate trust.">NOT (GAZEGRID_SIGN_IN = "1") OR GAZEGRID_TRUST_CERTIFICATE = "1" OR REMOVE = "ALL"</Condition>
     <Binary Id="SignInActions" SourceFile="@CMAKE_BINARY_DIR@/Release/gazegrid_sign_in_actions.dll" />
     <CustomAction Id="PrepareSignIn" BinaryKey="SignInActions" DllEntry="PrepareSignIn" Execute="immediate" Return="check" />
@@ -33,13 +36,17 @@
           <RegistryValue Name="Description" Value="@[INSTALL_ROOT]gazegrid.exe,-102" Type="string" />
           <RegistryValue Name="ATExe" Value="gazegrid.exe" Type="string" />
           <RegistryValue Name="StartExe" Value="[INSTALL_ROOT]gazegrid.exe" Type="string" />
-          <RegistryValue Name="StartParams" Value="--sign-in" Type="string" />
           <RegistryValue Name="SimpleProfile" Value="On-screen keyboard" Type="string" />
           <RegistryValue Name="Profile" Value="&lt;HCIModel&gt;&lt;Accommodation type=&quot;severe dexterity&quot;/&gt;&lt;Accommodation type=&quot;mild dexterity&quot;/&gt;&lt;/HCIModel&gt;" Type="string" />
           <RegistryValue Name="TerminateOnDesktopSwitch" Value="1" Type="integer" />
-          <RegistryValue Name="SecureDesktopAccommodation" Value="1" Type="integer" />
           <RegistryValue Name="PassiveAutoStartBehavior" Value="1" Type="integer" />
         </RegistryKey>
+        <!-- With no alternate accommodation, Windows launches this executable on
+             both desktops. main.cpp selects the restricted UI on Winlogon.
+             Remove the old values on repair as well as upgrade: accommodation
+             is an optional REG_SZ AT name, never a DWORD enable flag. -->
+        <RemoveRegistryValue Id="RemoveLegacySecureDesktopAccommodation" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\GazeGrid_GazeGrid_v1" Name="SecureDesktopAccommodation" />
+        <RemoveRegistryValue Id="RemoveLegacySignInStartParams" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\GazeGrid_GazeGrid_v1" Name="StartParams" />
         <File Id="GazeGridSignedExe" Source="@CMAKE_BINARY_DIR@/Release/gazegrid.exe" KeyPath="yes">
           <Shortcut Id="GazeGridSignedStart" Directory="GazeGridMenu" Name="GazeGrid" Icon="GazeGrid.exe" IconIndex="0" Advertise="yes" WorkingDirectory="INSTALL_ROOT" />
         </File>

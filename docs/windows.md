@@ -158,28 +158,35 @@ Microsoft documents the signature and secure-location requirements in
 ## Keyboard before Windows sign-in
 
 The trusted installation registers GazeGrid with Windows Ease of Access. Setup
-offers **Start GazeGrid before Windows sign-in**, initially unchecked. Silent
-setup can enable it with `GAZEGRID_SIGN_IN=1` and certificate trust enabled.
+selects **Start GazeGrid before Windows sign-in** by default, including silent
+installations. Uncheck it in setup or pass `GAZEGRID_SIGN_IN=0` to disable it.
+Declining certificate trust automatically disables sign-in startup for the
+unsigned installation. Repairs preserve the selected choice, including an
+earlier decision to disable startup.
 This uses Windows' assistive-technology startup mechanism, rather than a user
 Startup-folder shortcut. It does not replace any Windows accessibility executable
 or disable the secure desktop.
 
-After installation, open **Settings → Keyboard → Windows sign-in → Use this
-keyboard at sign-in**. Accept the administrator prompt to copy the selected
+To copy your current preferences after installation, open **Settings → Keyboard
+→ Windows sign-in**, then clear and select **Use this keyboard at sign-in**.
+Accept the administrator prompt to copy the selected
 installed layout, keyboard appearance, dwell timing, and gaze preferences to a
 protected machine-wide configuration. Clear and select the checkbox again after choosing a
 different keyboard. Clearing **Use this keyboard at sign-in** removes GazeGrid from startup
 without changing other accessibility tools. Repair preserves the selected mode;
 uninstall removes GazeGrid's registration and startup entry.
 
-Windows launches the same `gazegrid.exe` with `--sign-in` on the Winlogon desktop.
+Windows launches the same `gazegrid.exe` on either desktop without additional
+arguments. GazeGrid detects the Winlogon desktop and selects the restricted
+sign-in interface there; restarts on the normal desktop use the personal profile.
 It uses the existing keyboard rendering, navigation, key output, and dwell logic.
 Prediction stays off even after switching layouts. Typed text is not retained
 in scratchpads or learned words. Personal profile files are not read or written,
 and Settings, the editor, and magnifier are unavailable in this mode. Windows
-terminates the sign-in instance when changing desktops. Normal desktop preferences
-and prediction remain unchanged. Until a keyboard is copied from Settings, the
-sign-in keyboard uses the default alphabet layout with mouse dwell.
+terminates and restarts the accessibility instance when changing desktops.
+Normal desktop preferences and prediction remain unchanged. Until a keyboard
+is copied from Settings, the sign-in keyboard uses the default alphabet layout
+with mouse dwell.
 
 Registration and startup follow [Microsoft's assistive-technology
 registration](https://learn.microsoft.com/en-us/windows/win32/winauto/ease-of-access---assistive-technology-registration).
@@ -188,10 +195,22 @@ with rollback support, preserving existing entries such as Narrator and OSK.
 The administrator helper accepts only validated layout names and keyboard/gaze
 preferences; it cannot load arbitrary paths or copy typed text.
 
+The same trusted registration also lets Windows launch the restricted keyboard
+on UAC prompts while GazeGrid is running. GazeGrid notifies Ease of Access when
+the installed application starts or exits, using the documented
+`AccessibilityTemp` signal and Windows+U notification. The installer leaves
+`SecureDesktopAccommodation` unset so Windows uses GazeGrid itself. That value
+is an optional **string naming an alternate registered accessibility app**, not
+a numeric enable flag. Repairing an updated MSI removes the old DWORD override
+and the old `--sign-in` startup arguments. Install the trusted signed build in
+Program Files, restart GazeGrid, then check a UAC prompt on the secure desktop.
+Enabling startup before sign-in is a separate choice and is not required for
+UAC support while GazeGrid is already running.
+
 Automated checks cover the existing UI in sign-in mode, prediction/learning and
 text-retention suppression, validated preferences, and accessibility-list
-preservation. Installer CI covers opt-in, repair, and uninstall. Actual sign-in,
-lock/unlock, and UAC desktop transitions require acceptance on a signed Windows
+preservation. Installer CI covers default startup, opt-out, repair, and uninstall.
+Actual sign-in, lock/unlock, and UAC desktop transitions require acceptance on a signed Windows
 installation. Test PIN/password entry, top/bottom placement, gaze loss, and
 return to the user's normal keyboard. Tobii must be available to the Windows
 sign-in session; desktop tracking alone does not establish this. Hardware

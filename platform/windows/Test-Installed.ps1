@@ -13,25 +13,45 @@ Remove-Item "Cert:\LocalMachine\Root\$CertificateThumbprint" -Force
 $accessibility = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility'
 $atName = 'GazeGrid_GazeGrid_v1'
 $originalStartup = @(((Get-ItemProperty $accessibility -Name Configuration -ErrorAction SilentlyContinue).Configuration -split ',') | Where-Object { $_ -and $_.Trim() -ne $atName })
-foreach ($mode in @('decline', 'default', 'accept', 'sign-in', 'decline-trusted')) {
+foreach ($mode in @('decline', 'default', 'accept', 'sign-in', 'sign-in-off', 'decline-trusted')) {
 Write-Host "Checking installation mode: $mode"
-$expectedUIAccess = $mode -in @('default', 'accept', 'sign-in')
+$expectedUIAccess = $mode -in @('default', 'accept', 'sign-in', 'sign-in-off')
+$expectedSignIn = $expectedUIAccess -and $mode -ne 'sign-in-off'
 [string[]]$properties = if ($mode -eq 'default') { @() } elseif ($expectedUIAccess) { @('GAZEGRID_TRUST_CERTIFICATE=1') } else { @('GAZEGRID_TRUST_CERTIFICATE=0') }
 if ($mode -eq 'sign-in') { $properties += 'GAZEGRID_SIGN_IN=1' }
+if ($mode -eq 'sign-in-off') { $properties += 'GAZEGRID_SIGN_IN=0' }
 Run-Msi '/i' $properties
 try {
     $rootTrusted = Test-Path "Cert:\LocalMachine\Root\$CertificateThumbprint"
     if ($mode -eq 'decline' -and $rootTrusted) { throw 'Declined installation unexpectedly trusted the certificate.' }
     if ($mode -ne 'decline' -and !$rootTrusted) { throw 'Accepted certificate trust is missing.' }
+    $startup = @(((Get-ItemProperty $accessibility -Name Configuration -ErrorAction SilentlyContinue).Configuration -split ',') | Where-Object { $_ })
+    if (($atName -in $startup) -ne $expectedSignIn) { throw 'Unexpected sign-in startup selection after installation.' }
+    # A repair must also remove the legacy DWORD accommodation and the
+    # sign-in-only arguments, which prevented normal-desktop AT restarts.
+    if ($expectedUIAccess) {
+        New-ItemProperty "$accessibility\ATs\$atName" -Name SecureDesktopAccommodation -Value 1 -PropertyType DWord -Force | Out-Null
+        New-ItemProperty "$accessibility\ATs\$atName" -Name StartParams -Value '--sign-in' -PropertyType String -Force | Out-Null
+    }
     # A repair with no consent property must preserve the original mode.
     Run-Msi '/fomus'
     $startup = @(((Get-ItemProperty $accessibility -Name Configuration -ErrorAction SilentlyContinue).Configuration -split ',') | Where-Object { $_ })
-    if (($atName -in $startup) -ne ($mode -eq 'sign-in')) { throw 'Unexpected sign-in startup selection after repair.' }
+    if (($atName -in $startup) -ne $expectedSignIn) { throw 'Unexpected sign-in startup selection after repair.' }
     if (@(Compare-Object $originalStartup @($startup | Where-Object { $_.Trim() -ne $atName })).Count) { throw 'Other accessibility startup entries changed.' }
+    if ($mode -eq 'sign-in-off') {
+        # The UI checkbox saves an empty string when unchecked; older installs
+        # also used that value. It must not inherit the new enabled default.
+        Set-ItemProperty 'HKLM:\SOFTWARE\GazeGrid\Installer' -Name SignIn -Value ''
+        Run-Msi '/fomus'
+        $startup = @(((Get-ItemProperty $accessibility -Name Configuration -ErrorAction SilentlyContinue).Configuration -split ',') | Where-Object { $_ })
+        if ($atName -in $startup) { throw 'Repair enabled startup after an unchecked sign-in choice.' }
+        if (@(Compare-Object $originalStartup $startup).Count) { throw 'Repair changed another accessibility startup entry.' }
+    }
     $registration = Get-ItemProperty "$accessibility\ATs\$atName" -ErrorAction SilentlyContinue
-    if ($expectedUIAccess -and (!$registration -or $registration.StartParams -ne '--sign-in' -or [IO.Path]::GetFullPath($registration.StartExe) -ne [IO.Path]::GetFullPath($installed))) { throw 'Trusted sign-in registration is missing or incorrect.' }
+    if ($expectedUIAccess -and (!$registration -or [IO.Path]::GetFullPath($registration.StartExe) -ne [IO.Path]::GetFullPath($installed))) { throw 'Trusted sign-in registration is missing or incorrect.' }
     if (!$expectedUIAccess -and $registration) { throw 'Unsigned installation must not register secure-desktop startup.' }
-    if ($expectedUIAccess -and $registration.SecureDesktopAccommodation -ne 1) { throw 'Secure desktop accommodation must be enabled.' }
+    if ($expectedUIAccess -and ($registration.PSObject.Properties.Name -contains 'SecureDesktopAccommodation')) { throw 'Same-app secure desktop support must use the default accommodation, without an override.' }
+    if ($expectedUIAccess -and ($registration.PSObject.Properties.Name -contains 'StartParams')) { throw 'Windows must be able to restart GazeGrid on either desktop without sign-in-only arguments.' }
 
     $signature = Get-AuthenticodeSignature $installed
     if ($expectedUIAccess -and ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $CertificateThumbprint)) {

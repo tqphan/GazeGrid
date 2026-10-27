@@ -36,7 +36,7 @@ GazeGrid $version for Windows x64.
 - Setup selects Accept by default to trust the GazeGrid certificate for all users. Verify its thumbprint before continuing. Accept installs the certificate and signed UIAccess app under Program Files.
 - Decline installs an unsigned app with UIAccess disabled: it cannot send input to higher-privilege windows or stay on top of all windows. Silent installations also default to Accept; pass GAZEGRID_TRUST_CERTIFICATE=0 to decline.
 - Certificate trust remains after uninstall. Administrators can revoke it using certlm.msc in Trusted Root Certification Authorities / Certificates.
-- Optional Windows sign-in startup uses the existing keyboard with prediction disabled. Select it in setup, or use Settings > Keyboard > Windows sign-in to enable it with your current keyboard and gaze preferences. Requires the trusted installation and administrator approval. Tobii availability before sign-in depends on its driver/service installation.
+- Windows sign-in startup is enabled by default for trusted installations and uses the existing keyboard with prediction disabled. Uncheck it in setup or pass GAZEGRID_SIGN_IN=0 for a silent installation to disable it. Unsigned installations keep it off, and repairs preserve your choice. Use Settings > Keyboard > Windows sign-in to copy your current keyboard and gaze preferences; administrator approval is required. Tobii availability before sign-in depends on its driver/service installation.
 - Certificate thumbprint: $thumbprint
 - SHA-256 checksums are in SHA256SUMS.txt.
 - $trackerNote

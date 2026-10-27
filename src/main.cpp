@@ -1095,6 +1095,14 @@ int main(int argc,char **argv){
  // Diagnostic modes manage their own sessions or must remain input-free.
  bool diagnosticMode=smoke;
  for(const auto &arg:args)if(arg.endsWith("-check"))diagnosticMode=true;
+#ifdef _WIN32
+ // Ease of Access must know about launches from Explorer/Start so it can
+ // provide the registered keyboard when UAC switches to the secure desktop.
+ if(!diagnosticMode&&WindowsSignIn::registered()){
+  if(!secureDesktop&&!WindowsSignIn::notify(true))qWarning("Could not notify Windows accessibility that GazeGrid started");
+  QObject::connect(&app,&QCoreApplication::aboutToQuit,&app,[]{WindowsSignIn::notify(false);});
+ }
+#endif
  if(!diagnosticMode&&
 #ifdef _WIN32
     true
