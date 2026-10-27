@@ -10,15 +10,15 @@ function Run-Msi([string]$Operation, [string[]]$Properties = @()) {
     if ($process.ExitCode -notin @(0, 3010)) { throw "MSI failed: $($process.ExitCode)" }
 }
 Remove-Item "Cert:\LocalMachine\Root\$CertificateThumbprint" -Force
-foreach ($mode in @('default', 'accept', 'decline-trusted')) {
+foreach ($mode in @('decline', 'default', 'accept', 'decline-trusted')) {
 Write-Host "Checking installation mode: $mode"
-$expectedUIAccess = $mode -eq 'accept'
-$properties = if ($expectedUIAccess) { @('GAZEGRID_TRUST_CERTIFICATE=1') } else { @() }
+$expectedUIAccess = $mode -in @('default', 'accept')
+$properties = if ($mode -eq 'default') { @() } elseif ($expectedUIAccess) { @('GAZEGRID_TRUST_CERTIFICATE=1') } else { @('GAZEGRID_TRUST_CERTIFICATE=0') }
 Run-Msi '/i' $properties
 try {
     $rootTrusted = Test-Path "Cert:\LocalMachine\Root\$CertificateThumbprint"
-    if ($mode -eq 'default' -and $rootTrusted) { throw 'Default installation unexpectedly trusted the certificate.' }
-    if ($mode -ne 'default' -and !$rootTrusted) { throw 'Accepted certificate trust is missing.' }
+    if ($mode -eq 'decline' -and $rootTrusted) { throw 'Declined installation unexpectedly trusted the certificate.' }
+    if ($mode -ne 'decline' -and !$rootTrusted) { throw 'Accepted certificate trust is missing.' }
     # A repair with no consent property must preserve the original mode.
     Run-Msi '/fomus'
 

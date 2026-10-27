@@ -33,8 +33,8 @@ $thumbprint = (Get-PfxCertificate "$destination/GazeGrid.cer").Thumbprint
 GazeGrid $version for Windows x64.
 
 - The MSI is signed with the self-signed GazeGrid certificate.
-- Setup asks for consent to trust the GazeGrid certificate for all users. Verify its thumbprint before accepting. Accept installs the certificate and signed UIAccess app under Program Files.
-- Decline (the default) installs an unsigned app with UIAccess disabled: it cannot send input to higher-privilege windows or stay on top of all windows.
+- Setup selects Accept by default to trust the GazeGrid certificate for all users. Verify its thumbprint before continuing. Accept installs the certificate and signed UIAccess app under Program Files.
+- Decline installs an unsigned app with UIAccess disabled: it cannot send input to higher-privilege windows or stay on top of all windows. Silent installations also default to Accept; pass GAZEGRID_TRUST_CERTIFICATE=0 to decline.
 - Certificate trust remains after uninstall. Administrators can revoke it using certlm.msc in Trusted Root Certification Authorities / Certificates.
 - Certificate thumbprint: $thumbprint
 - SHA-256 checksums are in SHA256SUMS.txt.

@@ -314,6 +314,8 @@ int main(int argc,char **argv){
   int x=(size.width()-width)/2+int(dimension(layout.value("horizontaloffset","0").toString(),size.width()));
   int y=(top?0:size.height()-height)+offset;
   if(fullScreen){width=size.width();height=size.height();x=0;y=0;offset=0;}
+  // Linux needs an on-screen recovery surface; Windows uses the XML offsets.
+#ifdef GAZEGRID_LINUX
   if(minimized){
    width=qMin(controller.restoreWidth(),size.width());
    height=qMin(controller.restoreHeight(),size.height());
@@ -321,6 +323,7 @@ int main(int argc,char **argv){
    x=corner%2?size.width()-width:0;
    y=corner>=2?size.height()-height:0;
   }
+#endif
 #ifdef _WIN32
   // Match primary-display capture and normalized gaze coordinates on Windows.
   if(target){target->setScreen(screen);target->setGeometry(screen->geometry());}
@@ -455,7 +458,7 @@ int main(int argc,char **argv){
   QObject::connect(poll,&QTimer::timeout,&app,[&,stage=0]()mutable{
    poll->stop();
    if(stage>0){
-    const auto image=grabSceneForCheck(window);const int opacity=(stage-1)/4==0?25:(stage-1)/4==1?50:100;
+    const auto image=grabSceneForCheck(window);const int opacity=window->property("minimizedRecovery").toBool()?((stage-1)/4==0?25:(stage-1)/4==1?50:100):75;
     if(image.isNull()||qAbs(image.pixelColor(2,2).alpha()-qRound(255*opacity/100.0))>2){
      QTextStream(stderr)<<"FAIL: unstable restore-button alpha at frame "<<stage<<Qt::endl;app.exit(2);return;
     }
@@ -793,15 +796,30 @@ int main(int argc,char **argv){
   QObject::connect(poll,&QTimer::timeout,&app,[&,stage=0,corner=0]()mutable{
    const QStringList expected{"minimized-off-screen-bottom","main-14x1-bottom","minimized-off-screen-top","main-14x1-top"};
    if(controller.property("layoutName").toString().startsWith("minimized-off-screen-")){
+#ifdef GAZEGRID_LINUX
     const int expectedX=corner%2?window->property("screenWidth").toInt()-window->width():0;
     const int expectedY=corner>=2?window->property("screenHeight").toInt()-window->height():0;
     if(window->property("logicalX").toInt()!=expectedX||window->property("logicalY").toInt()!=expectedY){
      QTextStream(stderr)<<"FAIL: restore button is not flush with its screen corner"<<Qt::endl;app.exit(2);return;
     }
+#else
+    const int screenWidth=window->property("screenWidth").toInt();
+    const int screenHeight=window->property("screenHeight").toInt();
+    const bool top=controller.property("layoutName").toString().endsWith("-top");
+    const int expectedWidth=qMax(1,int(screenWidth*.2));
+    const int expectedHeight=qMax(1,int(screenHeight*.2));
+    const int expectedY=(top?0:screenHeight-expectedHeight)+int(screenHeight*(top?-.1995:.1995));
+    if(window->width()!=expectedWidth||window->height()!=expectedHeight
+       ||window->property("logicalX").toInt()!=(screenWidth-expectedWidth)/2
+       ||window->property("logicalY").toInt()!=expectedY
+       ||window->property("minimizedRecovery").toBool()){
+     QTextStream(stderr)<<"FAIL: original off-screen minimized layout was overridden"<<Qt::endl;app.exit(2);return;
+    }
+#endif
    }
    if(controller.property("layoutName").toString()==expected[stage]){
     if(++stage==4){
-     if(++corner==4){QTextStream(stdout)<<"PASS: gaze minimizes and restores both keyboard edges in all four corners"<<Qt::endl;app.quit();return;}
+     if(++corner==4){QTextStream(stdout)<<"PASS: gaze minimizes and restores both keyboard edges across recovery preferences"<<Qt::endl;app.quit();return;}
      stage=0;controller.setRestoreCorner(corner);controller.setRestoreWidth(corner%2?128:40);controller.setRestoreHeight(corner%2?40:128);controller.openLayout("main-14x1-bottom",false);
     }
     if(stage==2)controller.openLayout("main-14x1-top",false);
@@ -810,7 +828,9 @@ int main(int argc,char **argv){
    const auto keys=layout["keys"].toList();
    const auto key=keys[stage%2?0:keys.size()-1].toMap();
    const double x=window->property("logicalX").toDouble()+(key["col"].toDouble()+key["width"].toDouble()/2)*window->width()/layout["cols"].toDouble();
-   const double y=window->property("logicalY").toDouble()+(key["row"].toDouble()+key["height"].toDouble()/2)*window->height()/layout["rows"].toDouble();
+   const double keyTop=window->property("logicalY").toDouble()+key["row"].toDouble()*window->height()/layout["rows"].toDouble();
+   const double keyBottom=keyTop+key["height"].toDouble()*window->height()/layout["rows"].toDouble();
+   const double y=(qMax(0.0,keyTop)+qMin(window->property("screenHeight").toDouble(),keyBottom))/2;
    const double nx=x/window->property("screenWidth").toDouble(),ny=y/window->property("screenHeight").toDouble();
    if(nx<0||nx>1||ny<0||ny>1){QTextStream(stderr)<<"FAIL: recovery key is outside the display"<<Qt::endl;app.exit(2);return;}
    emit controller.gazePoint(nx,ny,true);

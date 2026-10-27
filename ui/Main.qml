@@ -30,7 +30,8 @@ Window {
  }
  property bool gazeEnabled: controller.gazeEnabled
  property bool gazeCheck: false
- property bool minimizedRecovery:controller.layoutName.startsWith("minimized-off-screen-")
+ readonly property bool restoreButtonEnabled:Qt.platform.os === "linux"
+ property bool minimizedRecovery:restoreButtonEnabled&&controller.layoutName.startsWith("minimized-off-screen-")
  property bool usingGaze: gazeEnabled&&gazeValid
  onUsingGazeChanged:{
   // Require fresh pointer motion after a gaze transition; stale hover must not
@@ -671,7 +672,7 @@ Window {
       }
      }
      SettingsCard {
-      title:"Restore button";      visible:settingsCategory.currentIndex==1;Layout.fillWidth:true
+      title:"Restore button";      visible:root.restoreButtonEnabled&&settingsCategory.currentIndex==1;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        RowLayout {

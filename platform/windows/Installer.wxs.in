@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:iis="http://schemas.microsoft.com/wix/IIsExtension">
   <Fragment>
-    <!-- Silent installations also require explicit opt-in. Repairs retain the
+    <!-- Certificate trust is selected by default, including silent installs. Repairs retain the
          original choice; changing mode requires uninstall/reinstall or upgrade. -->
-    <Property Id="GAZEGRID_TRUST_CERTIFICATE" Value="0" Secure="yes" />
+    <Property Id="GAZEGRID_TRUST_CERTIFICATE" Value="1" Secure="yes" />
     <Property Id="GAZEGRID_SAVED_MODE" Secure="yes">
       <RegistrySearch Id="SavedMode" Root="HKLM" Key="Software\GazeGrid\Installer" Name="TrustCertificate" Type="raw" Win64="yes" />
     </Property>
