@@ -8,11 +8,37 @@
       <RegistrySearch Id="SavedMode" Root="HKLM" Key="Software\GazeGrid\Installer" Name="TrustCertificate" Type="raw" Win64="yes" />
     </Property>
     <SetProperty Id="GAZEGRID_TRUST_CERTIFICATE" Value="[GAZEGRID_SAVED_MODE]" After="AppSearch" Sequence="both">Installed AND GAZEGRID_SAVED_MODE</SetProperty>
+    <Property Id="GAZEGRID_SIGN_IN" Secure="yes" />
+    <Property Id="GAZEGRID_SAVED_SIGN_IN" Secure="yes">
+      <RegistrySearch Id="SavedSignIn" Root="HKLM" Key="Software\GazeGrid\Installer" Name="SignIn" Type="raw" Win64="yes" />
+    </Property>
+    <SetProperty Id="GAZEGRID_SIGN_IN" Value="1" After="AppSearch" Sequence="both">Installed AND GAZEGRID_SAVED_SIGN_IN = "1"</SetProperty>
+    <Condition Message="Starting before Windows sign-in requires accepting certificate trust.">NOT (GAZEGRID_SIGN_IN = "1") OR GAZEGRID_TRUST_CERTIFICATE = "1" OR REMOVE = "ALL"</Condition>
+    <Binary Id="SignInActions" SourceFile="@CMAKE_BINARY_DIR@/Release/gazegrid_sign_in_actions.dll" />
+    <CustomAction Id="PrepareSignIn" BinaryKey="SignInActions" DllEntry="PrepareSignIn" Execute="immediate" Return="check" />
+    <CustomAction Id="RollbackSignIn" BinaryKey="SignInActions" DllEntry="RollbackSignIn" Execute="rollback" Impersonate="no" Return="check" />
+    <CustomAction Id="ApplySignIn" BinaryKey="SignInActions" DllEntry="ApplySignIn" Execute="deferred" Impersonate="no" Return="check" />
+    <InstallExecuteSequence>
+      <Custom Action="PrepareSignIn" Before="InstallInitialize">1</Custom>
+      <Custom Action="RollbackSignIn" After="WriteRegistryValues">1</Custom>
+      <Custom Action="ApplySignIn" After="RollbackSignIn">1</Custom>
+    </InstallExecuteSequence>
     <Icon Id="GazeGrid.exe" SourceFile="@CMAKE_SOURCE_DIR@/resources/gazegrid.ico" />
     <Binary Id="GazeGridPublicCer" SourceFile="@CMAKE_BINARY_DIR@/GazeGrid.cer" />
     <DirectoryRef Id="INSTALL_ROOT">
       <Component Id="GazeGridSigned" Guid="EBDB964C-AE84-4B98-B95F-17EF4DA6A48D" Win64="yes">
         <Condition>GAZEGRID_TRUST_CERTIFICATE = "1"</Condition>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\GazeGrid_GazeGrid_v1" ForceDeleteOnUninstall="yes">
+          <RegistryValue Name="ApplicationName" Value="@[INSTALL_ROOT]gazegrid.exe,-101" Type="string" />
+          <RegistryValue Name="Description" Value="@[INSTALL_ROOT]gazegrid.exe,-102" Type="string" />
+          <RegistryValue Name="ATExe" Value="gazegrid.exe" Type="string" />
+          <RegistryValue Name="StartExe" Value="[INSTALL_ROOT]gazegrid.exe" Type="string" />
+          <RegistryValue Name="StartParams" Value="--sign-in" Type="string" />
+          <RegistryValue Name="SimpleProfile" Value="On-screen keyboard" Type="string" />
+          <RegistryValue Name="Profile" Value="&lt;HCIModel&gt;&lt;Accommodation type=&quot;severe dexterity&quot;/&gt;&lt;Accommodation type=&quot;mild dexterity&quot;/&gt;&lt;/HCIModel&gt;" Type="string" />
+          <RegistryValue Name="TerminateOnDesktopSwitch" Value="1" Type="integer" />
+          <RegistryValue Name="PassiveAutoStartBehavior" Value="1" Type="integer" />
+        </RegistryKey>
         <File Id="GazeGridSignedExe" Source="@CMAKE_BINARY_DIR@/Release/gazegrid.exe" KeyPath="yes">
           <Shortcut Id="GazeGridSignedStart" Directory="GazeGridMenu" Name="GazeGrid" Icon="GazeGrid.exe" IconIndex="0" Advertise="yes" WorkingDirectory="INSTALL_ROOT" />
         </File>
@@ -23,9 +49,15 @@
           <Shortcut Id="GazeGridUnsignedStart" Directory="GazeGridMenu" Name="GazeGrid" Icon="GazeGrid.exe" IconIndex="0" Advertise="yes" WorkingDirectory="INSTALL_ROOT" />
         </File>
       </Component>
+      <Component Id="GazeGridSignInSettings" Guid="606D5C33-1467-41D9-8F2E-D64BFBA36740" Win64="yes">
+        <RegistryKey Root="HKLM" Key="Software\GazeGrid\SignIn" ForceDeleteOnUninstall="yes">
+          <RegistryValue Name="Installed" Value="1" Type="integer" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
       <Component Id="GazeGridMode" Guid="C208D796-4B5F-4282-AB70-020BC516DF9D" Win64="yes">
         <RemoveFolder Id="RemoveGazeGridMenu" Directory="GazeGridMenu" On="uninstall" />
         <RegistryValue Root="HKLM" Key="Software\GazeGrid\Installer" Name="TrustCertificate" Value="[GAZEGRID_TRUST_CERTIFICATE]" Type="string" KeyPath="yes" />
+        <RegistryValue Root="HKLM" Key="Software\GazeGrid\Installer" Name="SignIn" Value="[GAZEGRID_SIGN_IN]" Type="string" />
       </Component>
       <!-- Trust is deliberately persistent: never remove a root that may already
            be trusted by an administrator or used by another GazeGrid release. -->
@@ -44,6 +76,7 @@
       <ComponentRef Id="GazeGridSigned" />
       <ComponentRef Id="GazeGridUnsigned" />
       <ComponentRef Id="GazeGridMode" />
+      <ComponentRef Id="GazeGridSignInSettings" />
       <ComponentRef Id="GazeGridCertificate" />
 
     </ComponentGroup>
@@ -53,7 +86,7 @@
       <UIRef Id="WixUI_Minimal" />
       <Dialog Id="GazeGridTrustDlg" Width="370" Height="330" Title="GazeGrid accessibility permissions">
         <Control Id="Title" Type="Text" X="15" Y="12" Width="340" Height="20" Text="{\WixUI_Font_Title}Choose Windows accessibility access" />
-        <Control Id="Explanation" Type="Text" X="15" Y="40" Width="340" Height="48" Text="Windows requires a trusted signature and installation in Program Files to grant UIAccess. This allows GazeGrid to send input to higher-privilege windows and appear above more windows. It does not allow access to the secure desktop." />
+        <Control Id="Explanation" Type="Text" X="15" Y="40" Width="340" Height="48" Text="A trusted signature and installation in Program Files grant UIAccess, allowing input to elevated windows. Optional sign-in startup is registered separately with Windows accessibility." />
         <Control Id="TrustExplanation" Type="Text" X="15" Y="92" Width="340" Height="48" Text="Accepting installs the self-signed GazeGrid certificate in this computer's Trusted Root Certification Authorities store. This trusts software signed with this identity for all users. Accept only if you trust the publisher and have verified the certificate." />
         <Control Id="Fingerprint" Type="Text" X="15" Y="143" Width="340" Height="28" Text="Certificate thumbprint: @GAZEGRID_CERTIFICATE_THUMBPRINT@" />
         <Control Id="Choice" Type="RadioButtonGroup" Property="GAZEGRID_TRUST_CERTIFICATE" X="15" Y="175" Width="340" Height="40">
@@ -65,11 +98,23 @@
         <Control Id="Limitations" Type="Text" X="15" Y="224" Width="340" Height="32" Text="If you decline, GazeGrid cannot send input to higher-privilege windows and cannot stay on top of all windows. Normal desktop input remains available." />
         <Control Id="Persistence" Type="Text" X="15" Y="263" Width="340" Height="30" Text="Certificate trust remains after uninstall. An administrator can remove it with certlm.msc under Trusted Root Certification Authorities / Certificates." />
         <Control Id="Next" Type="PushButton" X="204" Y="305" Width="72" Height="17" Default="yes" Text="Next">
-          <Publish Event="EndDialog" Value="Return">1</Publish>
+          <Publish Property="GAZEGRID_SIGN_IN" Value="{}" Order="1">GAZEGRID_TRUST_CERTIFICATE &lt;&gt; "1"</Publish>
+          <Publish Event="EndDialog" Value="Return" Order="2">1</Publish>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="282" Y="305" Width="72" Height="17" Cancel="yes" Text="Cancel">
           <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
         </Control>
+      </Dialog>
+      <Dialog Id="GazeGridSignInDlg" Width="370" Height="230" Title="GazeGrid Windows sign-in">
+        <Control Id="Title" Type="Text" X="15" Y="15" Width="340" Height="20" Text="{\WixUI_Font_Title}Keyboard before Windows sign-in" />
+        <Control Id="Explanation" Type="Text" X="15" Y="48" Width="340" Height="48" Text="GazeGrid can start on the Windows sign-in screen before you enter your password. It uses the existing keyboard interface with prediction disabled." />
+        <Control Id="Enable" Type="CheckBox" X="15" Y="106" Width="340" Height="20" Property="GAZEGRID_SIGN_IN" CheckBoxValue="1" Text="Start GazeGrid before Windows sign-in">
+          <Condition Action="disable">GAZEGRID_TRUST_CERTIFICATE &lt;&gt; "1"</Condition>
+          <Condition Action="enable">GAZEGRID_TRUST_CERTIFICATE = "1"</Condition>
+        </Control>
+        <Control Id="Details" Type="Text" X="15" Y="140" Width="340" Height="48" Text="Requires certificate trust. To use your current keyboard and gaze preferences, open Settings > Keyboard > Windows sign-in after installation. Eye tracking also depends on Tobii availability before sign-in." />
+        <Control Id="Next" Type="PushButton" X="204" Y="205" Width="72" Height="17" Default="yes" Text="Next"><Publish Event="EndDialog" Value="Return">1</Publish></Control>
+        <Control Id="Cancel" Type="PushButton" X="282" Y="205" Width="72" Height="17" Cancel="yes" Text="Cancel"><Publish Event="SpawnDialog" Value="CancelDlg">1</Publish></Control>
       </Dialog>
       <Dialog Id="GazeGridTobiiDlg" Width="370" Height="270" Title="GazeGrid eye tracking setup">
         <Control Id="Title" Type="Text" X="15" Y="15" Width="340" Height="20" Text="{\WixUI_Font_Title}Tobii eye tracking prerequisites" />
@@ -86,7 +131,8 @@
       </Dialog>
       <InstallUISequence>
         <Show Dialog="GazeGridTobiiDlg" Before="GazeGridTrustDlg">NOT Installed</Show>
-        <Show Dialog="GazeGridTrustDlg" Before="WelcomeEulaDlg">NOT Installed</Show>
+        <Show Dialog="GazeGridTrustDlg" Before="GazeGridSignInDlg">NOT Installed</Show>
+        <Show Dialog="GazeGridSignInDlg" Before="WelcomeEulaDlg">NOT Installed</Show>
       </InstallUISequence>
     </UI>
   </Fragment>

@@ -15,6 +15,7 @@
 #include "SpeechOutput.h"
 class Controller:public QObject{
  Q_OBJECT
+ Q_PROPERTY(bool signInMode READ isSignInMode CONSTANT)
  Q_PROPERTY(QString portalStatus MEMBER portalStatus NOTIFY changed)
  Q_PROPERTY(QString tobiiStatus MEMBER tobiiStatus NOTIFY changed)
  Q_PROPERTY(QString actionStatus MEMBER actionStatus NOTIFY changed)
@@ -89,7 +90,9 @@ class Controller:public QObject{
  Q_PROPERTY(bool magnifierReady MEMBER magnifierReady NOTIFY changed)
  Q_PROPERTY(int magnifierRevision MEMBER magnifierRevision NOTIFY magnifierFrameChanged)
 public:
- Controller();~Controller()override;
+ explicit Controller(bool signIn=false,const QJsonObject &signInProfile={});~Controller()override;
+ bool isSignInMode()const{return signInMode;}
+ Q_INVOKABLE void configureSignIn(bool enabled);
  Q_INVOKABLE void updateKeyboardMask(QObject *window,const QVariantList &rectangles,bool enabled);
  bool isMagnifierEnabled()const{return magnifierEnabled;}
  void setMagnifierEnabled(bool enabled);
@@ -242,6 +245,7 @@ private:
  int shortLabelScale=150;
  int longLabelScale=100;
  bool rememberDesktop=false;
+ const bool signInMode;
  bool nativeMode=false,nativeActive=false,sensitiveInput=false;
  qint64 lastGazeSample=0;
  int sizeMoveSelection=-1;

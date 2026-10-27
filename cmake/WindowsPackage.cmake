@@ -3,7 +3,7 @@ if(GAZEGRID_WITH_TOBII)
 else()
   set(GAZEGRID_TOBII_INSTALL_MESSAGE "This is a mouse-dwell build. Eye tracking also requires a tracker-enabled GazeGrid build; installing Tobii Experience software alone will not enable it.")
 endif()
-# Executables are mutually exclusive WiX components, selected by explicit consent.
+# Executables are mutually exclusive WiX components, selected by the trust choice.
 set(GAZEGRID_CERTIFICATE_THUMBPRINT "" CACHE STRING "Public signing certificate thumbprint")
 configure_file("${CMAKE_SOURCE_DIR}/platform/windows/Installer.wxs.in"
   "${CMAKE_BINARY_DIR}/Installer.wxs" @ONLY)

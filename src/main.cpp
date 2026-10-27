@@ -20,6 +20,7 @@
 #include <memory>
 #include <QJsonObject>
 #include <QDir>
+#include <QFileInfo>
 #include <QPainter>
 #ifdef GAZEGRID_LINUX
 #include <QDBusConnection>
@@ -34,6 +35,14 @@
 #include "PointerCheck.h"
 #ifdef _WIN32
 #include "WindowsTheme.h"
+#include "WindowsSignIn.h"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #endif
 #ifdef GAZEGRID_LINUX
 #include <LayerShellQt/Window>
@@ -79,6 +88,29 @@ static QImage grabSceneForCheck(QQuickWindow *window){
  loop.exec();return result->image();
 }
 int main(int argc,char **argv){
+ bool signInMode=false;
+#ifdef _WIN32
+ const bool secureDesktop=WindowsSignIn::secureDesktop();
+ bool signInCheck=false;
+ for(int i=1;i<argc;++i){const auto argument=QString::fromLocal8Bit(argv[i]);signInMode|=argument=="--sign-in";signInCheck|=argument=="--sign-in-ui-check";}
+ if(secureDesktop){
+  // Only the keyboard may run on Winlogon; editor/diagnostic modes stay on the user's desktop.
+  for(int i=1;i<argc;++i)if(QString::fromLocal8Bit(argv[i])!="--sign-in")return 2;
+  signInMode=true;
+  wchar_t executable[32768]{};if(!GetModuleFileNameW(nullptr,executable,32768))return 2;
+  const auto directory=QFileInfo(QString::fromWCharArray(executable)).absolutePath();
+  QCoreApplication::setLibraryPaths({directory});
+  for(const auto *name:{"QT_PLUGIN_PATH","QT_QPA_PLATFORM_PLUGIN_PATH","QML_IMPORT_PATH","QML2_IMPORT_PATH","QT_QUICK_CONTROLS_CONF","GAZEGRID_CONFIG_DIR"})qunsetenv(name);
+  qputenv("QT_QPA_PLATFORM","windows");qputenv("QT_QUICK_BACKEND","software");
+ }
+ // A preview check exercises the same controller and QML without sending input.
+ if(signInMode&&!secureDesktop)return 2;
+ signInMode|=signInCheck;
+ for(int i=1;i<argc;++i)if(QString::fromLocal8Bit(argv[i])=="--configure-sign-in"){
+  // The elevated settings helper needs no GUI or user-supplied Qt plugins.
+  QCoreApplication helper(argc,argv);return WindowsSignIn::setup(helper.arguments());
+ }
+#endif
 #ifdef _WIN32
  // Fusion consistently honors the dark Windows palette across Quick controls.
  qputenv("QT_QUICK_CONTROLS_STYLE","Fusion");
@@ -166,7 +198,11 @@ int main(int argc,char **argv){
   QDBusConnection::sessionBus().call(registration,QDBus::Block,2000);
  }
 #endif
+#ifdef _WIN32
+ Controller controller(signInMode,signInMode?WindowsSignIn::profile():QJsonObject{});
+#else
  Controller controller;
+#endif
 #ifdef GAZEGRID_LINUX
  if(inputMethod){
   controller.configureInputMethod([&](QString text){return inputMethod->commitText(text);},[&](QString name,bool down){return inputMethod->sendKey(name,down);});
@@ -225,6 +261,9 @@ int main(int argc,char **argv){
  if(inputCheck||pointerCheck){controller.setKeyboardScale(100);controller.openLayout("keyboard-alphabet-14x4-bottom",false);}
  auto args=app.arguments();int layoutIndex=args.indexOf("--layout");if(layoutIndex>=0&&layoutIndex+1<args.size())controller.openLayout(args[layoutIndex+1],false);
  QQmlApplicationEngine engine;
+#ifdef _WIN32
+ if(secureDesktop)engine.setImportPathList({QCoreApplication::applicationDirPath()+"/qml","qrc:/qt/qml","qrc:/qt-project.org/imports"});
+#endif
  engine.addImageProvider("symbols",new SymbolProvider);
  engine.addImageProvider("magnifier",new MagnifierProvider(&controller));
  engine.rootContext()->setContextProperty("controller",&controller);
@@ -281,7 +320,7 @@ int main(int argc,char **argv){
  QObject::connect(&tray,&QSystemTrayIcon::activated,&controller,[&](QSystemTrayIcon::ActivationReason reason){
   if(reason==QSystemTrayIcon::Trigger||reason==QSystemTrayIcon::DoubleClick)controller.activate("Settings");
  });
- tray.show();
+ if(!signInMode)tray.show();
  auto target=window->findChild<QQuickWindow*>("targetWindow");
  // Target selection and cancellation must remain available while the panel is hidden.
  if(target)target->setTransientParent(nullptr);
@@ -357,6 +396,17 @@ int main(int argc,char **argv){
  QObject::connect(&app,&QGuiApplication::screenRemoved,&app,displayChanged);
  QObject::connect(&app,&QGuiApplication::primaryScreenChanged,&app,displayChanged);
  applyGeometry();window->show();
+#ifdef _WIN32
+ if(signInCheck){
+  window->setProperty("gazeCheck",true);window->setProperty("gazeEnabled",false);
+  QTimer::singleShot(100,&app,[&]{
+   const bool ok=controller.isSignInMode()&&controller.predictionMode()=="off"
+      &&controller.property("suggestions").toStringList().isEmpty()&&!settings->isVisible();
+   QTextStream(stdout)<<(ok?"PASS: sign-in keyboard uses the existing UI without prediction or settings":"FAIL: sign-in keyboard privacy")<<Qt::endl;
+   app.exit(ok?0:2);
+  });return app.exec();
+ }
+#endif
  if(app.arguments().contains("--keyboard-background-ui-check")){
   window->setProperty("gazeCheck",true);
   controller.openLayout("size-move-demo",false);controller.setProperty("saveCanvasChanges",false);
@@ -924,7 +974,7 @@ int main(int argc,char **argv){
   QTimer::singleShot(0,controller.output(),&PortalInput::connectPortal);
   QTimer::singleShot(60000,&app,[&]{QTextStream(stdout)<<"Input check timed out; focus the disposable receiver if it appeared"<<Qt::endl;app.exit(2);});
  }
- if(args.contains("--settings"))controller.activate("Settings");
+ if(!signInMode&&args.contains("--settings"))controller.activate("Settings");
  // Diagnostic modes manage their own sessions or must remain input-free.
  bool diagnosticMode=smoke;
  for(const auto &arg:args)if(arg.endsWith("-check"))diagnosticMode=true;

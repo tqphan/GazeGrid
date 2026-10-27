@@ -117,7 +117,7 @@ Window {
  }
  Connections {
   target:controller
-  function onSettingsRequested(){settings.showNormal();settings.raise();settings.requestActivate()}
+  function onSettingsRequested(){if(controller.signInMode)return;settings.showNormal();settings.raise();settings.requestActivate()}
   function onLayoutChanged(){root.hovered="";root.progress=0}
   function onGazePoint(x,y,valid){keyboardGazeIndicator.updateMotion(x,y,valid);root.gazeValid=valid;root.gaze=Qt.point(x,y)}
   function onChanged(){if(controller.keyboardTemporarilyHidden){root.hovered="";root.progress=0}if(!controller.targeting){root.targetProgress=0;root.targetPointValid=false}}
@@ -669,6 +669,15 @@ Window {
        SettingSlider {label:"Short key labels";displayValue:controller.shortLabelScale+"%";from:50;to:200;stepSize:5;value:controller.shortLabelScale;onMoved:controller.shortLabelScale=value}
        SettingSlider {label:"Long key labels";displayValue:controller.longLabelScale+"%";from:50;to:200;stepSize:5;value:controller.longLabelScale;onMoved:controller.longLabelScale=value}
        SettingsCheckBox {text:"Temporarily hide keyboard during mouse actions";checked:controller.hideKeyboardDuringMouseActions;onToggled:controller.hideKeyboardDuringMouseActions=checked}
+      }
+     }
+     SettingsCard {
+      title:"Windows sign-in";visible:Qt.platform.os==="windows"&&settingsCategory.currentIndex==1;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
+       Desktop.Label {text:"Use the current keyboard before entering your Windows password. This applies to this PC and disables prediction on the sign-in screen. Requires the trusted installation and administrator approval.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       SettingsButton {text:"Use this keyboard at sign-in";onClicked:controller.configureSignIn(true)}
+       SettingsButton {text:"Disable sign-in startup";onClicked:controller.configureSignIn(false)}
       }
      }
      SettingsCard {

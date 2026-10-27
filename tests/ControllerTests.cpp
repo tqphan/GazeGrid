@@ -29,6 +29,31 @@ class ControllerTests:public QObject {
   c.setProperty("layout",QVariantMap{{"layoutMode","canvas"},{"activateoverlappingkeys",true},{"keys",content}});
  }
 private slots:
+ void signInUsesTheSelectedKeyboardWithoutRetainingText(){
+  QTemporaryDir directory;const auto previous=qgetenv("GAZEGRID_CONFIG_DIR");
+  qputenv("GAZEGRID_CONFIG_DIR",directory.path().toUtf8());
+  auto values=ProfileStore::defaults();values["startLayout"]="keyboard-conversation-fullscreen";
+  values["predictionMode"]="context";values["learning"]=true;
+  {
+   Controller controller(true,values);
+   QVERIFY(controller.isSignInMode());
+   QCOMPARE(controller.property("layoutName").toString(),QString("keyboard-conversation-fullscreen"));
+   QCOMPARE(controller.predictionMode(),QString("off"));
+   controller.setPredictionMode("context");controller.setLearning(true);
+   controller.inputContextChanged(true,false);
+   QVERIFY(controller.executeCommands({QVariantMap{{"tag","Text"},{"text","private42 "}}}));
+   QTest::qWait(50);
+   QVERIFY(controller.property("scratchpad").toString().isEmpty());
+   QVERIFY(controller.property("suggestions").toStringList().isEmpty());
+   QCOMPARE(controller.predictionMode(),QString("off"));
+   QVERIFY(!controller.savePreferences());controller.resetPreferences();controller.resetLearning();
+   controller.setGazeEnabled(false);controller.setMagnifierEnabled(true);
+   QVERIFY(!controller.isMagnifierEnabled());
+  }
+  const bool noFiles=QDir(directory.path()).entryList(QDir::Files).isEmpty();
+  if(previous.isNull())qunsetenv("GAZEGRID_CONFIG_DIR");else qputenv("GAZEGRID_CONFIG_DIR",previous);
+  QVERIFY(noFiles);
+ }
  void overlapDwellOrdersModifiersAndDoesNotRetrigger(){
   Controller c;overlapLayout(c,{overlapKey("Text","a"),overlapKey("Text","b"),overlapKey("Action","LeftShift")});
   const QStringList targets{"key:1","key:0","key:2","key:0"};

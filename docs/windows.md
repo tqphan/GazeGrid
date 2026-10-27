@@ -125,8 +125,8 @@ prints its thumbprint. Retain that identity for subsequent releases. Private
 keys must stay outside source control and release artifacts; `.gitignore`
 excludes PFX/P12 files. The script does not automatically trust the certificate.
 
-The MSI asks whether to trust the public GazeGrid certificate. **Decline** is
-selected by default: it installs an unsigned executable with `uiAccess=false`
+The MSI asks whether to trust the public GazeGrid certificate. **Accept** is
+selected by default. **Decline** installs an unsigned executable with `uiAccess=false`
 and warns that the app cannot send input to higher-privilege windows or stay on
 top of all windows. Ordinary desktop input remains available. **Accept** installs
 the public certificate into **Local Computer / Trusted Root Certification
@@ -141,19 +141,61 @@ are not disrupted. To revoke it, an administrator can use `certlm.msc`, open
 Trusted Root Certification Authorities / Certificates, verify the thumbprint,
 and remove that GazeGrid certificate.
 
-Unattended installation defaults to the unsigned app. Administrators who have
-reviewed and accepted this trust can explicitly opt in:
+Unattended installation defaults to the signed UIAccess app and certificate
+trust. To decline explicitly:
 
 ```powershell
-msiexec /i GazeGrid.msi /qn GAZEGRID_TRUST_CERTIFICATE=1
+msiexec /i GazeGrid.msi /qn GAZEGRID_TRUST_CERTIFICATE=0
 ```
 
 Repairs retain the installed mode. Uninstall and reinstall to change modes;
-major upgrades ask again and unattended upgrades default to decline. Declining
+major upgrades ask again and unattended upgrades default to Accept. Declining
 never removes existing certificate trust, but still installs the unsigned app.
 
 Microsoft documents the signature and secure-location requirements in
 [UIAccess policy](https://learn.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/user-account-control-allow-uiaccess-applications-to-prompt-for-elevation-without-using-the-secure-desktop).
+
+## Keyboard before Windows sign-in
+
+The trusted installation registers GazeGrid with Windows Ease of Access. Setup
+offers **Start GazeGrid before Windows sign-in**, initially unchecked. Silent
+setup can enable it with `GAZEGRID_SIGN_IN=1` and certificate trust enabled.
+This uses Windows' assistive-technology startup mechanism, rather than a user
+Startup-folder shortcut. It does not replace any Windows accessibility executable
+or disable the secure desktop.
+
+After installation, open **Settings → Keyboard → Windows sign-in → Use this
+keyboard at sign-in**. Accept the administrator prompt to copy the selected
+installed layout, keyboard appearance, dwell timing, and gaze preferences to a
+protected machine-wide configuration. Use the button again after choosing a
+different keyboard. **Disable sign-in startup** removes GazeGrid from startup
+without changing other accessibility tools. Repair preserves the selected mode;
+uninstall removes GazeGrid's registration and startup entry.
+
+Windows launches the same `gazegrid.exe` with `--sign-in` on the Winlogon desktop.
+It uses the existing keyboard rendering, navigation, key output, and dwell logic.
+Prediction stays off even after switching layouts. Typed text is not retained
+in scratchpads or learned words. Personal profile files are not read or written,
+and Settings, the editor, and magnifier are unavailable in this mode. Windows
+terminates the sign-in instance when changing desktops. Normal desktop preferences
+and prediction remain unchanged. Until a keyboard is copied from Settings, the
+sign-in keyboard uses the default alphabet layout with mouse dwell.
+
+Registration and startup follow [Microsoft's assistive-technology
+registration](https://learn.microsoft.com/en-us/windows/win32/winauto/ease-of-access---assistive-technology-registration).
+The MSI modifies only GazeGrid's item in the machine accessibility startup list,
+with rollback support, preserving existing entries such as Narrator and OSK.
+The administrator helper accepts only validated layout names and keyboard/gaze
+preferences; it cannot load arbitrary paths or copy typed text.
+
+Automated checks cover the existing UI in sign-in mode, prediction/learning and
+text-retention suppression, validated preferences, and accessibility-list
+preservation. Installer CI covers opt-in, repair, and uninstall. Actual sign-in,
+lock/unlock, and UAC desktop transitions require acceptance on a signed Windows
+installation. Test PIN/password entry, top/bottom placement, gaze loss, and
+return to the user's normal keyboard. Tobii must be available to the Windows
+sign-in session; desktop tracking alone does not establish this. Hardware
+sign-in acceptance remains pending.
 
 ## Build a signed MSI
 

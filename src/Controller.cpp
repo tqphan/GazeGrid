@@ -1,3 +1,6 @@
+#ifdef _WIN32
+#include "WindowsSignIn.h"
+#endif
 #include <cmath>
 #include <algorithm>
 #include "Controller.h"
@@ -39,10 +42,12 @@ QString panelPlacementReason(const QVariantMap &layout){
  return {};
 }
 }
-Controller::Controller(){
+Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(signIn){
+ sensitiveInput=signInMode;
  zoomTimer.setInterval(33);connect(&zoomTimer,&QTimer::timeout,this,&Controller::updateMagnifierZoom);
  connect(&speech,&SpeechOutput::status,this,[this](QString message){actionStatus=message;emit changed();});
- clock.start();auto profile=ProfileStore(configFile("profile.json")).load();
+ clock.start();auto profile=signInMode?ProfileStore::Loaded{ProfileStore::valid(signInProfile)?signInProfile:ProfileStore::defaults(),{}}:ProfileStore(configFile("profile.json")).load();
+ if(signInMode){profile.values["predictionMode"]="off";profile.values["learning"]=false;profile.values["magnifierEnabled"]=false;}
  gazeEnabled=profile.values["gazeEnabled"].toBool(false);
  predictionModeValue=profile.values["predictionMode"].toString("context");
  nextWordEnabled=profile.values["predictNextWord"].toBool(true);
@@ -81,9 +86,11 @@ Controller::Controller(){
   auto item=KeyboardLayout::fromXml(KeyboardPack::load(QDir(keyboardPackDirectory()).filePath(name+".xml")));
   if(!item.contains("error")&&item["hidefromkeyboardmenu"].toString().compare("true",Qt::CaseInsensitive)!=0)menuLayoutNames<<name;
  }
+ if(!signInMode){
  QFile words(":/resources/EnglishUS.dic");if(words.open(QIODevice::ReadOnly)){dictionary=QString::fromUtf8(words.readAll()).remove(QChar(0xfeff)).split('\n',Qt::SkipEmptyParts);for(auto &word:dictionary)word=word.trimmed();dictionary.sort(Qt::CaseInsensitive);}
  WordPrediction::prepare(dictionary);
  QFile learned(configFile("learned.json"));if(learned.open(QIODevice::ReadOnly)){auto obj=QJsonDocument::fromJson(learned.readAll()).object();for(auto it=obj.begin();it!=obj.end();++it)frequencies[it.key()]=qBound(0,it.value().toInt(),1000000);}
+ }
 #ifndef _WIN32
  QString mappingError;QFile mappings(configFile("linux-mappings.json"));
  if(mappings.exists()){
@@ -138,6 +145,7 @@ Controller::Controller(){
  openLayout(start,false);
 }
 Controller::~Controller(){runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();portal.close();
+ if(signInMode)return;
  QJsonObject obj;for(auto it=frequencies.begin();it!=frequencies.end();++it)obj[it.key()]=it.value();QSaveFile file(configFile("learned.json"));if(file.open(QIODevice::WriteOnly)){file.write(QJsonDocument(obj).toJson());file.commit();}
 }
 void Controller::configureInputMethod(std::function<bool(QString)> text,std::function<bool(QString,bool)> key){
@@ -153,17 +161,19 @@ void Controller::invalidateInputContext(){
  runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();portal.releaseAll();dwell.reset();speech.stop();scratchpad.clear();predictionContext.clear();suggestions.clear();emit changed();
 }
 void Controller::inputContextChanged(bool active,bool sensitive){
- nativeActive=active;sensitiveInput=sensitive;
+ nativeActive=active;sensitiveInput=signInMode||sensitive;
  if(!active||sensitive)invalidateInputContext();
  else updateSuggestions();
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
 bool Controller::savePreferences(){
+ if(signInMode)return false;
  QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?QString():error;emit changed();return ok;
 }
 void Controller::resetPreferences(){
+ if(signInMode)return;
  QString error;auto values=ProfileStore::defaults();
  if(!ProfileStore(configFile("profile.json")).save(values,error,true)){profileStatus=error;emit changed();return;}
  if(!paused)togglePause();
@@ -201,6 +211,7 @@ void Controller::setKeyboardScale(int scale){
 }
 QString Controller::mappingJson()const{return QString::fromUtf8(QJsonDocument(mappingProfile).toJson(QJsonDocument::Indented));}
 bool Controller::saveMappings(QString json){
+ if(signInMode)return false;
  QString error;auto profile=ShortcutMappings::parse(json.toUtf8(),error);
  if(!error.isEmpty()){actionStatus=error;emit changed();return false;}
  const auto data=QJsonDocument(profile).toJson();QSaveFile file(configFile("linux-mappings.json"));
@@ -245,7 +256,7 @@ void Controller::togglePause(){paused=!paused;dwell.reset();runner.cancel();endB
 void Controller::setGazeEnabled(bool enabled){
  const bool preferenceChanged=gazeEnabled!=enabled;
  gazeEnabled=enabled;dwell.reset();gazeSmoothing.reset();
- if(preferenceChanged){
+ if(preferenceChanged&&!signInMode){
   ProfileStore store(configFile("profile.json"));auto saved=store.load().values;
   saved["gazeEnabled"]=enabled;QString error;
   if(!store.save(saved,error))profileStatus=error;
@@ -427,7 +438,7 @@ void Controller::activate(QString key){
  }
  if(!dispatchingOverlap){endButtonHold();runner.endDwellHold();heldDwellTarget.clear();}
  if(key=="MoveModeToggle"||key=="SizeModeToggle"||key=="CycleKeyMode"||key=="CycleButtonMode"){performAction(key);return;}
- if(key=="Settings"){emit settingsRequested();return;}
+ if(key=="Settings"){if(!signInMode)emit settingsRequested();return;}
  if(key=="Speak"){speak();return;}
  if(key=="StopSpeech"){stopSpeech();return;}
  if(key=="Pause"||isSleepKey(key)){togglePause();return;}
@@ -497,7 +508,7 @@ void Controller::openLayout(QString name,bool backReturnsHere){
  runner.cancel(textOnly==runner.textOnly,preserve);endButtonHold();gameController.reset(preserve);activeJoystick=-1;runner.textOnly=textOnly;runner.capsLock=false;pointer.cancel();dwell.reset();
  if(backReturnsHere&&!layoutName.isEmpty()&&layoutName!=name){backStack<<layoutName;if(backStack.size()>64)backStack.removeFirst();}
  canvasSourcePath=sourcePath;canvasSource=sourceBytes;
- saveCanvasChanges=compiled["persistkeygeometry"].toString().compare("true",Qt::CaseInsensitive)==0;canvasSaveStatus.clear();
+ saveCanvasChanges=!signInMode&&compiled["persistkeygeometry"].toString().compare("true",Qt::CaseInsensitive)==0;canvasSaveStatus.clear();
  resetCanvasPlacement();canvasEditMode.clear();sizeMoveMode=false;layout=compiled;layoutName=name;updateSuggestions();emit layoutChanged();emit changed();
 }
 void Controller::recover(){paused=false;backStack.clear();openLayout("main-14x1-bottom",false);}
@@ -626,6 +637,7 @@ void Controller::clearCapture(){
  ++captureEpoch;screenshot.cancel();capturePending=false;magnifierReady=false;magnifiedImage={};magnifierCrop={};captureSize={};
 }
 void Controller::setMagnifierEnabled(bool enabled){
+ if(signInMode)return;
  if(magnifierEnabled==enabled)return;
  magnifierEnabled=enabled;
  // Save only the toggle; other preferences retain their explicit Save behavior.
@@ -654,6 +666,7 @@ QStringList Controller::predictionSuggestions(int limit)const{
  return WordPrediction::suggest(context,dictionary,learning?frequencies:QMap<QString,int>{},limit,predictionModeValue=="context",sentenceStartersEnabled);
 }
 void Controller::setPredictionMode(QString mode){
+ if(signInMode)return;
  if(!QStringList{"context","frequency","off"}.contains(mode)||predictionModeValue==mode)return;
  predictionModeValue=mode;dwell.reset();updateSuggestions();
 }
@@ -670,6 +683,7 @@ void Controller::setPredictNextWord(bool enabled){
  nextWordEnabled=enabled;dwell.reset();updateSuggestions();
 }
 void Controller::setLearning(bool enabled){
+ if(signInMode)return;
  if(learning==enabled)return;
  learning=enabled;dwell.reset();updateSuggestions();
 }
@@ -677,7 +691,7 @@ void Controller::updateSuggestions(){
  suggestionOffset=0;
  suggestions=predictionSuggestions();emit changed();
 }
-void Controller::resetLearning(){frequencies.clear();QFile::remove(configFile("learned.json"));updateSuggestions();}
+void Controller::resetLearning(){if(signInMode)return;frequencies.clear();QFile::remove(configFile("learned.json"));updateSuggestions();}
 void Controller::speak(){if(!sensitiveInput)speech.speak(scratchpad);}
 void Controller::stopSpeech(){speech.stop();}
 
@@ -770,9 +784,19 @@ void Controller::updateKeyboardMask(QObject *object,const QVariantList &rectangl
 }
 
 bool Controller::saveCanvasGeometry(){
+ if(signInMode)return false;
  if(layout["layoutMode"]!="canvas"){canvasSaveStatus="Only Canvas keyboards support saving key geometry.";emit changed();return false;}
  QString error;
  const bool saved=KeyboardLayout::saveCanvasGeometry(canvasSourcePath,canvasSource,layout["keys"].toList(),error);
  canvasSaveStatus=saved?"Positions and sizes saved to "+canvasSourcePath:"Could not save: "+error+" Changes remain temporary.";
  emit changed();return saved;
+}
+
+void Controller::configureSignIn(bool enabled){
+ if(signInMode)return;
+#ifdef _WIN32
+ QJsonObject values{{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
+ profileStatus=WindowsSignIn::configure(enabled,values)?(enabled?"This keyboard will start before Windows sign-in. Prediction is disabled there.":"Windows sign-in startup is disabled."):"Could not change sign-in startup. Install the trusted version of GazeGrid and accept the administrator prompt.";
+ emit changed();
+#endif
 }
