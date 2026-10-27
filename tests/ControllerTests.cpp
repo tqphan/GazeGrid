@@ -509,7 +509,9 @@ private slots:
      const QVariantList commands{QVariantMap{{"tag",text?"Text":"Action"},{"text",value}}};
      c.setProperty("layout",QVariantMap{{"keys",QVariantList{QVariantMap{{"mode",fixed},{"commands",commands}}}}});
      c.clickCommand("key:0");QTRY_VERIFY(!c.executingCommands());
-     QCOMPARE(c.hover("key:0"),0.0);QTest::qWait(20);
+     // Start the repeat interval; progress may already be nonzero if the
+     // monotonic clock advances while hover computes its return value.
+     c.hover("key:0");QTest::qWait(20);
      QCOMPARE(c.hover("key:0")>0,(fixed.isEmpty()?global:fixed)=="Repeat");
     }
    }
