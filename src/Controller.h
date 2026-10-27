@@ -16,6 +16,7 @@
 class Controller:public QObject{
  Q_OBJECT
  Q_PROPERTY(bool signInMode READ isSignInMode CONSTANT)
+ Q_PROPERTY(bool trackerConnected READ isTrackerConnected NOTIFY trackerConnectionChanged)
  Q_PROPERTY(QString portalStatus MEMBER portalStatus NOTIFY changed)
  Q_PROPERTY(QString tobiiStatus MEMBER tobiiStatus NOTIFY changed)
  Q_PROPERTY(QString actionStatus MEMBER actionStatus NOTIFY changed)
@@ -92,6 +93,7 @@ class Controller:public QObject{
 public:
  explicit Controller(bool signIn=false,const QJsonObject &signInProfile={});~Controller()override;
  bool isSignInMode()const{return signInMode;}
+ bool isTrackerConnected()const{return trackerConnected;}
  Q_INVOKABLE void configureSignIn(bool enabled);
  Q_INVOKABLE void updateKeyboardMask(QObject *window,const QVariantList &rectangles,bool enabled);
  bool isMagnifierEnabled()const{return magnifierEnabled;}
@@ -175,6 +177,7 @@ signals:
  void settingsRequested();
  void changed();
  void gazeEnabledChanged();
+ void trackerConnectionChanged();
  void magnifierFrameChanged();
  void layoutChanged();
  void gazePoint(double x,double y,bool valid);
@@ -187,6 +190,7 @@ private:
  void updateSuggestions();
  QVariantList mapped(const QVariantList &commands,bool &ok);
  Q_SLOT void receiveGaze(double x,double y,bool valid,qint64 sampledAt);
+ Q_SLOT void setTrackerConnected(bool connected);
  GazeSmoothing gazeSmoothing;
  QSizeF gazeDisplaySize{1,1};
  int gazeIndicatorSize=18,gazeIndicatorOpacity=100;
@@ -246,6 +250,7 @@ private:
  int longLabelScale=100;
  bool rememberDesktop=false;
  const bool signInMode;
+ bool trackerConnected=false;
  bool nativeMode=false,nativeActive=false,sensitiveInput=false;
  qint64 lastGazeSample=0;
  int sizeMoveSelection=-1;

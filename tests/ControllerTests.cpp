@@ -516,6 +516,22 @@ private slots:
   {Controller controller;controller.setProperty("restoreOpacity",35);QVERIFY(controller.savePreferences());}
   {Controller controller;QCOMPARE(controller.property("restoreOpacity").toInt(),35);controller.resetPreferences();QCOMPARE(controller.property("restoreOpacity").toInt(),100);}
  }
+ void invalidGazeDoesNotChangeTrackerConnection(){
+  Controller c;QSignalSpy connections(&c,&Controller::trackerConnectionChanged);
+  QVERIFY(!c.isTrackerConnected());
+  QVERIFY(QMetaObject::invokeMethod(&c,"setTrackerConnected",Qt::DirectConnection,Q_ARG(bool,true)));
+  QVERIFY(c.isTrackerConnected());QCOMPARE(connections.size(),1);
+  for(int i=0;i<6;++i){
+   QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,0.),Q_ARG(double,0.),Q_ARG(bool,false),Q_ARG(qint64,0)));
+   QVERIFY(c.isTrackerConnected());
+  }
+  QSignalSpy points(&c,&Controller::gazePoint);
+  QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,.5),Q_ARG(double,.5),Q_ARG(bool,true),Q_ARG(qint64,GazeClock::now())));
+  QTRY_VERIFY_WITH_TIMEOUT(!points.last()[2].toBool(),1000);
+  QVERIFY(c.isTrackerConnected());QCOMPARE(connections.size(),1);
+  QVERIFY(QMetaObject::invokeMethod(&c,"setTrackerConnected",Qt::DirectConnection,Q_ARG(bool,false)));
+  QVERIFY(!c.isTrackerConnected());QCOMPARE(connections.size(),2);
+ }
  void unavailableGazeDoesNotInterruptMouseFallback(){
   Controller c;QString output;
   c.configureInputMethod([&](QString text){output+=text;return true;},[](QString,bool){return true;});c.inputContextChanged(true,false);

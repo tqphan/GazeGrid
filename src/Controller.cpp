@@ -134,6 +134,8 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(
  connect(&portal,&PortalInput::readyChanged,this,[this]{dwell.reset();if(!ready()){runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}emit changed();});
  connect(&tobii,&TobiiInput::status,this,[this](QString m){tobiiStatus=m;emit changed();});
  connect(&tobii,&TobiiInput::gaze,this,&Controller::receiveGaze);
+ connect(&tobii,&TobiiInput::connectionChanged,this,&Controller::setTrackerConnected);
+ connect(&tobii,&QThread::finished,this,[this]{setTrackerConnected(false);});
  auto timer=new QTimer(this);timer->setInterval(25);connect(timer,&QTimer::timeout,this,[this]{
   if(!overlapDwells.isEmpty()&&clock.elapsed()-lastHoldHover>200)clearOverlap();
   if(!buttonHoldTarget.isEmpty()&&clock.elapsed()-lastHoldHover>200){endButtonHold();dwell.reset();}
@@ -220,6 +222,12 @@ bool Controller::saveMappings(QString json){
 }
 QVariantList Controller::mapped(const QVariantList &commands,bool &ok){
  auto result=ShortcutMappings::resolve(commands,mappingProfile,bypassPlatformMappings(literal));ok=result.allowed;actionStatus=result.message;return result.commands;
+}
+void Controller::setTrackerConnected(bool connected){
+ if(trackerConnected==connected)return;
+ trackerConnected=connected;
+ if(!connected)receiveGaze(0,0,false,0);
+ emit trackerConnectionChanged();
 }
 void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
  const auto now=GazeClock::now();

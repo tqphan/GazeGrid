@@ -16,7 +16,7 @@ $originalStartup = @(((Get-ItemProperty $accessibility -Name Configuration -Erro
 foreach ($mode in @('decline', 'default', 'accept', 'sign-in', 'decline-trusted')) {
 Write-Host "Checking installation mode: $mode"
 $expectedUIAccess = $mode -in @('default', 'accept', 'sign-in')
-$properties = if ($mode -eq 'default') { @() } elseif ($expectedUIAccess) { @('GAZEGRID_TRUST_CERTIFICATE=1') } else { @('GAZEGRID_TRUST_CERTIFICATE=0') }
+[string[]]$properties = if ($mode -eq 'default') { @() } elseif ($expectedUIAccess) { @('GAZEGRID_TRUST_CERTIFICATE=1') } else { @('GAZEGRID_TRUST_CERTIFICATE=0') }
 if ($mode -eq 'sign-in') { $properties += 'GAZEGRID_SIGN_IN=1' }
 Run-Msi '/i' $properties
 try {

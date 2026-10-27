@@ -24,6 +24,7 @@ Window {
  readonly property var overlapTargets: {
   const revision=hitTestRevision
   if(!overlapEnabled||!root.visible||controller.targeting||controller.keyboardTemporarilyHidden)return []
+  if(root.usingGaze&&!root.gazeValid)return []
   if(!root.usingGaze&&!canvasHover.hovered)return []
   const point=root.usingGaze?Qt.point(gaze.x*screenWidth-logicalX,gaze.y*screenHeight-logicalY):canvasHover.point.position
   return keysAt(point.x,point.y)
@@ -32,7 +33,8 @@ Window {
  property bool gazeCheck: false
  readonly property bool restoreButtonEnabled:Qt.platform.os === "linux"
  property bool minimizedRecovery:restoreButtonEnabled&&controller.layoutName.startsWith("minimized-off-screen-")
- property bool usingGaze: gazeEnabled&&gazeValid
+ property bool trackerConnected:controller.trackerConnected
+ property bool usingGaze:gazeEnabled&&trackerConnected
  onUsingGazeChanged:{
   // Require fresh pointer motion after a gaze transition; stale hover must not
   // deflect a joystick again immediately after tracking loss.
@@ -84,7 +86,7 @@ Window {
  onHitTestRevisionChanged:Qt.callLater(updateInputMask)
  readonly property string gazeTarget: {
   const revision=hitTestRevision
-  return usingGaze ? keyAt(gaze.x*screenWidth-logicalX,gaze.y*screenHeight-logicalY) : ""
+  return usingGaze&&gazeValid ? keyAt(gaze.x*screenWidth-logicalX,gaze.y*screenHeight-logicalY) : ""
  }
  function styleOpacity(style,name) {
   const value=style&&style[name]!==undefined?Number(style[name]):1
@@ -430,7 +432,7 @@ Window {
   progress:root.progress;style:"ring";color:root.dwellColor
  }
  Item {
-  id:keyboardGazeIndicator;objectName:"keyboardGazeIndicator";visible:root.visible&&root.gazeEnabled&&!controller.targeting
+  id:keyboardGazeIndicator;objectName:"keyboardGazeIndicator";visible:root.visible&&root.usingGaze&&!controller.targeting
   anchors.fill:parent;z:100;clip:true
   property real lastTime:0
   property point lastPoint:Qt.point(0,0)
@@ -594,7 +596,7 @@ Window {
       title:settings.categoryNames[0];visible:settingsCategory.currentIndex==0;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
-       Desktop.Label {text:!root.gazeEnabled?"Gaze off":root.gazeValid?"Gaze: receiving":"Gaze unavailable — mouse dwell active";Layout.fillWidth:true;wrapMode:Text.Wrap}
+       Desktop.Label {objectName:"inputModeStatus";text:!root.gazeEnabled?"Gaze off":root.usingGaze?"Gaze dwell active":"Mouse dwell active — eye tracker disconnected";Layout.fillWidth:true;wrapMode:Text.Wrap}
        Desktop.Label {text:"Desktop control: "+controller.portalStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
        Desktop.Label {text:"Last action: "+controller.actionStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}
        Desktop.Label {text:"Eye tracker: "+controller.tobiiStatus;Layout.fillWidth:true;wrapMode:Text.Wrap}

@@ -96,19 +96,20 @@ void TobiiInput::run(){
  },&callback);
  if(e!=TOBII_ERROR_NO_ERROR) emit status("Gaze subscription: "+a.message(e));
  else {
+  emit connectionChanged(true);
   emit status("Tobii connected — gaze stream active");
   while(!isInterruptionRequested()) {
    e=a.tobii_device_process_callbacks(device);
    if(e==TOBII_ERROR_CONNECTION_FAILED){
-    emit gaze(0,0,false,0);emit status("Tobii disconnected — reconnecting");
+    emit connectionChanged(false);emit gaze(0,0,false,0);emit status("Tobii disconnected — reconnecting");
     for(int i=0;i<50 && !isInterruptionRequested();++i) msleep(20);
     if(isInterruptionRequested()) break;
     e=a.tobii_device_reconnect(device);
-    if(e==TOBII_ERROR_NO_ERROR){a.tobii_device_clear_callback_buffers(device);callback.last=0;emit status("Tobii reconnected");}
+    if(e==TOBII_ERROR_NO_ERROR){a.tobii_device_clear_callback_buffers(device);callback.last=0;emit connectionChanged(true);emit status("Tobii reconnected");}
    }else if(e!=TOBII_ERROR_NO_ERROR){emit status(a.message(e));break;}
    msleep(8);
   }
   a.tobii_gaze_point_unsubscribe(device);
  }
- emit gaze(0,0,false,0);a.tobii_device_destroy(device);a.tobii_api_destroy(api);
+ emit connectionChanged(false);emit gaze(0,0,false,0);a.tobii_device_destroy(device);a.tobii_api_destroy(api);
 }

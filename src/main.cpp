@@ -275,7 +275,7 @@ int main(int argc,char **argv){
  if(app.arguments().contains("--gaze-indicator-ui-check")){
   auto overlay=window->findChild<QQuickItem*>("keyboardGazeIndicator");
   if(!overlay)return 1;
-  window->setProperty("gazeEnabled",true);controller.setProperty("gazeIndicatorMorph",true);window->show();
+  window->setProperty("gazeEnabled",true);window->setProperty("trackerConnected",true);controller.setProperty("gazeIndicatorMorph",true);window->show();
   auto sample=[overlay](double x,double y){return QMetaObject::invokeMethod(overlay,"updateMotion",Q_ARG(QVariant,x),Q_ARG(QVariant,y),Q_ARG(QVariant,true));};
   QTimer::singleShot(100,&app,[&,overlay,sample]{
   sample(.1,.1);
@@ -289,7 +289,7 @@ int main(int argc,char **argv){
     QMetaObject::invokeMethod(overlay,"updateMotion",Q_ARG(QVariant,0.0),Q_ARG(QVariant,0.0),Q_ARG(QVariant,false));
     const bool reset=overlay->property("stretch").toDouble()==0;
     auto marker=window->findChild<QQuickItem*>("gazeMarker");
-    window->setProperty("gazeValid",true);
+    window->setProperty("gazeValid",true);window->setProperty("trackerConnected",true);
     window->setProperty("gaze",QPointF(.5,.8));
     const bool inside=marker&&marker->isVisible()&&marker->parentItem()==overlay&&overlay->clip();
     window->setProperty("gaze",QPointF(.5,.1));
@@ -407,6 +407,39 @@ int main(int argc,char **argv){
   });return app.exec();
  }
 #endif
+ if(app.arguments().contains("--gaze-input-mode-ui-check")){
+  window->setProperty("gazeCheck",true);window->setProperty("gazeEnabled",false);
+  window->setProperty("gazeValid",false);window->setProperty("gazeEnabled",true);
+  controller.setProperty("paused",true);
+  auto layout=controller.property("layout").toMap();layout["layoutMode"]="canvas";layout["activateoverlappingkeys"]=true;
+  controller.setProperty("layout",layout);emit controller.layoutChanged();
+  struct Step {int delay;int connected;int valid;bool gaze;};
+  const auto steps=std::make_shared<QList<Step>>(QList<Step>{
+   {0,0,0,false},{0,1,0,true},{100,-1,1,true},
+   {100,-1,0,true},{100,-1,1,true},{100,-1,0,true},{1500,-1,-1,true},
+   {0,0,0,false},{100,-1,1,false},{0,1,0,true},{100,-1,1,true}
+  });
+  auto timer=new QTimer(&app);timer->setSingleShot(true);
+  QObject::connect(timer,&QTimer::timeout,&app,[&,timer,steps,index=0]()mutable{
+   const auto step=steps->at(index);
+   if(step.connected>=0)QMetaObject::invokeMethod(&controller,"setTrackerConnected",Qt::DirectConnection,Q_ARG(bool,step.connected==1));
+   if(step.valid>=0)emit controller.gazePoint(.5,.75,step.valid==1);
+   const bool actual=window->property("usingGaze").toBool();
+   auto status=window->findChild<QObject*>("inputModeStatus");
+   const bool statusMatches=status&&status->property("text").toString().startsWith(step.gaze?"Gaze dwell":"Mouse dwell");
+   const bool noStaleTarget=window->property("gazeValid").toBool()
+      ||(window->property("gazeTarget").toString().isEmpty()&&window->property("overlapTargets").toList().isEmpty());
+   if(actual!=step.gaze||!statusMatches||!noStaleTarget){
+    QTextStream(stderr)<<"FAIL: unstable gaze/mouse source at stage "<<index<<" actual="<<actual<<" status="<<statusMatches<<" safe="<<noStaleTarget<<Qt::endl;app.exit(2);return;
+   }
+   if(++index==steps->size()){
+    window->setProperty("gazeEnabled",false);
+    if(window->property("usingGaze").toBool()){app.exit(2);return;}
+    QTextStream(stdout)<<"PASS: gaze/mouse dwell and status follow connection state regardless of gaze validity"<<Qt::endl;app.quit();return;
+   }
+   timer->start(steps->at(index).delay);
+  });timer->start(0);return app.exec();
+ }
  if(app.arguments().contains("--keyboard-background-ui-check")){
   window->setProperty("gazeCheck",true);
   controller.openLayout("size-move-demo",false);controller.setProperty("saveCanvasChanges",false);
@@ -470,7 +503,7 @@ int main(int argc,char **argv){
     window->setProperty("gazeEnabled",true);
     window->setProperty("gaze",QPointF((point.x()+window->property("logicalX").toDouble())/window->property("screenWidth").toDouble(),
      (point.y()+window->property("logicalY").toDouble())/window->property("screenHeight").toDouble()));
-    window->setProperty("gazeValid",true);
+    window->setProperty("gazeValid",true);window->setProperty("trackerConnected",true);
    }
    window->setProperty("gazeCheck",false);++*stage;
   });timer->start();return app.exec();
@@ -532,7 +565,7 @@ int main(int argc,char **argv){
   auto hit=[&](double x,double y){
    QVariant result;
    QMetaObject::invokeMethod(window,"keyAt",Q_RETURN_ARG(QVariant,result),Q_ARG(QVariant,x*window->width()/100),Q_ARG(QVariant,y*window->height()/100));
-   window->setProperty("gazeEnabled",true);window->setProperty("gazeValid",true);
+   window->setProperty("gazeEnabled",true);window->setProperty("gazeValid",true);window->setProperty("trackerConnected",true);
    window->setProperty("gaze",QPointF(
     (window->property("logicalX").toDouble()+x*window->width()/100)/window->property("screenWidth").toDouble(),
     (window->property("logicalY").toDouble()+y*window->height()/100)/window->property("screenHeight").toDouble()));
@@ -679,7 +712,7 @@ int main(int argc,char **argv){
    if(settings->isVisible()){
     const auto gazePoint=area->mapToItem(window->contentItem(),QPointF(area->width()*.8,area->height()/2));
     window->setProperty("gaze",QPointF((window->property("logicalX").toDouble()+gazePoint.x())/window->property("screenWidth").toDouble(),(window->property("logicalY").toDouble()+gazePoint.y())/window->property("screenHeight").toDouble()));
-    window->setProperty("gazeValid",true);stage=4;return;
+    window->setProperty("gazeValid",true);window->setProperty("trackerConnected",true);stage=4;return;
    }
    QTextStream(stdout)<<"PASS: actual joystick dot moves and centers with gaze unavailable"<<Qt::endl;app.quit();
   });
@@ -714,16 +747,17 @@ int main(int argc,char **argv){
   QMetaObject::invokeMethod(prediction,"entered");window->setProperty("progress",.5);
   if(predictionProgress->width()<=0){QTextStream(stderr)<<"Mouse prediction progress missing"<<Qt::endl;return 2;}
   const QPointF centre=prediction->mapToItem(window->contentItem(),QPointF(prediction->width()/2,prediction->height()/2));
-  window->setProperty("hovered","");window->setProperty("gazeEnabled",true);window->setProperty("gazeValid",true);
+  window->setProperty("hovered","");window->setProperty("gazeEnabled",true);window->setProperty("gazeValid",true);window->setProperty("trackerConnected",true);
   window->setProperty("gaze",QPointF((centre.x()+window->property("logicalX").toDouble())/window->property("screenWidth").toDouble(),
                                    (centre.y()+window->property("logicalY").toDouble())/window->property("screenHeight").toDouble()));
   window->setProperty("progress",.5);
   if(predictionProgress->width()<=0){QTextStream(stderr)<<"Gaze prediction progress missing"<<Qt::endl;return 2;}
   window->setProperty("gazeValid",false);
   if(predictionProgress->width()!=0){QTextStream(stderr)<<"Invalid gaze shows prediction progress"<<Qt::endl;return 2;}
+  window->setProperty("trackerConnected",false); // Connection-based switching has its own regression check.
   QMetaObject::invokeMethod(prediction,"entered");window->setProperty("progress",.5);
   if(window->property("usingGaze").toBool()||predictionProgress->width()<=0){QTextStream(stderr)<<"Mouse fallback prediction progress missing"<<Qt::endl;return 2;}
-  window->setProperty("gazeValid",true);
+  window->setProperty("gazeValid",true);window->setProperty("trackerConnected",true);
   if(!window->property("usingGaze").toBool()||window->property("progress").toDouble()!=0){QTextStream(stderr)<<"Gaze return did not reset dwell"<<Qt::endl;return 2;}
   controller.setProperty("suggestions",QStringList{});
   if(predictionProgress->width()!=0){QTextStream(stderr)<<"Empty prediction shows gaze progress"<<Qt::endl;return 2;}
@@ -769,7 +803,7 @@ int main(int argc,char **argv){
   controller.setProperty("targeting",true);controller.setProperty("magnifierEnabled",true);
   controller.setProperty("progressiveZoom",true);controller.setProperty("zoomDurationMs",500);
   controller.setProperty("targetDwellEnabled",true);controller.setProperty("targetStartDwellMs",250);controller.setProperty("targetConfirmDwellMs",300);
-  window->setProperty("gazeEnabled",gazeInput);window->setProperty("gazeValid",gazeInput);window->setProperty("gaze",QPointF(.7,.7));
+  window->setProperty("gazeEnabled",gazeInput);window->setProperty("gazeValid",gazeInput);window->setProperty("trackerConnected",gazeInput);window->setProperty("gaze",QPointF(.7,.7));
   auto poll=new QTimer(&app);poll->setInterval(25);
   QObject::connect(poll,&QTimer::timeout,&app,[&,gazeInput,stage=0]()mutable{
    if(!gazeInput&&target->isVisible()){
@@ -814,7 +848,7 @@ int main(int argc,char **argv){
   // Synthetic gaze over a navigation key: no tracker, portal or desktop output.
   controller.setProperty("paused",false);controller.setProperty("dwellMs",250);
   controller.openLayout("main-14x1-bottom",false);
-  window->setProperty("gazeEnabled",true);
+  window->setProperty("gazeEnabled",true);window->setProperty("trackerConnected",true);
   openSettings->trigger();
   if(!settings->isVisible()||controller.property("paused").toBool()||app.quitOnLastWindowClosed()){
    QTextStream(stderr)<<"FAIL: tray Settings action did not open settings with input active and background lifetime"<<Qt::endl;return 2;
@@ -841,7 +875,7 @@ int main(int argc,char **argv){
  if(app.arguments().contains("--dwell-minimize-check")){
   controller.setRestoreCorner(0);controller.setRestoreWidth(40);controller.setRestoreHeight(128);
   controller.setProperty("paused",false);controller.setProperty("dwellMs",250);
-  controller.openLayout("main-14x1-bottom",false);window->setProperty("gazeEnabled",true);
+  controller.openLayout("main-14x1-bottom",false);window->setProperty("gazeEnabled",true);window->setProperty("trackerConnected",true);
   auto poll=new QTimer(&app);poll->setInterval(25);
   QObject::connect(poll,&QTimer::timeout,&app,[&,stage=0,corner=0]()mutable{
    const QStringList expected{"minimized-off-screen-bottom","main-14x1-bottom","minimized-off-screen-top","main-14x1-top"};

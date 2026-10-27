@@ -8,6 +8,7 @@ public:
     ~TobiiInput() override;
     static QVariantMap probe();
 signals:
+    void connectionChanged(bool connected);
     void status(QString message);
     // Timestamp is sample time mapped into the host steady clock, in microseconds.
     void gaze(double x,double y,bool valid,qint64 timestamp);
