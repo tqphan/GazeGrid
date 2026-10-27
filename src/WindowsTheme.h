@@ -33,6 +33,7 @@ class WindowsTheme final : public QObject, public QAbstractNativeEventFilter {
     bool active = false;
     bool queued = false;
     bool dark = false;
+    QPointer<QWindow> literalTitleWindow;
     void apply(QWindow *window) {
         if (!window || !window->handle()) return;
         const auto hwnd = reinterpret_cast<HWND>(window->winId());
@@ -70,12 +71,25 @@ class WindowsTheme final : public QObject, public QAbstractNativeEventFilter {
         }
         return false;
     }
-    bool nativeEventFilter(const QByteArray &, void *message, qintptr *) override {
+    bool nativeEventFilter(const QByteArray &, void *message, qintptr *result) override {
         const auto msg = static_cast<MSG *>(message);
+        if (msg->message == WM_SETTEXT && literalTitleWindow && literalTitleWindow->handle()
+            && msg->hwnd == reinterpret_cast<HWND>(literalTitleWindow->winId())) {
+            const auto title = literalTitleWindow->title().toStdWString();
+            *result = DefWindowProcW(msg->hwnd, WM_SETTEXT, msg->wParam, reinterpret_cast<LPARAM>(title.c_str()));
+            return true;
+        }
         if (msg->message == WM_SETTINGCHANGE || msg->message == WM_THEMECHANGED) scheduleRefresh();
         return false;
     }
 public:
+    void preserveWindowTitle(QWindow *window) {
+        if (!active || !window) return;
+        literalTitleWindow = window;
+        window->create();
+        const auto title = window->title().toStdWString();
+        SetWindowTextW(reinterpret_cast<HWND>(window->winId()), title.c_str());
+    }
     WindowsTheme() {
         if (QGuiApplication::platformName() != "windows") return;
         active = true;

@@ -18,6 +18,7 @@ void Dwell::inhibit(const QString &target, qint64 now) {
     else last=now;
 }
 void Dwell::reset() { current.clear(); started=0; last=-1; fired=false; repeating=false; }
+void Dwell::pause(qint64 now) { if(last>=0&&now>=last){started+=now-last;last=now;} }
 double Dwell::progress(qint64 now, int duration, int repeatDuration) const {
     const int interval=repeating&&repeatDuration>0?repeatDuration:duration;
     return current.isEmpty() || fired ? 0 : std::clamp(double(now-started)/std::max(1,interval),0.0,1.0);

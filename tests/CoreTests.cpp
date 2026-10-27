@@ -782,6 +782,34 @@ private slots:
   d.update("",650,500);QVERIFY(!d.update("a",700,500));
   QVERIFY(!d.update("a",1300,500)); // stale interval cancels accumulated dwell
  }
+ void dwellPausePreservesProgressWithoutCountingLostTime(){
+  Dwell key;PointDwell point;
+  QVERIFY(!key.update("a",0,500));QVERIFY(!point.update({10,10},0,500,20));
+  QVERIFY(!key.update("a",100,500));QVERIFY(!point.update({10,10},100,500,20));
+  key.pause(450);point.pause(450);
+  QCOMPARE(key.progress(450,500),.2);QCOMPARE(point.progress(450,500),.2);
+  QVERIFY(!key.update("a",500,500));QVERIFY(!point.update({10,10},500,500,20));
+  QCOMPARE(key.progress(500,500),.3);QCOMPARE(point.progress(500,500),.3);
+  QVERIFY(!key.update("b",550,500));QVERIFY(!point.update({80,80},550,500,20));
+  QCOMPARE(key.progress(550,500),0.);QCOMPARE(point.progress(550,500),0.);
+ }
+ void invalidGazeToleranceProfileValidation(){
+  auto values=ProfileStore::defaults();QCOMPARE(values["invalidGazeToleranceMs"].toInt(),250);
+  values.remove("invalidGazeToleranceMs");QVERIFY(ProfileStore::valid(values));
+  for(const auto &invalid:QList<QJsonValue>{-1,1001,1.5,"100",true}){
+   values["invalidGazeToleranceMs"]=invalid;QVERIFY(!ProfileStore::valid(values));
+  }
+  values["invalidGazeToleranceMs"]=1000;QVERIFY(ProfileStore::valid(values));
+ }
+ void gazeClampingProfileValidation(){
+  for(const auto name:{"clampGazeForKeyboard","clampGazeForPointSelection"}){
+   auto values=ProfileStore::defaults();QCOMPARE(values[name].toBool(),QString(name)=="clampGazeForPointSelection");
+   values.remove(name);QVERIFY(ProfileStore::valid(values));
+   values[name]=false;QVERIFY(ProfileStore::valid(values));
+   values[name]="false";QVERIFY(!ProfileStore::valid(values));
+   values[name]=1;QVERIFY(!ProfileStore::valid(values));
+  }
+ }
  void repeatRateDoesNotChangeInitialDwell(){
   Dwell d;QVERIFY(!d.update("a",0,500,true,100));
   for(int t=100;t<500;t+=100)QVERIFY(!d.update("a",t,500,true,100));

@@ -306,6 +306,9 @@ int main(int argc,char **argv){
  auto settings=window->findChild<QQuickWindow*>("settingsWindow");
  if(!settings)return 1;
  settings->setTransientParent(nullptr);
+#ifdef _WIN32
+ windowsTheme.preserveWindowTitle(settings);
+#endif
  app.setQuitOnLastWindowClosed(false);
  QSystemTrayIcon tray(app.windowIcon());
  tray.setToolTip("GazeGrid");

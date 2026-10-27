@@ -16,10 +16,13 @@ private slots:
  }
  void sharedProfileOnlyContainsValidatedKeyboardPreferences(){
   auto values=ProfileStore::defaults();values["learning"]=true;values["predictionMode"]="context";values["magnifierEnabled"]=true;
-  values["keyboardScale"]=120;values["startLayout"]="main-14x1-top";
+  values["keyboardScale"]=120;values["startLayout"]="main-14x1-top";values["invalidGazeToleranceMs"]=250;
+  values["clampGazeForKeyboard"]=false;values["clampGazeForPointSelection"]=false;
   auto result=WindowsSignIn::validatedProfile(values);
   QCOMPARE(result["startLayout"].toString(),QString("main-14x1-top"));QCOMPARE(result["keyboardScale"].toInt(),120);
   QCOMPARE(result["predictionMode"].toString(),QString("off"));QVERIFY(!result["learning"].toBool());QVERIFY(!result["magnifierEnabled"].toBool());
+  QCOMPARE(result["invalidGazeToleranceMs"].toInt(),250);
+  QVERIFY(!result["clampGazeForKeyboard"].toBool());QVERIFY(!result["clampGazeForPointSelection"].toBool());
   values["startLayout"]="../user-keyboard";QVERIFY(WindowsSignIn::validatedProfile(values).isEmpty());
   values["startLayout"]="minimized-off-screen-bottom";QVERIFY(WindowsSignIn::validatedProfile(values).isEmpty());
   values["startLayout"]="main-14x1-bottom";values["dwellMs"]=-1;QVERIFY(WindowsSignIn::validatedProfile(values).isEmpty());

@@ -23,13 +23,16 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",false},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
+    return {{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",250},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",false},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"keyboardTheme","system"},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
     static const QRegularExpression layout("^[A-Za-z0-9_-]+$");
     return v["version"].isDouble()&&v["version"].toDouble()==1
         &&(!v.contains("gazeEnabled")||v["gazeEnabled"].isBool())
+        &&(!v.contains("clampGazeForKeyboard")||v["clampGazeForKeyboard"].isBool())
+        &&(!v.contains("clampGazeForPointSelection")||v["clampGazeForPointSelection"].isBool())
+        &&(!v.contains("invalidGazeToleranceMs")||(v["invalidGazeToleranceMs"].isDouble()&&v["invalidGazeToleranceMs"].toDouble()==v["invalidGazeToleranceMs"].toInt()&&v["invalidGazeToleranceMs"].toInt()>=0&&v["invalidGazeToleranceMs"].toInt()<=1000))
         &&(!v.contains("gazeIndicatorSize")||(v["gazeIndicatorSize"].isDouble()&&v["gazeIndicatorSize"].toDouble()==v["gazeIndicatorSize"].toInt()&&v["gazeIndicatorSize"].toInt()>=4&&v["gazeIndicatorSize"].toInt()<=120))
         &&(!v.contains("gazeIndicatorOpacity")||(v["gazeIndicatorOpacity"].isDouble()&&v["gazeIndicatorOpacity"].toDouble()==v["gazeIndicatorOpacity"].toInt()&&v["gazeIndicatorOpacity"].toInt()>=5&&v["gazeIndicatorOpacity"].toInt()<=100))
         &&(!v.contains("repeatIntervalMs")||(v["repeatIntervalMs"].isDouble()&&v["repeatIntervalMs"].toDouble()==v["repeatIntervalMs"].toInt()&&v["repeatIntervalMs"].toInt()>=100&&v["repeatIntervalMs"].toInt()<=2000))

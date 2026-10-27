@@ -25,6 +25,10 @@ class Controller:public QObject{
  Q_PROPERTY(bool ready READ ready NOTIFY changed)
  Q_PROPERTY(bool paused MEMBER paused NOTIFY changed)
  Q_PROPERTY(bool gazeEnabled READ isGazeEnabled WRITE setGazeEnabled NOTIFY gazeEnabledChanged)
+ Q_PROPERTY(int invalidGazeToleranceMs READ invalidGazeToleranceMs WRITE setInvalidGazeToleranceMs NOTIFY changed)
+ Q_PROPERTY(bool gazeDwellPaused READ isGazeDwellPaused NOTIFY changed)
+ Q_PROPERTY(bool clampGazeForKeyboard MEMBER clampGazeForKeyboard NOTIFY changed)
+ Q_PROPERTY(bool clampGazeForPointSelection MEMBER clampGazeForPointSelection NOTIFY changed)
  Q_PROPERTY(int gazeSmoothingLevel READ gazeSmoothingLevel WRITE setGazeSmoothingLevel NOTIFY changed)
  Q_PROPERTY(bool smoothWhenChangingGazeTarget READ smoothWhenChangingGazeTarget WRITE setSmoothWhenChangingGazeTarget NOTIFY changed)
  Q_PROPERTY(int gazeIndicatorSize MEMBER gazeIndicatorSize NOTIFY changed)
@@ -126,6 +130,10 @@ public:
  bool magneticCursor()const{return pointer.magnetic();}
  bool lookScrolling()const{return pointer.lookScrolling();}
  bool isGazeEnabled()const{return gazeEnabled;}
+ int invalidGazeToleranceMs()const{return gazeToleranceMs;}
+ void setInvalidGazeToleranceMs(int value);
+ bool isGazeDwellPaused()const{return gazeLossStarted>0;}
+ Q_INVOKABLE void pauseGazeDwell();
  Q_INVOKABLE void setGazeEnabled(bool enabled);
  Q_INVOKABLE void trackGaze(double x,double y,bool overDesktop);
  void displayChanged();
@@ -255,6 +263,10 @@ private:
  bool trackerConnected=false;
  bool nativeMode=false,nativeActive=false,sensitiveInput=false;
  qint64 lastGazeSample=0;
+ qint64 gazeLossStarted=0;
+ int gazeToleranceMs=250;
+ bool clampGazeForKeyboard=false,clampGazeForPointSelection=true;
+ bool lastGazeClamped=true;
  int sizeMoveSelection=-1;
  bool sizeMoveMode=false;
  bool saveCanvasChanges=false;

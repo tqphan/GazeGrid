@@ -81,6 +81,9 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(
  hideKeyboardDuringMouseActions=profile.values["hideKeyboardDuringMouseActions"].toBool();
  gazeIndicatorMorph=profile.values["gazeIndicatorMorph"].toBool();
  smoothingLevel=profile.values["gazeSmoothingLevel"].toInt(1);smoothTargetChanges=profile.values["smoothWhenChangingGazeTarget"].toBool();
+ gazeToleranceMs=profile.values["invalidGazeToleranceMs"].toInt(250);
+ clampGazeForKeyboard=profile.values["clampGazeForKeyboard"].toBool(false);
+ clampGazeForPointSelection=profile.values["clampGazeForPointSelection"].toBool(true);
  layoutNames=QDir(keyboardPackDirectory()).entryList({"*.xml"},QDir::Files,QDir::Name);for(auto &name:layoutNames)name.chop(4);
  for(const auto &name:layoutNames){
   auto item=KeyboardLayout::fromXml(KeyboardPack::load(QDir(keyboardPackDirectory()).filePath(name+".xml")));
@@ -140,7 +143,7 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile):signInMode(
   if(!overlapDwells.isEmpty()&&clock.elapsed()-lastHoldHover>200)clearOverlap();
   if(!buttonHoldTarget.isEmpty()&&clock.elapsed()-lastHoldHover>200){endButtonHold();dwell.reset();}
   if(!heldDwellTarget.isEmpty()&&clock.elapsed()-lastHoldHover>200){runner.endDwellHold();heldDwellTarget.clear();dwell.reset();}
-  if(gazeAge.isValid()&&GazeClock::now()-lastGazeSample>200000){gazeAge.invalidate();gazeSmoothing.reset();dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();emit gazePoint(0,0,false);}
+  if(gazeAge.isValid()&&(gazeLossStarted||GazeClock::now()-lastGazeSample>200000))receiveGaze(0,0,false,0);
  });timer->start();
  auto start=profile.values["startLayout"].toString();
  if(!layoutNames.contains(start)){start=ProfileStore::defaults()["startLayout"].toString();profileStatus="Saved keyboard is unavailable. Opened the default keyboard.";}
@@ -171,6 +174,9 @@ void Controller::inputContextChanged(bool active,bool sensitive){
 bool Controller::savePreferences(){
  if(signInMode)return false;
  QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ values["invalidGazeToleranceMs"]=gazeToleranceMs;
+ values["clampGazeForKeyboard"]=clampGazeForKeyboard;
+ values["clampGazeForPointSelection"]=clampGazeForPointSelection;
  QString error;bool ok=ProfileStore(configFile("profile.json")).save(values,error);
  profileStatus=ok?QString():error;emit changed();return ok;
 }
@@ -181,6 +187,8 @@ void Controller::resetPreferences(){
  if(!paused)togglePause();
  setMagnifierEnabled(false);
  setGazeEnabled(false);
+ setInvalidGazeToleranceMs(250);
+ clampGazeForKeyboard=false;clampGazeForPointSelection=true;
  dwellIndicatorStyle="bar";
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";nextWordEnabled=true;completionSpaceEnabled=true;sentenceStartersEnabled=true;backStack.clear();
  repeatIntervalMs=750;
@@ -233,17 +241,42 @@ void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
  const auto now=GazeClock::now();
  valid=valid&&GazeClock::fresh(sampledAt,now,lastGazeSample)&&std::isfinite(x)&&std::isfinite(y);
  if(valid){
-  // Valid tracker samples may lie beyond the display; keep edge actions active.
-  x=qBound(0.,x,1.);y=qBound(0.,y,1.);
+  if(gazeLossStarted){
+   if(now-gazeLossStarted>=qint64(gazeToleranceMs)*1000){
+    receiveGaze(0,0,false,0);
+   }else pauseGazeDwell();
+   gazeLossStarted=0;emit changed();
+  }
+  // Screen bounds do not determine tracker validity. Clamp only for the
+  // selected use; otherwise preserve valid off-screen coordinates.
+  const bool clamp=targeting?clampGazeForPointSelection:clampGazeForKeyboard;
+  // Do not carry an off-screen smoothing estimate into a clamped context.
+  if(clamp!=lastGazeClamped){gazeSmoothing.reset();lastGazeClamped=clamp;}
+  if(clamp){
+   x=qBound(0.,x,1.);y=qBound(0.,y,1.);
+  }
   if(!gazeAge.isValid()||now-lastGazeSample>200000)gazeSmoothing.reset();
   lastGazeSample=sampledAt;gazeAge.restart();
   const auto point=gazeSmoothing.update({x*gazeDisplaySize.width(),y*gazeDisplaySize.height()},smoothingLevel,smoothTargetChanges);
   x=point.x()/gazeDisplaySize.width();y=point.y()/gazeDisplaySize.height();
  }else{
+  if(gazeAge.isValid()&&gazeEnabled&&trackerConnected&&gazeToleranceMs>0){
+   if(!gazeLossStarted){
+    gazeLossStarted=now;pauseGazeDwell();
+    endButtonHold();runner.endDwellHold();heldDwellTarget.clear();gameController.reset();activeJoystick=-1;portal.releaseAll();
+    // Retain target selection, but stop already-running pointer actions and
+    // reset scroll timing so recovery cannot accumulate a scroll jump.
+    if((pointer.busy()&&!pointer.targeting())||pointer.magnetic()||pointer.lookScrolling()||!pointer.heldButtons().isEmpty())pointer.trackingLost();
+    emit changed();
+   }
+   if(now-gazeLossStarted<qint64(gazeToleranceMs)*1000){pauseGazeDwell();return;}
+  }
   // Cancel gaze work once on tracking loss. Further invalid samples must not
   // continually reset mouse dwell or cancel actions started by the fallback.
   const bool wasValid=gazeAge.isValid();gazeAge.invalidate();gazeSmoothing.reset();
-  if(wasValid){dwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();}
+  const bool wasPaused=gazeLossStarted>0;gazeLossStarted=0;
+  if(wasValid){dwell.reset();pointDwell.reset();canvasDwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();}
+  if(wasPaused)emit changed();
  }
  emit gazePoint(x,y,valid);
 }
@@ -251,6 +284,18 @@ void Controller::setDisplaySize(double width,double height){
  if(!std::isfinite(width)||!std::isfinite(height)||width<=0||height<=0)return;
  const QSizeF size(width,height);if(size!=gazeDisplaySize){gazeDisplaySize=size;gazeSmoothing.reset();}
  pointer.setDisplaySize(size);
+}
+void Controller::pauseGazeDwell(){
+ if(!gazeLossStarted)return;
+ const auto now=clock.elapsed();dwell.pause(now);pointDwell.pause(now);canvasDwell.pause(now);
+ for(auto &item:overlapDwells)item.pause(now);
+ lastHoldHover=now;
+}
+void Controller::setInvalidGazeToleranceMs(int value){
+ value=qBound(0,value,1000);if(value==gazeToleranceMs)return;
+ gazeToleranceMs=value;
+ if(gazeLossStarted)receiveGaze(0,0,false,0);
+ emit changed();
 }
 void Controller::setGazeSmoothingLevel(int level){
  level=qBound(0,level,4);if(level==smoothingLevel)return;
@@ -264,6 +309,7 @@ void Controller::togglePause(){paused=!paused;dwell.reset();runner.cancel();endB
 void Controller::setGazeEnabled(bool enabled){
  const bool preferenceChanged=gazeEnabled!=enabled;
  gazeEnabled=enabled;dwell.reset();gazeSmoothing.reset();
+ if(!enabled&&gazeLossStarted)receiveGaze(0,0,false,0);
  if(preferenceChanged&&!signInMode){
   ProfileStore store(configFile("profile.json"));auto saved=store.load().values;
   saved["gazeEnabled"]=enabled;QString error;
@@ -300,6 +346,7 @@ void Controller::endButtonHold(){
  if(!action.isEmpty())gameController.perform(action);
 }
 double Controller::hover(QString key){
+ if(gazeLossStarted){pauseGazeDwell();return dwell.progress(clock.elapsed(),dwellMs,repeatIntervalMs);}
  if(!collectingOverlap)clearOverlap();
  if(sizeMoveMode){
   if(paused||runner.busy()){dwell.inhibit(key,clock.elapsed());return 0;}
@@ -414,6 +461,7 @@ QVariantMap Controller::hoverKeys(const QStringList &targets){
  dispatchOverlap();return progress;
 }
 void Controller::dispatchOverlap(){
+ if(gazeLossStarted)return;
  if(paused||sizeMoveMode||targeting){clearOverlap();return;}
  while(!runner.busy()&&!overlapPending.isEmpty()){
   const auto next=overlapPending.takeFirst();
@@ -594,6 +642,7 @@ bool Controller::performAction(QString action){
  actionStatus="Not implemented yet: "+action;emit changed();return false;
 }
 void Controller::targetAt(double x,double y){
+ if(gazeLossStarted)return;
  if(paused||!ready()||!targeting||capturePending||zoomAnimating||!MagnifierGeometry::validPoint({x,y}))return;
  if(magnifierReady){
   const auto point=MagnifierGeometry::map(magnifierCrop,captureSize,{x,y});clearCapture();pointer.select(point);emit changed();return;
@@ -605,6 +654,7 @@ void Controller::targetAt(double x,double y){
  pointer.select(QPointF(x,y));
 }
 double Controller::dwellAt(double x,double y,bool valid){
+ if(gazeLossStarted){pauseGazeDwell();return pointDwell.progress(clock.elapsed(),magnifierReady?targetConfirmDwellMs:targetStartDwellMs);}
  if(!valid||!targetDwellEnabled||!targeting||paused||!ready()||capturePending||zoomAnimating||!MagnifierGeometry::validPoint({x,y})){
   pointDwell.reset();return 0;
  }
@@ -731,6 +781,7 @@ void Controller::resetCanvasPlacement(){
  sizeMoveSelection=-1;canvasEditPreview.clear();canvasAnchorValid=false;canvasPlacementArmed=false;canvasPlacementBlocked=false;canvasDwell.reset();
 }
 double Controller::canvasEditAt(double x,double y,bool valid){
+ if(gazeLossStarted){pauseGazeDwell();return canvasDwell.progress(clock.elapsed(),dwellMs);}
  if(runner.busy()){canvasDwell.reset();return 0;}
  if(!sizeMoveMode||paused||!valid||!std::isfinite(x)||!std::isfinite(y)||x<0||y<0||x>1||y>1){
   canvasDwell.reset();canvasAnchorValid=false;dwell.reset();return 0;
@@ -811,6 +862,9 @@ void Controller::configureSignIn(bool enabled){
  if(signInMode)return;
 #ifdef _WIN32
  QJsonObject values{{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
+ values["invalidGazeToleranceMs"]=gazeToleranceMs;
+ values["clampGazeForKeyboard"]=clampGazeForKeyboard;
+ values["clampGazeForPointSelection"]=clampGazeForPointSelection;
  profileStatus=WindowsSignIn::configure(enabled,values)?(enabled?"This keyboard will start before Windows sign-in. Prediction is disabled there.":"Windows sign-in startup is disabled."):"Could not change sign-in startup. Install the trusted version of GazeGrid and accept the administrator prompt.";
  emit changed();
 #endif

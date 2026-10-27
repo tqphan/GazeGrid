@@ -569,8 +569,39 @@ private slots:
   controller.setGazeSmoothingLevel(2);sample(.6,.6);QCOMPARE(points.last()[0].toDouble(),.6);
   controller.setSmoothWhenChangingGazeTarget(true);sample(.2,.2);QCOMPARE(points.last()[0].toDouble(),.2);
  }
+ void invalidGazeTolerancePausesBothDwellsAndExpires(){
+  auto values=ProfileStore::defaults();values["gazeEnabled"]=true;values["invalidGazeToleranceMs"]=300;
+  Controller c(true,values);c.inputContextChanged(true,false);c.setProperty("targeting",true);
+  c.setProperty("dwellMs",1000);c.setProperty("targetStartDwellMs",1000);
+  QVERIFY(QMetaObject::invokeMethod(&c,"setTrackerConnected",Qt::DirectConnection,Q_ARG(bool,true)));
+  QSignalSpy points(&c,&Controller::gazePoint);
+  auto sample=[&](bool valid){
+   QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,.5),Q_ARG(double,.5),Q_ARG(bool,valid),Q_ARG(qint64,valid?GazeClock::now():0)));
+  };
+  sample(true);c.hover("test-target");c.dwellAt(.5,.5,true);QTest::qSleep(50);
+  const auto keyProgress=c.hover("test-target"),pointProgress=c.dwellAt(.5,.5,true);
+  QVERIFY(keyProgress>0);QVERIFY(pointProgress>0);
+  sample(false);QVERIFY(c.isGazeDwellPaused());QVERIFY(points.last()[2].toBool());
+  QTest::qSleep(100);
+  QVERIFY(qAbs(c.hover("test-target")-keyProgress)<.01);
+  QVERIFY(qAbs(c.dwellAt(.5,.5,false)-pointProgress)<.01);
+  sample(true);QVERIFY(!c.isGazeDwellPaused());
+  QVERIFY(qAbs(c.hover("test-target")-keyProgress)<.01);
+  QVERIFY(qAbs(c.dwellAt(.5,.5,true)-pointProgress)<.01);
+  QTest::qSleep(50);QVERIFY(c.hover("test-target")>keyProgress+.03);
+  sample(false);QVERIFY(c.isGazeDwellPaused());
+  // Invalid samples must not extend the deadline.
+  QTest::qWait(150);sample(false);
+  QTRY_VERIFY_WITH_TIMEOUT(!c.isGazeDwellPaused(),1000);
+  QVERIFY(!points.last()[2].toBool());QCOMPARE(c.hover("test-target"),0.);
+ }
+ void invalidGazeTolerancePersistsAndResets(){
+  {Controller c;c.setInvalidGazeToleranceMs(400);QVERIFY(c.savePreferences());}
+  {Controller c;QCOMPARE(c.invalidGazeToleranceMs(),400);c.resetPreferences();QCOMPARE(c.invalidGazeToleranceMs(),250);}
+  {Controller c;QCOMPARE(c.invalidGazeToleranceMs(),250);}
+ }
  void offscreenGazeClampsWithoutCanceling(){
-  Controller c;c.setGazeSmoothingLevel(0);
+  Controller c;c.setProperty("clampGazeForKeyboard",true);c.setGazeSmoothingLevel(0);
   QSignalSpy points(&c,&Controller::gazePoint);
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Wait"},{"text","10000"}}}));
   const QList<QPointF> samples{{0,.5},{1,.5},{.5,0},{.5,1},{-.01,.5},{1.01,.5},{.5,-.1},{.5,1.1},{-.5,-.5},{1.5,1.5}};
@@ -584,6 +615,38 @@ private slots:
   }
   QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,0.),Q_ARG(double,0.),Q_ARG(bool,false),Q_ARG(qint64,0)));
   QVERIFY(!points.last()[2].toBool());QVERIFY(!c.executingCommands());
+ }
+ void offscreenGazeClampingIsIndependentAndNeverInvalidatesSamples(){
+  Controller c(true,ProfileStore::defaults());c.setGazeSmoothingLevel(0);
+  QSignalSpy points(&c,&Controller::gazePoint);
+  QVERIFY(c.executeCommands({QVariantMap{{"tag","Wait"},{"text","10000"}}}));
+  const QList<QPointF> samples{{-.01,.5},{1.01,.5},{.5,-.01},{.5,1.01},{-.01,1.01}};
+  for(bool keyboardClamp:{false,true})for(bool pointClamp:{false,true}){
+   c.setProperty("clampGazeForKeyboard",keyboardClamp);c.setProperty("clampGazeForPointSelection",pointClamp);
+   for(bool selecting:{false,true})for(const auto &p:samples){
+    c.setProperty("targeting",selecting);QTest::qWait(1);
+    QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,p.x()),Q_ARG(double,p.y()),Q_ARG(bool,true),Q_ARG(qint64,GazeClock::now())));
+    QVERIFY(points.last()[2].toBool());QVERIFY(!c.isGazeDwellPaused());QVERIFY(c.executingCommands());
+    const bool clamp=selecting?pointClamp:keyboardClamp;
+    QCOMPARE(points.last()[0].toDouble(),clamp?qBound(0.,p.x(),1.):p.x());
+    QCOMPARE(points.last()[1].toDouble(),clamp?qBound(0.,p.y(),1.):p.y());
+   }
+  }
+ }
+ void gazeClampingPreferencesPersistAndReset(){
+  {Controller c;c.setProperty("clampGazeForKeyboard",false);c.setProperty("clampGazeForPointSelection",false);QVERIFY(c.savePreferences());}
+  {Controller c;QVERIFY(!c.property("clampGazeForKeyboard").toBool());QVERIFY(!c.property("clampGazeForPointSelection").toBool());c.resetPreferences();}
+  {Controller c;QVERIFY(!c.property("clampGazeForKeyboard").toBool());QVERIFY(c.property("clampGazeForPointSelection").toBool());}
+ }
+ void gazeClampingChangesResetOffscreenSmoothingHistory(){
+  Controller c(true,ProfileStore::defaults());c.setGazeSmoothingLevel(2);
+  c.setProperty("clampGazeForKeyboard",false);c.setProperty("clampGazeForPointSelection",true);
+  QSignalSpy points(&c,&Controller::gazePoint);
+  for(bool selecting:{false,true,false}){
+   c.setProperty("targeting",selecting);QTest::qWait(1);
+   QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,1.01),Q_ARG(double,.5),Q_ARG(bool,true),Q_ARG(qint64,GazeClock::now())));
+   QVERIFY(points.last()[2].toBool());QCOMPARE(points.last()[0].toDouble(),selecting?1.:1.01);
+  }
  }
  void smoothingPreferencesPersistAndReset(){
   {Controller controller;controller.setGazeSmoothingLevel(4);controller.setSmoothWhenChangingGazeTarget(true);QVERIFY(controller.savePreferences());}

@@ -127,6 +127,7 @@ Window {
  Timer {
   interval:25;running:!root.gazeCheck;repeat:true
   onTriggered:{
+   if(root.usingGaze&&controller.gazeDwellPaused){controller.pauseGazeDwell();return}
    if(controller.sizeMoveMode){
     const point=root.usingGaze?Qt.point(root.gaze.x*root.screenWidth-root.logicalX,root.gaze.y*root.screenHeight-root.logicalY):canvasHover.point.position
     const valid=root.visible&&!controller.keyboardTemporarilyHidden&&(root.usingGaze?root.gazeValid:canvasHover.hovered)&&!root.canvasDragging
@@ -476,7 +477,7 @@ Window {
   }
  }
  Window {
-  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1100,root.screenWidth);height:Math.min(800,root.screenHeight-60);title:"GazeGrid settings";color:Kirigami.Theme.backgroundColor
+  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1100,root.screenWidth);height:Math.min(800,root.screenHeight-60);title:"GazeGrid Settings";color:Kirigami.Theme.backgroundColor
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
   property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Look to scroll"]
   property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","transform-move"]
@@ -547,11 +548,6 @@ Window {
     Kirigami.Theme.inherit:false
     ColumnLayout {
      anchors.fill:parent;anchors.margins:Kirigami.Units.largeSpacing;spacing:Kirigami.Units.largeSpacing
-     ColumnLayout {
-      Layout.leftMargin:10;Layout.topMargin:16;Layout.bottomMargin:20;spacing:5
-      Kirigami.Heading {text:"GazeGrid";level:1;font.weight:Font.DemiBold}
-      Desktop.Label {text:"SETTINGS";font.pixelSize:10;font.letterSpacing:2;opacity:0.55}
-     }
      ListView {
      id:settingsCategory;objectName:"settingsCategory"
      Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:4
@@ -701,6 +697,11 @@ Window {
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        SettingsCheckBox {text:"Enable gaze input";checked:root.gazeEnabled;enabled:!root.gazeCheck;focusPolicy:Qt.NoFocus;onToggled:controller.setGazeEnabled(checked)}
+       SettingsCheckBox {text:"Clamp off-screen gaze for keyboard keys";checked:controller.clampGazeForKeyboard;onToggled:controller.clampGazeForKeyboard=checked}
+       SettingsCheckBox {text:"Clamp off-screen gaze for point selection";checked:controller.clampGazeForPointSelection;onToggled:controller.clampGazeForPointSelection=checked}
+       Desktop.Label {text:"Clamping places off-screen gaze at the nearest screen edge. When off, coordinates stay unchanged. Off-screen gaze remains valid.";wrapMode:Text.Wrap;Layout.fillWidth:true;opacity:0.6}
+       SettingSlider {label:"Invalid gaze tolerance";displayValue:controller.invalidGazeToleranceMs+" ms";from:0;to:1000;stepSize:25;value:controller.invalidGazeToleranceMs;onMoved:controller.invalidGazeToleranceMs=value}
+       Desktop.Label {text:"Pause dwell during brief tracking loss. Resume when gaze returns, or reset after this time. 0 ms resets immediately.";wrapMode:Text.Wrap;Layout.fillWidth:true;opacity:0.6}
        Tool {id:tobii;text:"Connect eye tracker";command:"Tobii"}
       }
      }

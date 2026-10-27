@@ -18,6 +18,7 @@ public:
  }
  double progress(qint64 now,int duration)const{return last<0?0:std::clamp(double(now-started)/std::max(1,duration),0.,1.);}
  void reset(){last=-1;started=0;fired=false;}
+ void pause(qint64 now){if(last>=0&&now>=last){started+=now-last;last=now;}}
 private:
  QPointF anchor;
  qint64 last=-1,started=0;
