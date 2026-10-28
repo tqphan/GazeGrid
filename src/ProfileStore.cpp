@@ -42,7 +42,7 @@ bool ProfileStore::valid(const QJsonObject &v){
         &&(!v.contains("hideKeyboardDuringMouseActions")||v["hideKeyboardDuringMouseActions"].isBool())
         &&(!v.contains("gazeIndicatorMorph")||v["gazeIndicatorMorph"].isBool())
         &&(!v.contains("gazeIndicatorColor")||(v["gazeIndicatorColor"].isString()&&QRegularExpression("^#[0-9a-fA-F]{6}$").match(v["gazeIndicatorColor"].toString()).hasMatch()))
-        &&(!v.contains("dwellIndicatorStyle")||(v["dwellIndicatorStyle"].isString()&&QStringList{"bar","top-bar","fill","outline","ring","pie","collapse"}.contains(v["dwellIndicatorStyle"].toString())))
+        &&(!v.contains("dwellIndicatorStyle")||(v["dwellIndicatorStyle"].isString()&&QStringList{"bar","top-bar","fill","fill-left","fill-right","outline","ring","pie","collapse"}.contains(v["dwellIndicatorStyle"].toString())))
         &&v["dwellMs"].isDouble()&&v["dwellMs"].toDouble()==v["dwellMs"].toInt()
         &&v["dwellMs"].toInt()>=250&&v["dwellMs"].toInt()<=3000
         &&(!v.contains("gazeFilterType")||(v["gazeFilterType"].isDouble()&&(v["gazeFilterType"].toDouble()==0||v["gazeFilterType"].toDouble()==1)))

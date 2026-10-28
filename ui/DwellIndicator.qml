@@ -30,6 +30,12 @@ Item {
   width: parent.width; height: parent.height*indicator.amount
   color: indicator.color; opacity: 0.35
  }
+ Rectangle {
+  visible: indicator.style === "fill-left" || indicator.style === "fill-right"
+  x: indicator.style === "fill-right" ? parent.width-width : 0
+  width: parent.width*indicator.amount; height: parent.height
+  color: indicator.color; opacity: 0.35
+ }
  Canvas {
   id: drawing
   anchors.fill: parent

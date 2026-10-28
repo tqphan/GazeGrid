@@ -588,7 +588,7 @@ private slots:
  }
 
  void dwellIndicatorPreferences(){
-  const QStringList styles{"bar","top-bar","fill","outline","ring","pie","collapse"};
+  const QStringList styles{"bar","top-bar","fill","fill-left","fill-right","outline","ring","pie","collapse"};
   for(const auto &style:styles){
    {Controller c;c.setProperty("dwellIndicatorStyle",style);QVERIFY(c.savePreferences());}
    {Controller c;QCOMPARE(c.property("dwellIndicatorStyle").toString(),style);}

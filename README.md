@@ -134,7 +134,7 @@ Settings uses KDE desktop controls and theme colors, with a left sidebar groupin
 **Desktop access**, and **Shortcuts**. Live gaze, tracker, desktop-control, and last-action
 messages appear under **Status**. Magnifier groups zoom behavior and target dwell controls. Keyboard groups layout, appearance, and restore-button options. Tracker, speech, and desktop connection actions live on their respective pages. Save/reset preferences remain available in every category.
 
-**Keyboard → Appearance → Dwell progress style** offers Bottom bar (default), Top bar, Rising fill, Outline, Ring, and Pie, with an animated preview. Changes apply immediately to keyboard keys, predictions, and the target cancel button. Use **Save preferences and startup keyboard** to retain the style after restart.
+**Keyboard → Appearance → Dwell progress style** offers Bottom bar (default), Top bar, Rising fill, Fill left to right, Fill right to left, Outline, Ring, Pie, and Collapse, with an animated preview. Changes apply immediately to keyboard keys, predictions, and the target cancel button. Use **Save preferences and startup keyboard** to retain the style after restart.
 
 Gaze smoothing is available in **Settings → Gaze & dwell**: Off (0), Low (1), Medium (2), High
 (3), and Extreme (4), plus **Smooth when changing gaze target**. Low is the

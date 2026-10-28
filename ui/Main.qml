@@ -16,8 +16,8 @@ Window {
  property point canvasPoint:Qt.point(0,0)
  // Keep coordinates current before entering edit mode as well.
  HoverHandler {id:canvasHover}
- property var dwellStyleIds: ["bar","top-bar","fill","outline","ring","pie","collapse"]
- property var dwellStyleNames: ["Bottom bar","Top bar","Rising fill","Outline","Ring","Pie","Collapse"]
+ property var dwellStyleIds: ["bar","top-bar","fill","fill-left","fill-right","outline","ring","pie","collapse"]
+ property var dwellStyleNames: ["Bottom bar","Top bar","Rising fill","Fill left to right","Fill right to left","Outline","Ring","Pie","Collapse"]
  property real progress: 0
  property var overlapProgress: ({})
  readonly property bool overlapEnabled:controller.layout.layoutMode==="canvas"&&controller.layout.activateoverlappingkeys===true&&!controller.sizeMoveMode
