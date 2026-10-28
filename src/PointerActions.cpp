@@ -29,6 +29,7 @@ bool PointerActions::start(const QString &a,int initialDelayMs){
     const int clickButton=current.action=="MouseMoveAndRightClick"?273:current.action=="MouseMoveAndMiddleClick"?274:272;
     if((current.action.contains("Click")||current.action=="MouseDrag")&&held.contains(clickButton))return false;
     trackingGrace.stop();
+    haveFollowPoint=false;
     active=true;sourceChosen=false;phase=0;
     choosing=a!="RepeatLastMouseAction"&&(a=="MouseMoveTo"||a.startsWith("MouseMoveAnd")||a=="MouseDrag"||(a=="LookToScrollActive"&&!lookScroll.active()));
     instruction=a=="MouseDrag"?"Choose the drag source":"Choose a desktop target";
@@ -104,6 +105,7 @@ void PointerActions::finish(bool success){
 }
 void PointerActions::cancel(){
     trackingGrace.stop();
+    haveFollowPoint=false;
     timer.stop();active=false;choosing=false;phase=0;sourceChosen=false;last={};following=false;
     lookScroll.stop();
     if(releaseAll)releaseAll();held.clear();instruction.clear();emit changed();
@@ -128,7 +130,16 @@ bool PointerActions::follow(QPointF point,bool overDesktop){
         if(!lookScroll.active()){emit changed();return false;}
         if(!delta.isNull()&&(!scrollAxes||!scrollAxes(delta.x(),delta.y()))){cancel();return false;}
     }
-    if(following&&!moveTo(point)){cancel();return false;}
+    if(following){
+        if(relativeMagnetic){
+            if(!displaySize.isValid()){cancel();return false;}
+            if(haveFollowPoint){
+                const auto delta=point-lastFollowPoint;
+                if(!delta.isNull()&&(!moveRelative||!moveRelative(delta.x()*displaySize.width(),delta.y()*displaySize.height()))){cancel();return false;}
+            }
+            lastFollowPoint=point;haveFollowPoint=true;
+        }else if(!moveTo(point)){cancel();return false;}
+    }
     return true;
 }
 void PointerActions::setDisplaySize(QSizeF size){if(size!=displaySize){cancel();displaySize=size;}}

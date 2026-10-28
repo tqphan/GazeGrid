@@ -861,6 +861,24 @@ Window {
       }
      }
      SettingsCard {
+      title:"Magnetic mouse";visible:settingsCategory.currentIndex==2;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
+       RowLayout {
+        Desktop.Label {text:"Movement"}
+        SettingsComboBox {
+         objectName:"magneticMouseMovementSelector"
+         model:["Absolute","Relative"]
+         currentIndex:controller.magneticMouseRelative?1:0
+         Accessible.name:"Magnetic mouse movement"
+         onActivated:controller.magneticMouseRelative=currentIndex===1
+        }
+       }
+       Desktop.Label {text:controller.magneticMouseRelative?"Moves the cursor by changes in your gaze position, starting from its current location.":"Moves the cursor directly to where you look.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Desktop.Label {text:"Applies immediately. Save preferences to keep this setting after restarting.";wrapMode:Text.Wrap;Layout.fillWidth:true;opacity:0.6}
+      }
+     }
+     SettingsCard {
       title:settings.categoryNames[6];visible:settingsCategory.currentIndex==6;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing

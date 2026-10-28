@@ -23,6 +23,7 @@ public:
     void cancel();
     void trackingLost();
     void configureScroll(int speed,int deadzone,int axis){lookScroll.configure(speed,deadzone,axis);}
+    void setMagneticRelative(bool relative){if(relative!=relativeMagnetic){relativeMagnetic=relative;haveFollowPoint=false;}}
     bool follow(QPointF point,bool overDesktop=true);
     void setDisplaySize(QSizeF size);
     bool magnetic()const{return following;}
@@ -48,6 +49,8 @@ public:
     QTimer trackingGrace;
     QSet<int> held;
     QPointF position{.5,.5};
+    QPointF lastFollowPoint;
+    bool relativeMagnetic=false,haveFollowPoint=false;
     bool active=false,choosing=false,sourceChosen=false,following=false;
     int phase=0,dragStep=0;
     QString instruction;

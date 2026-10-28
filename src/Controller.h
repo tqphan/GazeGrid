@@ -88,6 +88,7 @@ class Controller:public QObject{
  Q_PROPERTY(QString targetPrompt READ targetPrompt NOTIFY changed)
  Q_PROPERTY(QStringList heldPointerButtons READ heldPointerButtons NOTIFY changed)
  Q_PROPERTY(bool magneticCursor READ magneticCursor NOTIFY changed)
+ Q_PROPERTY(bool magneticMouseRelative MEMBER magneticMouseRelative NOTIFY changed)
  Q_PROPERTY(int scrollSpeed MEMBER scrollSpeed NOTIFY changed)
  Q_PROPERTY(int scrollDeadzone MEMBER scrollDeadzone NOTIFY changed)
  Q_PROPERTY(int scrollAxis MEMBER scrollAxis NOTIFY changed)
@@ -273,6 +274,7 @@ private:
  QPointF coarseTarget;
  bool magnifierEnabled=false,capturePending=false,magnifierReady=false;
  int magnifierRevision=0;
+ bool magneticMouseRelative=false;
  int scrollSpeed=100,scrollDeadzone=50,scrollAxis=0;
  int magnifierZoom=4;
  bool progressiveZoom=false,zoomAnimating=false;

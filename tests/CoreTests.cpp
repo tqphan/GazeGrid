@@ -507,6 +507,24 @@ private slots:
   QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),2);
   QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(!p.magnetic());QCOMPARE(moves.size(),1);
  }
+ void magneticRelativeUsesGazeDeltasAndResetsBaseline(){
+  PointerActions p;p.setDisplaySize({1000,800});p.setMagneticRelative(true);
+  QList<QPointF> moves;int absoluteMoves=0;
+  p.move=[&](double,double){++absoluteMoves;return true;};
+  p.moveRelative=[&](double x,double y){moves<<QPointF(x,y);return true;};
+  QSignalSpy done(&p,&PointerActions::completed);
+  QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),1);
+  QVERIFY(p.follow({.25,.25}));QVERIFY(moves.isEmpty());
+  QVERIFY(p.follow({.5,.5}));QCOMPARE(moves.last(),QPointF(250,200));QCOMPARE(absoluteMoves,0);
+  QVERIFY(p.follow({.25,.25}));QCOMPARE(moves.last(),QPointF(-250,-200));
+  p.setMagneticRelative(false);QVERIFY(p.follow({.75,.75}));QCOMPARE(absoluteMoves,1);
+  p.setMagneticRelative(true);QVERIFY(p.follow({.1,.1}));QCOMPARE(moves.size(),2);
+  p.trackingLost();QVERIFY(!p.magnetic());
+  QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),2);
+  QVERIFY(p.follow({.9,.9}));QCOMPARE(moves.size(),2);
+  p.moveRelative=[](double,double){return false;};
+  QVERIFY(!p.follow({.5,.5}));QVERIFY(!p.magnetic());
+ }
  void actionCoverageListsMissingPackFeatures(){
   auto report=KeyboardPack::audit(PACK_PATH);QCOMPARE(report["layouts"].toList().size(),31);
   QVERIFY(report["unsupportedActions"].toStringList().isEmpty());
