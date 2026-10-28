@@ -76,6 +76,13 @@ initialization took 1.14 seconds and is performed during controller startup,
 before typing. The bundled compressed model is 3,068,246 bytes; decompressed
 runtime memory use is larger. Timings depend on the machine.
 
+Context continuations use compact sorted arrays, with binary search for counts;
+the model data and ranking formula are unchanged. Loading parses one decompressed
+row at a time to limit temporary allocations. In an isolated Windows Qt 6.10.1
+Release predictor probe, peak working set fell from about 386 MiB with separate
+per-context hash tables to 125 MiB. This measures the dictionary, predictor and
+startup allocations, rather than the complete application's memory use.
+
 This is an in-domain held-out benchmark, not a claim of accuracy for every user
 or application. Tatoeba is a language-learning corpus and contains translation
 patterns and similar sentence variants; the frequency prior adds subtitle-based

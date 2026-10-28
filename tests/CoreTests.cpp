@@ -395,6 +395,26 @@ private slots:
   QVERIFY(!next.isEmpty());QVERIFY(next.first().front().isUpper());
   QVERIFY(WordPrediction::suggest("Finished.",words,{}).isEmpty());
  }
+ void predictionPreservesFullContextRankings_data(){
+  QTest::addColumn<QString>("text");QTest::addColumn<QStringList>("expected");
+  // Full rankings recorded before compacting the model's context storage.
+  QTest::newRow("one-word")<<QString("thank ")<<QStringList{"you","god","goodness","heavens","me","him","her","the"};
+  QTest::newRow("other-side")<<QString("on the other ")<<QStringList{"side","hand","day","one","way","is","room","half"};
+  QTest::newRow("same-time")<<QString("at the same ")<<QStringList{"time","place","hotel","table","speed","thing","as","way"};
+  QTest::newRow("as-soon-as")<<QString("as soon as ")<<QStringList{"possible","he","you","we","the","she","they","it"};
+  QTest::newRow("cup-of")<<QString("a cup of ")<<QStringList{"coffee","tea","the","my","his","this","your","you"};
+  QTest::newRow("would-like")<<QString("I would like ")<<QStringList{"to","some","you","me","them","that","this","the"};
+  QTest::newRow("would-you-mind")<<QString("Would you mind ")<<QStringList{"telling","taking","if","helping","turning","leaving","my","doing"};
+  QTest::newRow("weather")<<QString("The weather is ")<<QStringList{"good","very","nice","so","getting","bad","cold","fine"};
+  QTest::newRow("completion")<<QString("I would like to dr")<<QStringList{"drink","drive","draw","dress","drop","dry","drinking","dream"};
+ }
+ void predictionPreservesFullContextRankings(){
+  QFETCH(QString,text);QFETCH(QStringList,expected);
+  QFile file(":/resources/EnglishUS.dic");QVERIFY(file.open(QIODevice::ReadOnly));
+  auto words=QString::fromUtf8(file.readAll()).remove(QChar(0xfeff)).split('\n',Qt::SkipEmptyParts);
+  for(auto &word:words)word=word.trimmed();
+  QCOMPARE(WordPrediction::suggest(text,words,{}),expected);
+ }
  void progressiveZoomFollowsCurrentPoint(){
   const QSize image(1000,800);const QRect original(0,0,1000,800);
   const auto left=MagnifierGeometry::zoomAt(original,image,{.2,.3},2);

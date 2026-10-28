@@ -1,6 +1,8 @@
 #include "WordPrediction.h"
 #include <algorithm>
 #include <cmath>
+#include <vector>
+#include <QBuffer>
 #include <QFile>
 #include <QHash>
 #include <QSet>
@@ -28,8 +30,26 @@ QString WordPrediction::completedWord(const QString &text){
 }
 namespace {
 struct Distribution {
- QHash<QString,double> counts;
+ struct Count {QString word;double value;};
+ // Most contexts have only one or two continuations. A hash table for each
+ // wastes hundreds of megabytes on minimum-size allocations.
+ std::vector<Count> counts;
  double total=0;
+ void prepare(){
+  std::stable_sort(counts.begin(),counts.end(),[](const Count &a,const Count &b){return a.word<b.word;});
+  // Preserve QHash::insert's last-value behavior if a model repeats a word.
+  size_t output=0;
+  for(size_t first=0;first<counts.size();){
+   size_t last=first+1;while(last<counts.size()&&counts[first].word==counts[last].word)++last;
+   if(output!=last-1)counts[output]=std::move(counts[last-1]);
+   ++output;first=last;
+  }
+  counts.resize(output);counts.shrink_to_fit();
+ }
+ double value(const QString &word)const{
+  const auto it=std::lower_bound(counts.cbegin(),counts.cend(),word,[](const Count &entry,const QString &key){return entry.word<key;});
+  return it!=counts.cend()&&it->word==word?it->value:0;
+ }
 };
 struct Model {
  QHash<QString,double> prior;
@@ -37,21 +57,24 @@ struct Model {
  Model(){
   QFile file(":/resources/prediction/english-v1.bin");
   if(!file.open(QIODevice::ReadOnly))qFatal("Bundled English prediction model is missing");
-  const auto data=qUncompress(file.readAll());
-  const auto lines=data.split('\n');
-  if(lines.isEmpty()||lines.front()!="gazegrid-prediction-v1")qFatal("Invalid English prediction model");
-  for(const auto &line:lines){
-   const auto fields=line.split('\t');
+  QBuffer input;input.setData(qUncompress(file.readAll()));input.open(QIODevice::ReadOnly);
+  // Parse one line at a time instead of retaining hundreds of thousands of
+  // temporary byte arrays alongside the finished model during startup.
+  auto readLine=[&]{auto line=input.readLine();if(line.endsWith('\n'))line.chop(1);return line;};
+  if(readLine()!="gazegrid-prediction-v1")qFatal("Invalid English prediction model");
+  while(!input.atEnd()){
+   const auto fields=readLine().split('\t');
    if(fields.size()==3&&fields[0]=="u")prior.insert(QString::fromUtf8(fields[1]),fields[2].toDouble());
    else if((fields.size()==4&&fields[0]=="b")||(fields.size()==5&&fields[0]=="t")||(fields.size()==6&&fields[0]=="q")){
     QString context=QString::fromUtf8(fields[1]);
     for(int i=2;i<fields.size()-2;++i)context+=' '+QString::fromUtf8(fields[i]);
     auto &distribution=contexts[context];
     const double count=fields.back().toDouble();
-    distribution.counts.insert(QString::fromUtf8(fields[fields.size()-2]),count);
+    distribution.counts.push_back({QString::fromUtf8(fields[fields.size()-2]),count});
     distribution.total+=count;
    }
   }
+  for(auto &distribution:contexts)distribution.prepare();
  }
 };
 const Model &model(){static const Model value;return value;}
@@ -107,9 +130,9 @@ QStringList WordPrediction::suggest(const QString &text,const QStringList &dicti
  auto add=[&](const QString &word,double prior){
   if(!word.startsWith(lower)||(!lower.isEmpty()&&word==lower))return;
   double probability=prior;
-  if(bi!=language.contexts.cend())probability=(bi->counts.value(word)+200*probability)/(bi->total+200);
-  if(tri!=language.contexts.cend())probability=(tri->counts.value(word)+20*probability)/(tri->total+20);
-  if(four!=language.contexts.cend())probability=(four->counts.value(word)+10*probability)/(four->total+10);
+  if(bi!=language.contexts.cend())probability=(bi->value(word)+200*probability)/(bi->total+200);
+  if(tri!=language.contexts.cend())probability=(tri->value(word)+20*probability)/(tri->total+20);
+  if(four!=language.contexts.cend())probability=(four->value(word)+10*probability)/(four->total+10);
   // Bounded personalization: even a million observations cannot overpower
   // strong context by more than a factor of two.
   const double boost=1+std::min(1.0,std::log1p(std::max(0,frequencies.value(word)))/std::log(101.0));
@@ -122,7 +145,7 @@ QStringList WordPrediction::suggest(const QString &text,const QStringList &dicti
   QSet<QString> candidates;
   for(int i=0;i<std::min(std::max(limit,128),int(index.frequent.size()));++i)candidates.insert(index.frequent[i].word);
   for(auto distribution:{bi,tri,four})if(distribution!=language.contexts.cend())
-   for(auto it=distribution->counts.cbegin();it!=distribution->counts.cend();++it)if(index.byWord.contains(it.key()))candidates.insert(it.key());
+   for(const auto &entry:distribution->counts)if(index.byWord.contains(entry.word))candidates.insert(entry.word);
   for(auto it=frequencies.cbegin();it!=frequencies.cend();++it)if(index.byWord.contains(it.key()))candidates.insert(it.key());
   for(const auto &word:candidates)add(word,index.byWord.value(word));
  }else{
