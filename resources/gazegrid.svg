@@ -1,21 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <title>GazeGrid</title>
-  <desc>A focused eye above keyboard keys on a rounded blue tile.</desc>
+  <desc>A lavender eye surrounding a square keyboard key on a purple tile.</desc>
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#163e79"/>
-      <stop offset="1" stop-color="#092348"/>
+      <stop stop-color="#713cf4"/>
+      <stop offset="1" stop-color="#29116c"/>
+    </linearGradient>
+    <linearGradient id="eye" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#f6eaff"/>
+      <stop offset="1" stop-color="#b892f5"/>
+    </linearGradient>
+    <linearGradient id="key" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f5e5ff"/>
+      <stop offset="0.45" stop-color="#d0abfa"/>
+      <stop offset="1" stop-color="#b583ee"/>
     </linearGradient>
   </defs>
   <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#tile)"/>
-  <path d="M92 204C135 145 190 116 256 116s121 29 164 88c-43 59-98 88-164 88S135 263 92 204Z" fill="none" stroke="#f4faff" stroke-width="25" stroke-linejoin="round"/>
-  <circle cx="256" cy="204" r="48" fill="#58d9ed"/>
-  <circle cx="256" cy="204" r="19" fill="#0c2b55"/>
-  <circle cx="269" cy="191" r="9" fill="#f4faff"/>
-  <g fill="#f4faff">
-    <rect x="112" y="338" width="80" height="42" rx="11"/>
-    <rect x="216" y="338" width="80" height="42" rx="11"/>
-    <rect x="320" y="338" width="80" height="42" rx="11"/>
+  <g fill="url(#eye)">
+    <path d="M64 238C111 145 181 98 256 98S401 145 448 238Q451 248 440 242C369 193 316 166 256 166S143 193 72 242Q61 248 64 238Z"/>
+    <path d="M64 274C111 367 181 414 256 414S401 367 448 274Q451 264 440 270C369 319 316 346 256 346S143 319 72 270Q61 264 64 274Z"/>
   </g>
-  <rect x="166" y="404" width="180" height="24" rx="12" fill="#58d9ed"/>
+  <rect x="194" y="194" width="124" height="124" rx="27" fill="url(#key)" stroke="#e8cfff" stroke-width="2"/>
 </svg>
