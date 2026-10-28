@@ -90,10 +90,15 @@
     </ComponentGroup>
   </Fragment>
   <Fragment>
+    <SetProperty Id="DefaultUIFont" Value="GazeGrid_Font_Normal" Before="LaunchConditions" Sequence="ui">1</SetProperty>
     <UI Id="GazeGridUI">
       <UIRef Id="WixUI_Minimal" />
+      <!-- MSI scales dialog units from DefaultUIFont, so windows and controls
+           grow together with the larger body text. -->
+      <TextStyle Id="GazeGrid_Font_Normal" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="GazeGrid_Font_Title" FaceName="Tahoma" Size="14" Bold="yes" />
       <Dialog Id="GazeGridTrustDlg" Width="370" Height="330" Title="GazeGrid accessibility permissions">
-        <Control Id="Title" Type="Text" X="15" Y="12" Width="340" Height="20" Text="{\WixUI_Font_Title}Choose Windows accessibility access" />
+        <Control Id="Title" Type="Text" X="15" Y="12" Width="340" Height="20" Text="{\GazeGrid_Font_Title}Choose Windows accessibility access" />
         <Control Id="Explanation" Type="Text" X="15" Y="40" Width="340" Height="48" Text="A trusted signature and installation in Program Files grant UIAccess, allowing input to elevated windows. Optional sign-in startup is registered separately with Windows accessibility." />
         <Control Id="TrustExplanation" Type="Text" X="15" Y="92" Width="340" Height="48" Text="Accepting installs the self-signed GazeGrid certificate in this computer's Trusted Root Certification Authorities store. This trusts software signed with this identity for all users. Accept only if you trust the publisher and have verified the certificate." />
         <Control Id="Fingerprint" Type="Text" X="15" Y="143" Width="340" Height="28" Text="Certificate thumbprint: @GAZEGRID_CERTIFICATE_THUMBPRINT@" />
@@ -114,7 +119,7 @@
         </Control>
       </Dialog>
       <Dialog Id="GazeGridSignInDlg" Width="370" Height="230" Title="GazeGrid Windows sign-in">
-        <Control Id="Title" Type="Text" X="15" Y="15" Width="340" Height="20" Text="{\WixUI_Font_Title}Keyboard before Windows sign-in" />
+        <Control Id="Title" Type="Text" X="15" Y="15" Width="340" Height="20" Text="{\GazeGrid_Font_Title}Keyboard before Windows sign-in" />
         <Control Id="Explanation" Type="Text" X="15" Y="48" Width="340" Height="48" Text="GazeGrid can start on the Windows sign-in screen before you enter your password. It uses the existing keyboard interface with prediction disabled." />
         <Control Id="Enable" Type="CheckBox" X="15" Y="106" Width="340" Height="20" Property="GAZEGRID_SIGN_IN" CheckBoxValue="1" Text="Start GazeGrid before Windows sign-in">
           <Condition Action="disable">GAZEGRID_TRUST_CERTIFICATE &lt;&gt; "1"</Condition>
@@ -125,7 +130,7 @@
         <Control Id="Cancel" Type="PushButton" X="282" Y="205" Width="72" Height="17" Cancel="yes" Text="Cancel"><Publish Event="SpawnDialog" Value="CancelDlg">1</Publish></Control>
       </Dialog>
       <Dialog Id="GazeGridTobiiDlg" Width="370" Height="270" Title="GazeGrid eye tracking setup">
-        <Control Id="Title" Type="Text" X="15" Y="15" Width="340" Height="20" Text="{\WixUI_Font_Title}Tobii eye tracking prerequisites" />
+        <Control Id="Title" Type="Text" X="15" Y="15" Width="340" Height="20" Text="{\GazeGrid_Font_Title}Tobii eye tracking prerequisites" />
         <Control Id="BuildSupport" Type="Text" X="15" Y="45" Width="340" Height="42" Text="@GAZEGRID_TOBII_INSTALL_MESSAGE@" />
         <Control Id="Software" Type="Text" X="15" Y="96" Width="340" Height="50" Text="Install the Tobii Experience driver package, then the Tobii Experience app. That installation supplies the Tobii Stream Engine DLL. GazeGrid uses the installed DLL and does not bundle it." />
         <Control Id="Download" Type="Text" X="15" Y="152" Width="340" Height="24" Text="Official setup: https://gaming.tobii.com/getstarted/" />
