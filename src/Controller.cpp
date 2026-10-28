@@ -60,6 +60,7 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  scalePercent=profile.values["keyboardScale"].toInt(100);keyboardTheme=profile.values["highContrast"].toBool()?QStringLiteral("high-contrast"):profile.values["keyboardTheme"].toString("system");
  shortLabelScale=profile.values.value("shortLabelScale").toInt(profile.values.value("enlargeShortLabels").toBool(true)?150:100);
  longLabelScale=profile.values["longLabelScale"].toInt(100);
+ predictionTextScale=profile.values["predictionTextScale"].toInt(100);
  scratchpadTextScale=profile.values["scratchpadTextScale"].toInt(100);
  magnifierEnabled=profile.values.value("magnifierEnabled").toBool(false);
  scrollSpeed=profile.values["scrollSpeed"].toInt(100);scrollDeadzone=profile.values["scrollDeadzone"].toInt(50);scrollAxis=profile.values["scrollAxis"].toInt(0);
@@ -252,6 +253,7 @@ bool Controller::savePreferences(){
  if(signInMode)return false;
  QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  values["invalidGazeToleranceMs"]=gazeToleranceMs;
+ values["predictionTextScale"]=predictionTextScale;
  values["scratchpadTextScale"]=scratchpadTextScale;
  values["removeCompletionSpaceBeforePunctuation"]=removeCompletionSpaceEnabled;
  values["clampGazeForKeyboard"]=clampGazeForKeyboard;
@@ -269,6 +271,7 @@ void Controller::resetPreferences(){
  setGazeEnabled(false);
  setInvalidGazeToleranceMs(250);
  setRemoveCompletionSpaceBeforePunctuation(true);
+ predictionTextScale=values["predictionTextScale"].toInt();
  scratchpadTextScale=values["scratchpadTextScale"].toInt();
  clampGazeForKeyboard=false;clampGazeForPointSelection=true;
  dwellIndicatorStyle="bar";
@@ -987,6 +990,7 @@ void Controller::configureSignIn(bool enabled){
 #ifdef _WIN32
  QJsonObject values{{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
  values["invalidGazeToleranceMs"]=gazeToleranceMs;
+ values["predictionTextScale"]=predictionTextScale;
  values["scratchpadTextScale"]=scratchpadTextScale;
  values["clampGazeForKeyboard"]=clampGazeForKeyboard;
  values["clampGazeForPointSelection"]=clampGazeForPointSelection;

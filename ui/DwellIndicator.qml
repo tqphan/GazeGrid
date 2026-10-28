@@ -25,8 +25,8 @@ Item {
   color: indicator.color
  }
  Rectangle {
-  visible: indicator.style === "fill"
-  anchors.bottom: parent.bottom
+  visible: indicator.style === "fill" || indicator.style === "fill-down"
+  y: indicator.style === "fill-down" ? 0 : parent.height-height
   width: parent.width; height: parent.height*indicator.amount
   color: indicator.color; opacity: 0.35
  }

@@ -16,8 +16,8 @@ Window {
  property point canvasPoint:Qt.point(0,0)
  // Keep coordinates current before entering edit mode as well.
  HoverHandler {id:canvasHover}
- property var dwellStyleIds: ["bar","top-bar","fill","fill-left","fill-right","outline","ring","pie","collapse"]
- property var dwellStyleNames: ["Bottom bar","Top bar","Rising fill","Fill left to right","Fill right to left","Outline","Ring","Pie","Collapse"]
+ property var dwellStyleIds: ["bar","top-bar","fill","fill-down","fill-left","fill-right","outline","ring","pie","collapse"]
+ property var dwellStyleNames: ["Bottom bar","Top bar","Fill bottom to top","Fill top to bottom","Fill left to right","Fill right to left","Outline","Ring","Pie","Collapse"]
  property real progress: 0
  property var overlapProgress: ({})
  readonly property bool overlapEnabled:controller.layout.layoutMode==="canvas"&&controller.layout.activateoverlappingkeys===true&&!controller.sizeMoveMode
@@ -377,7 +377,7 @@ Window {
       onHasPredictionChanged:if(!hasPrediction&&root.hovered==="suggest:"+index)root.hovered=""
       width:key.predictionWidth;height:key.height;color:"transparent";border.color:root.keyboardBorder
       Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:predictionSlot.active?0.18:0}
-      Text {anchors.fill:parent;anchors.margins:4;text:predictionSlot.predictionText;opacity:key.foregroundOpacity;color:key.foreground;font.pixelSize:Math.min(24,key.height*.28);fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
+      Text {anchors.fill:parent;anchors.margins:4;text:predictionSlot.predictionText;opacity:key.foregroundOpacity;color:key.foreground;font.pixelSize:Math.min(24,key.height*.28)*controller.predictionTextScale/100;fontSizeMode:Text.Fit;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
       MouseArea {objectName:"predictionMouseArea:"+index;anchors.fill:parent;hoverEnabled:true;enabled:predictionSlot.hasPrediction;onEntered:root.hovered="suggest:"+index;onExited:if(root.hovered==="suggest:"+index)root.hovered="";onClicked:controller.clickCommand("suggest:"+index)}
       DwellIndicator {objectName:"predictionProgress:"+index;anchors.left:parent.left;anchors.bottom:parent.bottom;width:progress>0?parent.width:0;height:parent.height;progress:predictionSlot.active?root.progress:0;style:controller.dwellIndicatorStyle;color:root.dwellColor}
      }
@@ -812,6 +812,7 @@ Window {
       title:"Word prediction";      visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
+       SettingSlider {objectName:"predictionTextSizeSlider";label:"Prediction text size";displayValue:controller.predictionTextScale+"%";from:50;to:300;stepSize:5;value:controller.predictionTextScale;onMoved:controller.predictionTextScale=value}
        Desktop.Label {text:"Prediction style"}
        SettingsComboBox {
         objectName:"predictionModeSelector";Layout.fillWidth:true

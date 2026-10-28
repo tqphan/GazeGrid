@@ -588,7 +588,7 @@ private slots:
  }
 
  void dwellIndicatorPreferences(){
-  const QStringList styles{"bar","top-bar","fill","fill-left","fill-right","outline","ring","pie","collapse"};
+  const QStringList styles{"bar","top-bar","fill","fill-down","fill-left","fill-right","outline","ring","pie","collapse"};
   for(const auto &style:styles){
    {Controller c;c.setProperty("dwellIndicatorStyle",style);QVERIFY(c.savePreferences());}
    {Controller c;QCOMPARE(c.property("dwellIndicatorStyle").toString(),style);}
@@ -811,11 +811,11 @@ private slots:
  }
  void visualPreferencesPersistAndReset(){
   ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
-  auto legacy=ProfileStore::defaults();legacy.remove("scratchpadTextScale");QVERIFY(store.save(legacy,error));
-  {Controller controller;QCOMPARE(controller.property("scratchpadTextScale").toInt(),100);}
-  {Controller controller;controller.setProperty("keyboardTheme","ocean");controller.setProperty("keyboardScale",125);controller.setProperty("shortLabelScale",125);controller.setProperty("longLabelScale",150);controller.setProperty("scratchpadTextScale",175);QVERIFY(controller.savePreferences());}
-  {Controller controller;QCOMPARE(controller.property("keyboardTheme").toString(),QString("ocean"));QCOMPARE(controller.keyboardScale(),125);QCOMPARE(controller.property("shortLabelScale").toInt(),125);QCOMPARE(controller.property("longLabelScale").toInt(),150);QCOMPARE(controller.property("scratchpadTextScale").toInt(),175);
-   controller.resetPreferences();QCOMPARE(controller.property("keyboardTheme").toString(),QString("system"));QCOMPARE(controller.keyboardScale(),100);QCOMPARE(controller.property("shortLabelScale").toInt(),150);QCOMPARE(controller.property("longLabelScale").toInt(),100);QCOMPARE(controller.property("scratchpadTextScale").toInt(),100);}
+  auto legacy=ProfileStore::defaults();legacy.remove("scratchpadTextScale");legacy.remove("predictionTextScale");QVERIFY(store.save(legacy,error));
+  {Controller controller;QCOMPARE(controller.property("scratchpadTextScale").toInt(),100);QCOMPARE(controller.property("predictionTextScale").toInt(),100);}
+  {Controller controller;controller.setProperty("keyboardTheme","ocean");controller.setProperty("keyboardScale",125);controller.setProperty("shortLabelScale",125);controller.setProperty("longLabelScale",150);controller.setProperty("scratchpadTextScale",175);controller.setProperty("predictionTextScale",200);QVERIFY(controller.savePreferences());}
+  {Controller controller;QCOMPARE(controller.property("keyboardTheme").toString(),QString("ocean"));QCOMPARE(controller.keyboardScale(),125);QCOMPARE(controller.property("shortLabelScale").toInt(),125);QCOMPARE(controller.property("longLabelScale").toInt(),150);QCOMPARE(controller.property("scratchpadTextScale").toInt(),175);QCOMPARE(controller.property("predictionTextScale").toInt(),200);
+   controller.resetPreferences();QCOMPARE(controller.property("keyboardTheme").toString(),QString("system"));QCOMPARE(controller.keyboardScale(),100);QCOMPARE(controller.property("shortLabelScale").toInt(),150);QCOMPARE(controller.property("longLabelScale").toInt(),100);QCOMPARE(controller.property("scratchpadTextScale").toInt(),100);QCOMPARE(controller.property("predictionTextScale").toInt(),100);}
  }
  void legacyHighContrastMigratesToTheme(){
   const auto path=QDir(appConfigDirectory()).filePath("profile.json");

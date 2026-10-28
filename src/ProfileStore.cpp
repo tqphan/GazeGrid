@@ -23,7 +23,7 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"scratchpadTextScale",100},{"removeCompletionSpaceBeforePunctuation",true},{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",250},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",false},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeFilterType",0},{"gazeFilterGain",0.2},{"gazeSaccadeDistance",0.1},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"typedWordSuggestionMode","fallback"},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
+    return {{"predictionTextScale",100},{"scratchpadTextScale",100},{"removeCompletionSpaceBeforePunctuation",true},{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",250},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",false},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeFilterType",0},{"gazeFilterGain",0.2},{"gazeSaccadeDistance",0.1},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"typedWordSuggestionMode","fallback"},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"keyboardTheme","system"},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
@@ -42,7 +42,7 @@ bool ProfileStore::valid(const QJsonObject &v){
         &&(!v.contains("hideKeyboardDuringMouseActions")||v["hideKeyboardDuringMouseActions"].isBool())
         &&(!v.contains("gazeIndicatorMorph")||v["gazeIndicatorMorph"].isBool())
         &&(!v.contains("gazeIndicatorColor")||(v["gazeIndicatorColor"].isString()&&QRegularExpression("^#[0-9a-fA-F]{6}$").match(v["gazeIndicatorColor"].toString()).hasMatch()))
-        &&(!v.contains("dwellIndicatorStyle")||(v["dwellIndicatorStyle"].isString()&&QStringList{"bar","top-bar","fill","fill-left","fill-right","outline","ring","pie","collapse"}.contains(v["dwellIndicatorStyle"].toString())))
+        &&(!v.contains("dwellIndicatorStyle")||(v["dwellIndicatorStyle"].isString()&&QStringList{"bar","top-bar","fill","fill-down","fill-left","fill-right","outline","ring","pie","collapse"}.contains(v["dwellIndicatorStyle"].toString())))
         &&v["dwellMs"].isDouble()&&v["dwellMs"].toDouble()==v["dwellMs"].toInt()
         &&v["dwellMs"].toInt()>=250&&v["dwellMs"].toInt()<=3000
         &&(!v.contains("gazeFilterType")||(v["gazeFilterType"].isDouble()&&(v["gazeFilterType"].toDouble()==0||v["gazeFilterType"].toDouble()==1)))
@@ -80,6 +80,7 @@ bool ProfileStore::valid(const QJsonObject &v){
         &&(!v.contains("shortLabelScale")||(v["shortLabelScale"].isDouble()&&v["shortLabelScale"].toDouble()==v["shortLabelScale"].toInt()&&v["shortLabelScale"].toInt()>=50&&v["shortLabelScale"].toInt()<=200))
         &&(!v.contains("longLabelScale")||(v["longLabelScale"].isDouble()&&v["longLabelScale"].toDouble()==v["longLabelScale"].toInt()&&v["longLabelScale"].toInt()>=50&&v["longLabelScale"].toInt()<=200))
         &&(!v.contains("rememberDesktop")||v["rememberDesktop"].isBool())
+        &&(!v.contains("predictionTextScale")||(v["predictionTextScale"].isDouble()&&v["predictionTextScale"].toDouble()==v["predictionTextScale"].toInt()&&v["predictionTextScale"].toInt()>=50&&v["predictionTextScale"].toInt()<=300))
         &&(!v.contains("scratchpadTextScale")||(v["scratchpadTextScale"].isDouble()&&v["scratchpadTextScale"].toDouble()==v["scratchpadTextScale"].toInt()&&v["scratchpadTextScale"].toInt()>=50&&v["scratchpadTextScale"].toInt()<=300))
         &&v["startLayout"].isString()&&layout.match(v["startLayout"].toString()).hasMatch();
 }
