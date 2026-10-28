@@ -9,7 +9,7 @@
 #include <string>
 #include <cmath>
 #include "GazeClock.h"
-#include "TobiiCallbacks.h"
+#include "TobiiTimeSync.h"
 namespace {
 struct Api {
 #ifdef _WIN32
@@ -22,7 +22,7 @@ struct Api {
  FN(tobii_get_api_version) FN(tobii_api_create) FN(tobii_api_destroy)
  FN(tobii_enumerate_local_device_urls) FN(tobii_device_create) FN(tobii_device_destroy)
  FN(tobii_get_device_info) FN(tobii_gaze_point_subscribe) FN(tobii_gaze_point_unsubscribe)
- FN(tobii_system_clock) FN(tobii_wait_for_callbacks) FN(tobii_device_clear_callback_buffers) FN(tobii_stream_supported) FN(tobii_device_process_callbacks) FN(tobii_device_reconnect) FN(tobii_error_message)
+ FN(tobii_system_clock) FN(tobii_update_timesync) FN(tobii_device_clear_callback_buffers) FN(tobii_stream_supported) FN(tobii_device_process_callbacks) FN(tobii_device_reconnect) FN(tobii_error_message)
 #undef FN
  bool load() {
   if(!library.load()) {error=library.errorString();return false;}
@@ -40,7 +40,7 @@ struct Api {
   LOAD(tobii_api_create) LOAD(tobii_api_destroy)
   LOAD(tobii_enumerate_local_device_urls) LOAD(tobii_device_create) LOAD(tobii_device_destroy)
   LOAD(tobii_get_device_info) LOAD(tobii_gaze_point_subscribe) LOAD(tobii_gaze_point_unsubscribe)
-  LOAD(tobii_system_clock) LOAD(tobii_wait_for_callbacks) LOAD(tobii_device_clear_callback_buffers) LOAD(tobii_stream_supported) LOAD(tobii_device_process_callbacks) LOAD(tobii_device_reconnect) LOAD(tobii_error_message)
+  LOAD(tobii_system_clock) LOAD(tobii_update_timesync) LOAD(tobii_device_clear_callback_buffers) LOAD(tobii_stream_supported) LOAD(tobii_device_process_callbacks) LOAD(tobii_device_reconnect) LOAD(tobii_error_message)
 #undef LOAD
   return true;
  }
@@ -99,22 +99,26 @@ void TobiiInput::run(){
  else {
   emit connectionChanged(true);
   emit status("Tobii connected — gaze stream active");
+  TobiiTimeSync timeSync;
+  bool syncWarning=false;
   while(!isInterruptionRequested()) {
-   // The SDK wait sleeps until work is available and maintains clock sync.
-   // Its bounded timeout lets interruption requests be observed without polling.
-   const auto result=tobiiWaitAndProcess(
-    [&]{return a.tobii_wait_for_callbacks(1,&device);},
-    [&]{return a.tobii_device_process_callbacks(device);},
-    [this]{return isInterruptionRequested();},TOBII_ERROR_NO_ERROR,TOBII_ERROR_TIMED_OUT);
-   if(!result||isInterruptionRequested())break;
-   e=*result;
+   e=TOBII_ERROR_NO_ERROR;
+   timeSync.update(GazeClock::now(),[&]{
+    const auto syncError=a.tobii_update_timesync(device);
+    if(syncError!=TOBII_ERROR_NO_ERROR){emit status("Tobii clock synchronization: "+a.message(syncError));syncWarning=true;}
+    else if(syncWarning){emit status("Tobii connected — gaze stream active");syncWarning=false;}
+    if(syncError==TOBII_ERROR_CONNECTION_FAILED)e=syncError;
+    return syncError==TOBII_ERROR_NO_ERROR;
+   });
+   if(e==TOBII_ERROR_NO_ERROR)e=a.tobii_device_process_callbacks(device);
    if(e==TOBII_ERROR_CONNECTION_FAILED){
     emit connectionChanged(false);emit gaze(0,0,false,0);emit status("Tobii disconnected — reconnecting");
     for(int i=0;i<50 && !isInterruptionRequested();++i) msleep(20);
     if(isInterruptionRequested()) break;
     e=a.tobii_device_reconnect(device);
-    if(e==TOBII_ERROR_NO_ERROR){a.tobii_device_clear_callback_buffers(device);callback.last=0;emit connectionChanged(true);emit status("Tobii reconnected");}
+    if(e==TOBII_ERROR_NO_ERROR){a.tobii_device_clear_callback_buffers(device);callback.last=0;timeSync.reset();emit connectionChanged(true);emit status("Tobii reconnected");}
    }else if(e!=TOBII_ERROR_NO_ERROR){emit status(a.message(e));break;}
+   msleep(8);
   }
   a.tobii_gaze_point_unsubscribe(device);
  }

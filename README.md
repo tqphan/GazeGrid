@@ -28,7 +28,7 @@ CMake and Ninja are installed locally in `.tools/`. The build uses the host Qt 6
 
 The default SDK is the exact user-supplied `stream_engine_linux_3.0.4.6031` directory. Its headers are used for compilation and its x64 shared library is loaded by absolute path at runtime. The sibling 4.24 SDK is not used. SDK files are not copied into this project. The CMake cache variable `TOBII_SDK` allows relocating the same SDK.
 
-The Tobii worker uses `tobii_wait_for_callbacks()` before processing subscribed samples, allowing the SDK to maintain clock synchronization. Waiting stays on the worker thread, with normal SDK timeouts allowing shutdown checks. No fixed polling sleep or separate synchronization timer is used.
+The Tobii worker polls subscribed callbacks approximately every 8 ms and manually synchronizes the tracker clock every 30 seconds. Synchronization is also performed on connection and reconnection; temporary synchronization failures retry after one second. All tracker processing stays on the worker thread.
 
 ## Current controls and implementation
 
