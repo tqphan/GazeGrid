@@ -12,7 +12,7 @@ private slots:
    QVERIFY(ProfileStore::valid(values));QVERIFY(values["gazeEnabled"].toBool());
    QCOMPARE(values["predictionMode"].toString(),QString("off"));QVERIFY(!values["learning"].toBool());
   }
-  QVERIFY(!ProfileStore::defaults()["gazeEnabled"].toBool());
+  QVERIFY(ProfileStore::defaults()["gazeEnabled"].toBool());
  }
  void loginPreservesExplicitGazeChoiceAndKeyboard(){
   const auto disabled=WindowsSignIn::profileFromData("{\"gazeEnabled\":false,\"startLayout\":\"main-14x1-top\"}");

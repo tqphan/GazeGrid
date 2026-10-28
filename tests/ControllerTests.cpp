@@ -492,16 +492,18 @@ private slots:
  }
  void gazePreferenceLoadsSavesAndResets(){
   ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
-  auto values=ProfileStore::defaults();QVERIFY(!values["gazeEnabled"].toBool());
+  auto values=ProfileStore::defaults();QVERIFY(values["gazeEnabled"].toBool());
   values.remove("gazeEnabled");QVERIFY(ProfileStore::valid(values));
+  QVERIFY(store.save(values,error));
+  {Controller c;QVERIFY(c.isGazeEnabled());}
   values["gazeEnabled"]="true";QVERIFY(!ProfileStore::valid(values));
   values["gazeEnabled"]=true;QVERIFY(store.save(values,error));
   {Controller c;QVERIFY(c.isGazeEnabled());QVERIFY(c.property("gazeEnabled").toBool());QVERIFY(c.savePreferences());}
   {Controller c;QVERIFY(c.isGazeEnabled());c.setProperty("dwellMs",1250);c.setGazeEnabled(false);}
   {Controller c;QVERIFY(!c.isGazeEnabled());QCOMPARE(c.property("dwellMs").toInt(),750);}
   values["gazeEnabled"]=true;QVERIFY(store.save(values,error));
-  {Controller c;QVERIFY(c.isGazeEnabled());c.resetPreferences();QVERIFY(!c.isGazeEnabled());}
-  {Controller c;QVERIFY(!c.isGazeEnabled());}
+  {Controller c;QVERIFY(c.isGazeEnabled());c.resetPreferences();QVERIFY(c.isGazeEnabled());}
+  {Controller c;QVERIFY(c.isGazeEnabled());}
  }
  void scrollSettingsPersistAndReset(){
   {Controller c;c.setProperty("scrollSpeed",170);c.setProperty("scrollDeadzone",90);c.setProperty("scrollAxis",1);QVERIFY(c.savePreferences());}

@@ -56,7 +56,7 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  clock.start();auto profile=signInMode?ProfileStore::Loaded{ProfileStore::valid(signInProfile)?signInProfile:ProfileStore::defaults(),{}}:ProfileStore(configFile("profile.json")).load();
  if(signInMode){profile.values["predictionMode"]="off";profile.values["learning"]=false;profile.values["magnifierEnabled"]=false;}
  setProcessPriority(profile.values["processPriority"].toInt(0));
- gazeEnabled=profile.values["gazeEnabled"].toBool(false);
+ gazeEnabled=profile.values["gazeEnabled"].toBool(true);
  typedWordMode=profile.values["typedWordSuggestionMode"].toString("fallback");
  predictionModeValue=profile.values["predictionMode"].toString("context");
  nextWordEnabled=profile.values["predictNextWord"].toBool(true);
@@ -278,7 +278,7 @@ void Controller::resetPreferences(){
  if(!paused)togglePause();
  setProcessPriority(0);
  setMagnifierEnabled(false);
- setGazeEnabled(false);
+ setGazeEnabled(values["gazeEnabled"].toBool());
  setInvalidGazeToleranceMs(250);
  setRemoveCompletionSpaceBeforePunctuation(true);
  predictionTextScale=values["predictionTextScale"].toInt();
