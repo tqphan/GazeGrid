@@ -238,11 +238,15 @@ Window {
     const commands=modelData.commands || []
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="MouseMagnifier"
    }
+   property bool magneticCursorKey: {
+    const commands=modelData.commands || []
+    return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="MouseMagneticCursor"
+   }
    property bool lookScrollKey: {
     const commands=modelData.commands || []
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="LookToScrollActive"
    }
-   property bool stateFilled:((editAction==="MoveModeToggle"&&controller.canvasEditMode==="move")||(editAction==="SizeModeToggle"&&controller.canvasEditMode==="size"))||keyboardToggled||gamepadPressed||modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)
+   property bool stateFilled:((editAction==="MoveModeToggle"&&controller.canvasEditMode==="move")||(editAction==="SizeModeToggle"&&controller.canvasEditMode==="size"))||keyboardToggled||gamepadPressed||modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)||(magneticCursorKey&&controller.magneticCursor)
    property real predictionWidth:controller.layout.layoutMode==="canvas"?width/Math.max(1,predictionCount):2*root.width/controller.layout.cols
    property int predictionCount:modelData.suggestionCount!==undefined?modelData.suggestionCount:Math.floor(modelData.width/2)
    property bool sleepKey: {
@@ -277,7 +281,7 @@ Window {
    Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:key.active?0.18:0}
    Rectangle {
     anchors.fill:parent;anchors.margins:2
-    visible:(key.sizeMoveKey&&controller.sizeMoveMode)||key.keyboardToggled||key.gamepadPressed||key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)
+    visible:(key.sizeMoveKey&&controller.sizeMoveMode)||key.keyboardToggled||key.gamepadPressed||key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)||(key.magneticCursorKey&&controller.magneticCursor)
     color:key.stateFilled?root.dwellColor:"transparent"
     opacity:key.stateFilled?0.25:1
     border.width:controller.sizeMoveSelection===key.index?5:2;border.color:root.dwellColor
@@ -429,7 +433,7 @@ Window {
     }
    }
    Accessible.role:Accessible.Button
-   Accessible.description:key.keyboardToggled?"Locked until selected again":key.cycleButtonModeKey?"Button mode: "+controller.buttonMode:key.cycleKeyModeKey?"Key mode: "+controller.keyMode:key.sleepKey?(controller.paused?"Pause on":"Pause off"):key.magnifierKey?(controller.magnifierEnabled?"Magnifier on":"Magnifier off"):key.modifier?(key.modifierState==="locked"?"Locked until selected again":key.modifierState==="latched"?"Latched for the next key":"Off. Select once to latch, twice to lock."):""
+   Accessible.description:key.keyboardToggled?"Locked until selected again":key.cycleButtonModeKey?"Button mode: "+controller.buttonMode:key.cycleKeyModeKey?"Key mode: "+controller.keyMode:key.sleepKey?(controller.paused?"Pause on":"Pause off"):key.magnifierKey?(controller.magnifierEnabled?"Magnifier on":"Magnifier off"):key.magneticCursorKey?(controller.magneticCursor?"Magnetic mouse on":"Magnetic mouse off"):key.modifier?(key.modifierState==="locked"?"Locked until selected again":key.modifierState==="latched"?"Latched for the next key":"Off. Select once to latch, twice to lock."):""
    Accessible.name:key.sleepKey?(controller.paused?"Resume input":"Pause input"):root.minimizedRecovery?"Restore keyboard":key.unavailableReason?key.unavailableReason:(key.label||key.modelData.symbol)
    Accessible.onPressAction:controller.clickCommand(key.command)
   }
