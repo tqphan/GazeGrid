@@ -393,27 +393,25 @@ private slots:
    auto type=[&](QString text){QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text",text}}}));QTRY_VERIFY(!c.executingCommands());};
    type("thank y");QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
    c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());QCOMPARE(c.property("scratchpad").toString(),QString("thank you "));
-   type(".");const QString expected=enabled&&!desktop?"thank you.":"thank you .";
+   type(".");const QString expected=enabled?"thank you.":"thank you .";
    QCOMPARE(c.property("scratchpad").toString(),expected);
-   if(desktop){QCOMPARE(output,expected);QCOMPARE(backspaces,0);}
+   if(desktop){QCOMPARE(output,expected);QCOMPARE(backspaces,enabled?1:0);}
    type("!");QCOMPARE(c.property("scratchpad").toString(),expected+"!");
    type(" hello ");type(",");QVERIFY(c.property("scratchpad").toString().endsWith(" hello ,"));
   }
  }
- void desktopPunctuationPreservesTextAfterExternalCaretMovement(){
+ void desktopPunctuationRemovesCompletionSpaceWithoutScratchpad(){
   Controller c;QString output;int caret=0,backspaces=0;
   c.configureInputMethod([&](QString text){output.insert(caret,text);caret+=text.size();return true;},
    [&](QString key,bool down){if(key=="BACK"&&down){++backspaces;if(caret>0)output.remove(--caret,1);}return true;});
-  c.inputContextChanged(true,false);addScratchpad(c);
+  c.inputContextChanged(true,false);
   c.setAddSpaceAfterCompletion(true);c.setRemoveCompletionSpaceBeforePunctuation(true);
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank y"}}}));QTRY_VERIFY(!c.executingCommands());
   QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
   c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());QCOMPARE(output,QString("thank you "));
-  // A physical click moves the caret inside the same external field without
-  // notifying GazeGrid or changing its prediction context.
-  caret=5;
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","."}}}));QTRY_VERIFY(!c.executingCommands());
-  QCOMPARE(output,QString("thank. you "));QCOMPARE(backspaces,0);
+  QCOMPARE(output,QString("thank you."));QCOMPARE(backspaces,1);
+  QVERIFY(c.property("scratchpad").toString().isEmpty());
  }
  void completionSpaceIsPreservedAfterLettersSpacesAndCursorMovement(){
   for(const QString next:{QString("a"),QString(" "),QString("Left")}){

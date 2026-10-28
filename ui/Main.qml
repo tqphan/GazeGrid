@@ -827,7 +827,7 @@ Window {
        }
        SettingsCheckBox {objectName:"suggestSentenceStartersToggle";text:"Suggest sentence starters when text is empty";enabled:controller.predictionMode!=="off";checked:controller.suggestSentenceStarters;onToggled:controller.suggestSentenceStarters=checked}
        SettingsCheckBox {objectName:"addSpaceAfterCompletionToggle";text:"Add a space after word completion";enabled:controller.predictionMode!=="off";checked:controller.addSpaceAfterCompletion;onToggled:controller.addSpaceAfterCompletion=checked}
-       SettingsCheckBox {text:"Remove completion space before punctuation in conversation keyboards";enabled:controller.predictionMode!=="off"&&controller.addSpaceAfterCompletion;checked:controller.removeCompletionSpaceBeforePunctuation;onToggled:controller.removeCompletionSpaceBeforePunctuation=checked}
+       SettingsCheckBox {text:"Remove completion space before punctuation";enabled:controller.predictionMode!=="off"&&controller.addSpaceAfterCompletion;checked:controller.removeCompletionSpaceBeforePunctuation;onToggled:controller.removeCompletionSpaceBeforePunctuation=checked}
        SettingsCheckBox {objectName:"predictNextWordToggle";text:"Suggest the next word after a space";enabled:controller.predictionMode!=="off";checked:controller.predictNextWord;onToggled:controller.predictNextWord=checked}
        SettingsCheckBox {text:"Use and learn personal words locally";checked:controller.learning;onToggled:controller.learning=checked}
        SettingsButton {text:"Reset learned words";onClicked:controller.resetLearning()}

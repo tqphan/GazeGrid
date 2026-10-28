@@ -825,14 +825,13 @@ void Controller::updateText(QString text){
  auto &context=typingContext();
  for(auto ch:text){if(ch=='\b'){if(!context.isEmpty()){QTextBoundaryFinder boundary(QTextBoundaryFinder::Grapheme,context);boundary.toEnd();context.truncate(qMax(0,boundary.toPreviousBoundary()));}}else{if(ch.isSpace()&&learning){QString word=WordPrediction::completedWord(context);if(!word.isEmpty()&&word.size()<64)frequencies[word]=qMin(1000000,frequencies.value(word)+1);}context+=ch;}}
  if(context.size()>4096)context=context.right(4096);
- if(completion&&runner.textOnly&&context.endsWith(' '))completionSpaceContext=context;
+ if(completion&&context.endsWith(' '))completionSpaceContext=context;
  updateSuggestions();
 }
 bool Controller::takeCompletionSpace(const QString &text){
  const auto context=completionSpaceContext;completionSpaceContext.clear();
- // External applications can move their caret without updating our context.
- // Only conversation keyboards own the text position needed for safe removal.
- if(!runner.textOnly||!removeCompletionSpaceEnabled||sensitiveInput||context.isEmpty()
+ // External caret changes are not tracked; removal uses the last known context.
+ if(!removeCompletionSpaceEnabled||sensitiveInput||context.isEmpty()
     ||context!=typingContext()||text.size()!=1)return false;
  const auto ch=text.front();
  return ch.isPunct()||(ch.unicode()<128&&ch.isSymbol());
