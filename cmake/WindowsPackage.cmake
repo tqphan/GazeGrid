@@ -11,7 +11,8 @@ set(CPACK_WIX_EXTRA_SOURCES "${CMAKE_BINARY_DIR}/Installer.wxs")
 set(CPACK_WIX_PATCH_FILE "${CMAKE_SOURCE_DIR}/platform/windows/InstallerPatch.xml")
 set(CPACK_WIX_EXTENSIONS WixIIsExtension)
 # ICE30 does not evaluate mutually exclusive component conditions.
-set(CPACK_WIX_LIGHT_EXTRA_FLAGS -sice:ICE30)
+set(CPACK_WIX_LIGHT_EXTRA_FLAGS -sice:ICE30
+  -loc "${CMAKE_SOURCE_DIR}/platform/windows/Installer.en-us.wxl")
 install(DIRECTORY references/optikey-keyboard-en-us/ DESTINATION keyboards)
 install(FILES LICENSE.txt DESTINATION .)
 # windeployqt output is populated by Build-Release.ps1 before CPack runs.
