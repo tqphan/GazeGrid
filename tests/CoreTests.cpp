@@ -10,7 +10,6 @@
 #include "KeyNames.h"
 #include "ProfileStore.h"
 #include "PointerActions.h"
-#include "GazeClock.h"
 #include "GazeSmoothing.h"
 #include <limits>
 #include "MagnifierGeometry.h"
@@ -438,13 +437,6 @@ private slots:
   QVERIFY(!MagnifierGeometry::crop(image,{.5,.5},0).isValid());
   QVERIFY(!MagnifierGeometry::crop(image,{.5,.5},9).isValid());
   QCOMPARE(MagnifierGeometry::map({},image,{.5,.5}),QPointF(-1,-1));
- }
- void queuedGazeMustRemainFreshAndOrdered(){
-  QVERIFY(GazeClock::fresh(1000000,1199999,999999));
-  QVERIFY(!GazeClock::fresh(1000000,1200001,999999));
-  QVERIFY(!GazeClock::fresh(1000000,999999,999998));
-  QVERIFY(!GazeClock::fresh(1000000,1100000,1000000));
-  QVERIFY(!GazeClock::fresh(999999,1100000,1000000));
  }
  void fractionalZoomKeepsCoordinatesInsideDesktop(){
   const QSize image(1920,1080);

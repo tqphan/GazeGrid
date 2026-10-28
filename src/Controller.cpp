@@ -154,7 +154,7 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
   if(!overlapDwells.isEmpty()&&clock.elapsed()-lastHoldHover>200)clearOverlap();
   if(!buttonHoldTarget.isEmpty()&&clock.elapsed()-lastHoldHover>200){endButtonHold();dwell.reset();}
   if(!heldDwellTarget.isEmpty()&&clock.elapsed()-lastHoldHover>200){runner.endDwellHold();heldDwellTarget.clear();dwell.reset();}
-  if(gazeAge.isValid()&&(gazeLossStarted||GazeClock::now()-lastGazeSample>200000))receiveGaze(0,0,false,0);
+  if(gazeAge.isValid()&&gazeLossStarted)receiveGaze(0,0,false,0);
  });timer->start();
  auto start=profile.values["startLayout"].toString();
  if(!layoutNames.contains(start)){start=ProfileStore::defaults()["startLayout"].toString();profileStatus="Saved keyboard is unavailable. Opened the default keyboard.";}
@@ -195,7 +195,7 @@ void Controller::stopTracker(){
  disconnect(&tobii,nullptr,this,nullptr);
  if(tobii.isRunning())tobii.requestInterruption();
  tobii.wait();
- gazeAge.invalidate();gazeSmoothing.reset();gazeLossStarted=0;lastGazeSample=0;
+ gazeAge.invalidate();gazeSmoothing.reset();gazeLossStarted=0;
  if(trackerConnected){trackerConnected=false;emit trackerConnectionChanged();}
  emit gazePoint(0,0,false);
 }
@@ -326,10 +326,10 @@ void Controller::setTrackerConnected(bool connected){
  if(!connected)receiveGaze(0,0,false,0);
  emit trackerConnectionChanged();
 }
-void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
+void Controller::receiveGaze(double x,double y,bool valid,qint64 /*sampledAt*/){
  if(!desktopActive)return;
  const auto now=GazeClock::now();
- valid=valid&&GazeClock::fresh(sampledAt,now,lastGazeSample)&&std::isfinite(x)&&std::isfinite(y);
+ valid=valid&&std::isfinite(x)&&std::isfinite(y);
  if(valid){
   if(gazeLossStarted){
    if(now-gazeLossStarted>=qint64(gazeToleranceMs)*1000){
@@ -345,8 +345,8 @@ void Controller::receiveGaze(double x,double y,bool valid,qint64 sampledAt){
   if(clamp){
    x=qBound(0.,x,1.);y=qBound(0.,y,1.);
   }
-  if(!gazeAge.isValid()||now-lastGazeSample>200000)gazeSmoothing.reset();
-  lastGazeSample=sampledAt;gazeAge.restart();
+  if(!gazeAge.isValid())gazeSmoothing.reset();
+  gazeAge.restart();
   if(filterType==1){
    const auto point=gazeSmoothing.updateExponential({x,y},filterGain,saccadeDistance);
    x=point.x();y=point.y();
@@ -418,7 +418,7 @@ void Controller::setGazeEnabled(bool enabled){
 void Controller::trackGaze(double x,double y,bool overDesktop){
  if(!desktopActive)return;
  pointer.configureScroll(scrollSpeed,scrollDeadzone,scrollAxis);
- if(gazeEnabled&&!paused&&ready()&&gazeAge.isValid()&&GazeClock::now()-lastGazeSample<=200000)pointer.follow({x,y},overDesktop);
+ if(gazeEnabled&&!paused&&ready()&&gazeAge.isValid())pointer.follow({x,y},overDesktop);
 }
 void Controller::displayChanged(){
  if(!paused)togglePause();else{runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();dwell.reset();}

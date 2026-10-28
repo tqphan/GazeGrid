@@ -632,7 +632,7 @@ private slots:
   }
   QSignalSpy points(&c,&Controller::gazePoint);
   QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,.5),Q_ARG(double,.5),Q_ARG(bool,true),Q_ARG(qint64,GazeClock::now())));
-  QTRY_VERIFY_WITH_TIMEOUT(!points.last()[2].toBool(),1000);
+  QTest::qWait(350);QVERIFY(points.last()[2].toBool());
   QVERIFY(c.isTrackerConnected());QCOMPARE(connections.size(),1);
   QVERIFY(QMetaObject::invokeMethod(&c,"setTrackerConnected",Qt::DirectConnection,Q_ARG(bool,false)));
   QVERIFY(!c.isTrackerConnected());QCOMPARE(connections.size(),2);
@@ -650,6 +650,14 @@ private slots:
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Wait"},{"text","50"}},QVariantMap{{"tag","Text"},{"text","b"}}}));
   sample(false);QTRY_COMPARE(output,QString("ab"));
  }
+ void gazeAcceptsOldRepeatedReorderedAndFutureTimestamps(){
+  Controller controller;QSignalSpy points(&controller,&Controller::gazePoint);
+  const auto now=GazeClock::now();
+  for(const qint64 timestamp:{now,now,now-1000,now+1000000,now-10000000,qint64(0)}){
+   QVERIFY(QMetaObject::invokeMethod(&controller,"receiveGaze",Qt::DirectConnection,Q_ARG(double,.5),Q_ARG(double,.5),Q_ARG(bool,true),Q_ARG(qint64,timestamp)));
+   QVERIFY(points.last()[2].toBool());
+  }
+ }
  void gazeSmoothingPipelineAndRecovery(){
   Controller controller;controller.setDisplaySize(1000,1000);controller.setGazeSmoothingLevel(2);controller.setSmoothWhenChangingGazeTarget(false);
   QSignalSpy points(&controller,&Controller::gazePoint);
@@ -661,13 +669,15 @@ private slots:
   sample(.11,.105);QVERIFY(qAbs(points.last()[0].toDouble()-.10000074915421219)<1e-12);
   sample(.8,.8,false);QVERIFY(!points.last()[2].toBool());
   sample(.8,.8);QCOMPARE(points.last()[0].toDouble(),.8);
-  sample(.9,.9,true,GazeClock::now()-300000);QVERIFY(!points.last()[2].toBool());
+  sample(.9,.9,true,GazeClock::now()-300000);QVERIFY(points.last()[2].toBool());
+  sample(.9,.9,false);
   sample(.2,.2);QCOMPARE(points.last()[0].toDouble(),.2);
   sample(qQNaN(),.4);QVERIFY(!points.last()[2].toBool());
   sample(.3,.3);QCOMPARE(points.last()[0].toDouble(),.3);
-  // Timer delivery can be delayed on busy Windows runners. Check the event,
-  // with a bounded wait, rather than assuming it arrived at exactly 230 ms.
-  QTRY_VERIFY_WITH_TIMEOUT(!points.last()[2].toBool(),1000);
+  // Silence no longer invalidates the last tracker-valid point.
+  const auto count=points.size();QTest::qWait(350);
+  QCOMPARE(points.size(),count);QVERIFY(points.last()[2].toBool());
+  sample(.3,.3,false);
   sample(.7,.7);QCOMPARE(points.last()[0].toDouble(),.7);
   controller.setDisplaySize(2000,1000);sample(.4,.4);QCOMPARE(points.last()[0].toDouble(),.4);
   controller.setGazeSmoothingLevel(0);sample(.41,.42);QCOMPARE(points.last()[0].toDouble(),.41);

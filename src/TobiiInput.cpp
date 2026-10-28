@@ -22,7 +22,7 @@ struct Api {
  FN(tobii_get_api_version) FN(tobii_api_create) FN(tobii_api_destroy)
  FN(tobii_enumerate_local_device_urls) FN(tobii_device_create) FN(tobii_device_destroy)
  FN(tobii_get_device_info) FN(tobii_gaze_point_subscribe) FN(tobii_gaze_point_unsubscribe)
- FN(tobii_system_clock) FN(tobii_update_timesync) FN(tobii_device_clear_callback_buffers) FN(tobii_stream_supported) FN(tobii_device_process_callbacks) FN(tobii_device_reconnect) FN(tobii_error_message)
+ FN(tobii_wait_for_callbacks) FN(tobii_update_timesync) FN(tobii_device_clear_callback_buffers) FN(tobii_stream_supported) FN(tobii_device_process_callbacks) FN(tobii_device_reconnect) FN(tobii_error_message)
 #undef FN
  bool load() {
   if(!library.load()) {error=library.errorString();return false;}
@@ -40,7 +40,7 @@ struct Api {
   LOAD(tobii_api_create) LOAD(tobii_api_destroy)
   LOAD(tobii_enumerate_local_device_urls) LOAD(tobii_device_create) LOAD(tobii_device_destroy)
   LOAD(tobii_get_device_info) LOAD(tobii_gaze_point_subscribe) LOAD(tobii_gaze_point_unsubscribe)
-  LOAD(tobii_system_clock) LOAD(tobii_update_timesync) LOAD(tobii_device_clear_callback_buffers) LOAD(tobii_stream_supported) LOAD(tobii_device_process_callbacks) LOAD(tobii_device_reconnect) LOAD(tobii_error_message)
+  LOAD(tobii_wait_for_callbacks) LOAD(tobii_update_timesync) LOAD(tobii_device_clear_callback_buffers) LOAD(tobii_stream_supported) LOAD(tobii_device_process_callbacks) LOAD(tobii_device_reconnect) LOAD(tobii_error_message)
 #undef LOAD
   return true;
  }
@@ -85,16 +85,11 @@ void TobiiInput::run(){
  tobii_supported_t supported=TOBII_NOT_SUPPORTED;
  e=a.tobii_stream_supported(device,TOBII_STREAM_GAZE_POINT,&supported);
  if(e!=TOBII_ERROR_NO_ERROR||supported!=TOBII_SUPPORTED){emit status("This device does not expose gaze points through the selected library");a.tobii_device_destroy(device);a.tobii_api_destroy(api);return;}
- struct Callback {TobiiInput *self;Api *api;tobii_api_t *instance;qint64 last=0;};
- Callback callback{this,&a,api};
  e=a.tobii_gaze_point_subscribe(device,[](const tobii_gaze_point_t *p,void *data){
-  auto *state=static_cast<Callback*>(data);int64_t now=0;auto clockError=state->api->tobii_system_clock(state->instance,&now);
-  bool valid=clockError==TOBII_ERROR_NO_ERROR && now>=p->timestamp_us && now-p->timestamp_us<=200000 && p->timestamp_us>state->last && p->validity==TOBII_VALIDITY_VALID && std::isfinite(p->position_xy[0]) && std::isfinite(p->position_xy[1]);
-  state->last=p->timestamp_us;
-  // Preserve sample age across the queued worker-to-UI delivery.
-  const qint64 sampledAt=valid?GazeClock::now()-(now-p->timestamp_us):0;
-  emit state->self->gaze(p->position_xy[0],p->position_xy[1],valid,sampledAt);
- },&callback);
+  auto *self=static_cast<TobiiInput*>(data);
+  const bool valid=p->validity==TOBII_VALIDITY_VALID && std::isfinite(p->position_xy[0]) && std::isfinite(p->position_xy[1]);
+  emit self->gaze(p->position_xy[0],p->position_xy[1],valid,GazeClock::now());
+ },this);
  if(e!=TOBII_ERROR_NO_ERROR) emit status("Gaze subscription: "+a.message(e));
  else {
   emit connectionChanged(true);
@@ -110,15 +105,17 @@ void TobiiInput::run(){
     if(syncError==TOBII_ERROR_CONNECTION_FAILED)e=syncError;
     return syncError==TOBII_ERROR_NO_ERROR;
    });
+   if(e==TOBII_ERROR_NO_ERROR)e=a.tobii_wait_for_callbacks(1,&device);
+   if(isInterruptionRequested())break;
+   if(e==TOBII_ERROR_TIMED_OUT)continue;
    if(e==TOBII_ERROR_NO_ERROR)e=a.tobii_device_process_callbacks(device);
    if(e==TOBII_ERROR_CONNECTION_FAILED){
     emit connectionChanged(false);emit gaze(0,0,false,0);emit status("Tobii disconnected — reconnecting");
     for(int i=0;i<50 && !isInterruptionRequested();++i) msleep(20);
     if(isInterruptionRequested()) break;
     e=a.tobii_device_reconnect(device);
-    if(e==TOBII_ERROR_NO_ERROR){a.tobii_device_clear_callback_buffers(device);callback.last=0;timeSync.reset();emit connectionChanged(true);emit status("Tobii reconnected");}
+    if(e==TOBII_ERROR_NO_ERROR){a.tobii_device_clear_callback_buffers(device);timeSync.reset();emit connectionChanged(true);emit status("Tobii reconnected");}
    }else if(e!=TOBII_ERROR_NO_ERROR){emit status(a.message(e));break;}
-   msleep(8);
   }
   a.tobii_gaze_point_unsubscribe(device);
  }

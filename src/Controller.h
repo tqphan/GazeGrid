@@ -295,7 +295,6 @@ private:
  const bool signInMode;
  bool trackerConnected=false;
  bool nativeMode=false,nativeActive=false,sensitiveInput=false;
- qint64 lastGazeSample=0;
  qint64 gazeLossStarted=0;
  int gazeToleranceMs=250;
  bool clampGazeForKeyboard=false,clampGazeForPointSelection=true;

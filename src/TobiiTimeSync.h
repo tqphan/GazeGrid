@@ -1,8 +1,8 @@
 #pragma once
 #include <QtGlobal>
 
-// Polling Stream Engine without tobii_wait_for_callbacks requires manual clock
-// synchronization. Caller-supplied steady-clock microseconds keep this testable.
+// Maintain device clock synchronization independently of gaze validity.
+// Steady-clock microseconds keep this testable.
 class TobiiTimeSync {
 public:
  template<class Synchronize> void update(qint64 now,Synchronize synchronize){

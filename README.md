@@ -1,6 +1,6 @@
 # GazeGrid — Linux and Windows
 
-With gaze input enabled, a connected eye tracker keeps gaze dwell active. Invalid or missing gaze samples pause gaze selection; they do not switch to mouse dwell. Mouse dwell is used when the tracker disconnects or gaze input is disabled. Settings shows the same connection-based input mode.
+With gaze input enabled, a connected eye tracker keeps gaze dwell active. Tracker-invalid samples or non-finite coordinates pause gaze selection; they do not switch to mouse dwell. Sample timestamps and gaps between samples do not invalidate gaze: the last valid point remains active until invalid input, disconnection, or another input reset. Mouse dwell is used when the tracker disconnects or gaze input is disabled. Settings shows the same connection-based input mode.
 
 On Windows with Qt 6 MinGW installed in C:\Qt, double-click **run.cmd** to build, test, and launch. In PowerShell, use `.\build.ps1 -Run`. The script detects a Stream Engine Windows SDK beside this checkout; otherwise it uses mouse dwell. You can also pass `-TobiiSdk C:\SDK\StreamEngine` for tracker support. See [Windows instructions](docs/windows.md) for MSVC and signed releases.
 

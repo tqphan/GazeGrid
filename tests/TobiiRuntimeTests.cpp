@@ -2,32 +2,25 @@
 #include <QTemporaryDir>
 #include "TobiiRuntimePaths.h"
 #include "TobiiTimeSync.h"
-#include "GazeClock.h"
 #ifdef GAZEGRID_WINDOWS
 #include "WindowsTobiiLibrary.h"
 #endif
 class TobiiRuntimeTests:public QObject {
  Q_OBJECT
 private slots:
- void synchronizationKeepsDriftingSamplesFreshDuringLongSessions(){
+ void synchronizationRunsPeriodicallyDuringLongSessions(){
   // Cross the 32-bit microsecond and millisecond boundaries without real waits.
-  // Simulated drift of +/-100ppm would eventually exceed the freshness window
-  // (or date samples into the future) if polling omitted synchronization.
+  // Simulate +/-100ppm drift between synchronization attempts.
   for(const int direction:{-1,1})for(const qint64 start:{qint64(0),qint64(1)<<31,(qint64(1)<<31)*1000}){
    TobiiTimeSync sync;
-   qint64 lastSync=start,previous=0;int calls=0;
+   qint64 lastSync=start;int calls=0;
    for(qint64 elapsed=0;elapsed<=12LL*60*60*1000000;elapsed+=100000){
     const auto now=start+elapsed+1000000;
     sync.update(now,[&]{lastSync=now;++calls;return true;});
     const qint64 deviceDrift=direction*(now-lastSync)/10000;
-    const qint64 sampledAt=now-10000-deviceDrift;
-    if(!GazeClock::fresh(sampledAt,now,previous))QFAIL("Clock synchronization did not keep simulated gaze samples fresh");
-    previous=sampledAt;
+    QVERIFY(qAbs(deviceDrift)<=3000);
    }
    QCOMPARE(calls,1441);
-   const qint64 end=start+12LL*60*60*1000000+1000000;
-   const qint64 unsynchronized=end-10000-direction*(end-start)/10000;
-   QVERIFY(!GazeClock::fresh(unsynchronized,end,0));
   }
  }
  void synchronizationRetriesPacketLossWithoutFloodingCallbacks(){
