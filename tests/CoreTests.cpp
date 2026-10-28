@@ -24,6 +24,13 @@ class CoreTests:public QObject{
  Q_OBJECT
 static QVariantMap cmd(QString tag,QString text){return {{"tag",tag},{"text",text}};}
 private slots:
+ void processPriorityPreferences(){
+  auto values=ProfileStore::defaults();
+  QCOMPARE(values["processPriority"].toInt(),0);
+  for(int priority=0;priority<=2;++priority){values["processPriority"]=priority;QVERIFY(ProfileStore::valid(values));}
+  for(const auto &invalid:QJsonArray{-1,3,1.5,"high",true}){values["processPriority"]=invalid;QVERIFY(!ProfileStore::valid(values));}
+  values.remove("processPriority");QVERIFY(ProfileStore::valid(values));
+ }
  void overlapSettingOnlyAppliesToCanvas(){
   QTemporaryDir dir;QFile file(dir.filePath("layout.xml"));
   for(const QString mode:{"Canvas","Grid"})for(const QString setting:{"","false","true","TRUE"}){

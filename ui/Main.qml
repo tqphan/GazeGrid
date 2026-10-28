@@ -517,9 +517,9 @@ Window {
  Window {
   id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1100,root.screenWidth);height:Math.min(800,root.screenHeight-60);title:"GazeGrid Settings";color:Kirigami.Theme.backgroundColor
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
-  property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Look to scroll"]
-  property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","transform-move"]
-  property var categoryDescriptions:["Connection health.","Make your keyboard feel right for you.","Fine-tune eye tracking and selection timing.","Choose how you zoom and select targets.","Personalize prediction and spoken text.","Manage keyboard and pointer access.","Adjust hands-free scrolling."]
+  property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Look to scroll","System"]
+  property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","transform-move","preferences-system"]
+  property var categoryDescriptions:["Connection health.","Make your keyboard feel right for you.","Fine-tune eye tracking and selection timing.","Choose how you zoom and select targets.","Personalize prediction and spoken text.","Manage keyboard and pointer access.","Adjust hands-free scrolling.","Manage application performance."]
   component SettingsButton:Desktop.Button {
    id:buttonControl;implicitHeight:38;implicitWidth:Math.max(88,contentItem.implicitWidth+32);leftPadding:16;rightPadding:16
    contentItem:Text {text:buttonControl.text;color:buttonControl.highlighted?"white":Kirigami.Theme.textColor;font.pixelSize:13;font.weight:Font.Medium;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter;opacity:buttonControl.enabled?1:0.4}
@@ -867,6 +867,23 @@ Window {
        SettingSlider {label:"Scroll speed";displayValue:controller.scrollSpeed+"%";from:10;to:300;stepSize:10;value:controller.scrollSpeed;onMoved:controller.scrollSpeed=value}
        SettingSlider {label:"Centre dead zone";displayValue:controller.scrollDeadzone+" px";from:10;to:200;stepSize:5;value:controller.scrollDeadzone;onMoved:controller.scrollDeadzone=value}
        RowLayout {Desktop.Label {text:"Direction"} SettingsComboBox {model:["Both axes","Vertical only","Horizontal only"];currentIndex:controller.scrollAxis;onActivated:controller.scrollAxis=currentIndex}}
+      }
+     }
+     SettingsCard {
+      title:settings.categoryNames[7];visible:settingsCategory.currentIndex==7;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
+       RowLayout {
+        Desktop.Label {text:"Process priority"}
+        SettingsComboBox {
+         model:["Normal","Above normal","High"]
+         currentIndex:controller.processPriority
+         enabled:Qt.platform.os==="windows"
+         Accessible.name:"Process priority"
+         onActivated:controller.processPriority=currentIndex
+        }
+       }
+       Desktop.Label {text:Qt.platform.os==="windows"?"Applies immediately. Save preferences to keep this priority after restarting.":"Process priority settings are available on Windows.";wrapMode:Text.Wrap;Layout.fillWidth:true;opacity:0.6}
       }
      }
     }

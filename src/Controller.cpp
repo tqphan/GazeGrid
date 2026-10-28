@@ -1,5 +1,12 @@
 #ifdef _WIN32
 #include "WindowsSignIn.h"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #endif
 #include <cmath>
 #include <algorithm>
@@ -48,6 +55,7 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  connect(&speech,&SpeechOutput::status,this,[this](QString message){actionStatus=message;emit changed();});
  clock.start();auto profile=signInMode?ProfileStore::Loaded{ProfileStore::valid(signInProfile)?signInProfile:ProfileStore::defaults(),{}}:ProfileStore(configFile("profile.json")).load();
  if(signInMode){profile.values["predictionMode"]="off";profile.values["learning"]=false;profile.values["magnifierEnabled"]=false;}
+ setProcessPriority(profile.values["processPriority"].toInt(0));
  gazeEnabled=profile.values["gazeEnabled"].toBool(false);
  typedWordMode=profile.values["typedWordSuggestionMode"].toString("fallback");
  predictionModeValue=profile.values["predictionMode"].toString("context");
@@ -252,6 +260,7 @@ void Controller::inputContextChanged(bool active,bool sensitive){
 bool Controller::savePreferences(){
  if(signInMode)return false;
  QJsonObject values{{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ values["processPriority"]=processPriorityValue;
  values["invalidGazeToleranceMs"]=gazeToleranceMs;
  values["predictionTextScale"]=predictionTextScale;
  values["scratchpadTextScale"]=scratchpadTextScale;
@@ -267,6 +276,7 @@ void Controller::resetPreferences(){
  QString error;auto values=ProfileStore::defaults();
  if(!ProfileStore(configFile("profile.json")).save(values,error,true)){profileStatus=error;emit changed();return;}
  if(!paused)togglePause();
+ setProcessPriority(0);
  setMagnifierEnabled(false);
  setGazeEnabled(false);
  setInvalidGazeToleranceMs(250);
@@ -290,6 +300,19 @@ void Controller::resetPreferences(){
  setGazeSmoothingLevel(values["gazeSmoothingLevel"].toInt());setSmoothWhenChangingGazeTarget(false);gazeSmoothing.reset();
  openLayout(values["startLayout"].toString(),false);
  profileStatus="Preferences reset. Input remains paused.";emit changed();
+}
+void Controller::setProcessPriority(int priority){
+ if(priority<0||priority>2)return;
+#ifdef _WIN32
+ const DWORD classes[]={NORMAL_PRIORITY_CLASS,ABOVE_NORMAL_PRIORITY_CLASS,HIGH_PRIORITY_CLASS};
+ if(!SetPriorityClass(GetCurrentProcess(),classes[priority])){
+  profileStatus=QString("Could not change process priority (Windows error %1).").arg(GetLastError());
+  emit changed();return;
+ }
+#else
+ if(priority!=0)return;
+#endif
+ processPriorityValue=priority;emit changed();
 }
 void Controller::setRestoreCorner(int corner){
  corner=qBound(0,corner,3);if(corner==recoveryCorner)return;

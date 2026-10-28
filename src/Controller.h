@@ -15,6 +15,7 @@
 #include "SpeechOutput.h"
 class Controller:public QObject{
  Q_OBJECT
+ Q_PROPERTY(int processPriority READ processPriority WRITE setProcessPriority NOTIFY changed)
  Q_PROPERTY(bool signInMode READ isSignInMode CONSTANT)
  Q_PROPERTY(bool signInEnabled READ isSignInEnabled NOTIFY changed)
  Q_PROPERTY(bool desktopActive READ isDesktopActive NOTIFY changed)
@@ -104,6 +105,8 @@ class Controller:public QObject{
  Q_PROPERTY(bool magnifierReady MEMBER magnifierReady NOTIFY changed)
  Q_PROPERTY(int magnifierRevision MEMBER magnifierRevision NOTIFY magnifierFrameChanged)
 public:
+ int processPriority()const{return processPriorityValue;}
+ void setProcessPriority(int priority);
  // An injected tracker must outlive this controller; production uses the owned worker.
  explicit Controller(bool signIn=false,const QJsonObject &signInProfile={},TobiiInput *tracker=nullptr);~Controller()override;
  bool isSignInMode()const{return signInMode;}
@@ -283,6 +286,7 @@ private:
  bool paused=false,literal=false,learning=false,targeting=false,gazeEnabled=false;
  QString dwellIndicatorStyle="bar";
  int dwellMs=750;
+ int processPriorityValue=0;
  int scalePercent=100;
  int restoreOpacity=100;
  int recoveryCorner=2,recoveryWidth=64,recoveryHeight=64;
