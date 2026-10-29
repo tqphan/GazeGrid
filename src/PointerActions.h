@@ -29,8 +29,10 @@ public:
     void setDisplaySize(QSizeF size);
     bool magnetic()const{return following;}
     bool lookScrolling()const{return lookScroll.active();}
+    QPointF scrollCentre()const{return lookScroll.centre();}
     bool targeting()const{return choosing;}
     bool busy()const{return active;}
+    bool hidesKeyboard()const{return active&&current.action!="MouseMagneticCursor";}
     QString prompt()const{return instruction;}
     static bool supports(const QString &action);
     static bool needsAbsolute(const QString &action);

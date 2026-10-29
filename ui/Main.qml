@@ -967,6 +967,13 @@ Window {
        SettingSlider {label:"Scroll speed";displayValue:controller.scrollSpeed+"%";from:10;to:300;stepSize:10;value:controller.scrollSpeed;onMoved:controller.scrollSpeed=value}
        SettingSlider {label:"Centre dead zone";displayValue:controller.scrollDeadzone+" px";from:10;to:200;stepSize:5;value:controller.scrollDeadzone;onMoved:controller.scrollDeadzone=value}
        RowLayout {Desktop.Label {text:"Direction"} SettingsComboBox {model:["Both axes","Vertical only","Horizontal only"];currentIndex:controller.scrollAxis;onActivated:controller.scrollAxis=currentIndex}}
+       SettingsCheckBox {objectName:"showScrollZonesToggle";text:"Show zones";checked:controller.showScrollZones;onToggled:controller.showScrollZones=checked}
+       SettingSlider {label:"Zone opacity";displayValue:controller.scrollZoneOpacity+"%";from:5;to:100;stepSize:5;value:controller.scrollZoneOpacity;onMoved:controller.scrollZoneOpacity=value}
+       RowLayout {
+        Desktop.Label {text:"Zone color"}
+        Rectangle {width:24;height:24;radius:4;color:controller.scrollZoneColor}
+        Desktop.TextField {objectName:"scrollZoneColorField";text:controller.scrollZoneColor;placeholderText:"#RRGGBB";Accessible.name:"Zone color";validator:RegularExpressionValidator {regularExpression:/#[0-9a-fA-F]{6}/} onEditingFinished:{if(acceptableInput)controller.scrollZoneColor=text}}
+       }
       }
      }
      SettingsCard {
@@ -1001,6 +1008,45 @@ Window {
  }
  }
 
+ Window {
+  id:scrollZonesWindow;objectName:"scrollZonesWindow"
+  visible:controller.showScrollZones&&controller.lookScrolling&&controller.desktopActive&&controller.gazeEnabled&&!controller.paused&&!controller.targeting&&!controller.capturePending
+  width:root.screenWidth;height:root.screenHeight
+  color:"transparent"
+  flags:Qt.FramelessWindowHint|Qt.WindowDoesNotAcceptFocus|Qt.WindowStaysOnTopHint|Qt.WindowTransparentForInput|Qt.Tool
+  Canvas {
+   anchors.fill:parent
+   opacity:controller.scrollZoneOpacity/100
+   property point centre:controller.scrollCentre
+   property real deadzone:controller.scrollDeadzone
+   property int axis:controller.scrollAxis
+   property color zoneColor:controller.scrollZoneColor
+   onCentreChanged:requestPaint()
+   onDeadzoneChanged:requestPaint()
+   onAxisChanged:requestPaint()
+   onZoneColorChanged:requestPaint()
+   onVisibleChanged:requestPaint()
+   onWidthChanged:requestPaint()
+   onHeightChanged:requestPaint()
+   onPaint:{
+    const ctx=getContext("2d")
+    ctx.clearRect(0,0,width,height)
+    const left=Math.max(0,Math.min(width,centre.x-deadzone)),right=Math.max(0,Math.min(width,centre.x+deadzone))
+    const top=Math.max(0,Math.min(height,centre.y-deadzone)),bottom=Math.max(0,Math.min(height,centre.y+deadzone))
+    ctx.fillStyle=zoneColor;ctx.strokeStyle=zoneColor;ctx.lineWidth=2;ctx.globalAlpha=.25
+    if(axis!==1){ctx.fillRect(0,0,left,height);ctx.fillRect(right,0,width-right,height)}
+    if(axis!==2){ctx.fillRect(0,0,width,top);ctx.fillRect(0,bottom,width,height-bottom)}
+    ctx.globalAlpha=1;ctx.beginPath()
+    if(axis!==1){ctx.moveTo(left,0);ctx.lineTo(left,height);ctx.moveTo(right,0);ctx.lineTo(right,height)}
+    if(axis!==2){ctx.moveTo(0,top);ctx.lineTo(width,top);ctx.moveTo(0,bottom);ctx.lineTo(width,bottom)}
+    ctx.stroke()
+    ctx.beginPath();ctx.arc(centre.x,centre.y,4,0,2*Math.PI);ctx.fill()
+    ctx.font="bold 28px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle"
+    if(axis!==1){ctx.fillText("←",left/2,centre.y);ctx.fillText("→",(right+width)/2,centre.y)}
+    if(axis!==2){ctx.fillText("↑",centre.x,top/2);ctx.fillText("↓",centre.x,(bottom+height)/2)}
+   }
+  }
+ }
  Window {
   id:targetWindow;objectName:"targetWindow"
   // Keep the Windows surface mapped through capture: remapping it can flash or fade.

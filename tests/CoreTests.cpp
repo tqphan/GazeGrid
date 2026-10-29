@@ -480,6 +480,7 @@ private slots:
   p.scrollAxes=[&](double x,double y){scrolls<<QPointF(x,y);return true;};QSignalSpy done(&p,&PointerActions::completed);
   QVERIFY(p.start("LookToScrollActive"));QVERIFY(p.targeting());p.select({.5,.5});
   QTRY_COMPARE(done.count(),1);QVERIFY(p.lookScrolling());QCOMPARE(moves.last(),QPointF(.5,.5));
+  QCOMPARE(p.scrollCentre(),QPointF(500,500));
   QTest::qWait(25);QVERIFY(p.follow({.8,.8},true));QCOMPARE(scrolls.size(),1);QVERIFY(scrolls[0].x()>0);QVERIFY(scrolls[0].y()>0);
   QVERIFY(p.start("LookToScrollActive"));QVERIFY(!p.targeting());QTRY_COMPARE(done.count(),2);QVERIFY(!p.lookScrolling());
  }

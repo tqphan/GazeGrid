@@ -10,6 +10,7 @@ public:
     void stop(){enabled=false;last=-1;}
     void resetTime(qint64 now){last=now;}
     bool active()const{return enabled;}
+    QPointF centre()const{return origin;}
     QPointF update(QPointF point,qint64 now,bool overDesktop);
 private:
     int speed=100,deadzone=50,axis=0;

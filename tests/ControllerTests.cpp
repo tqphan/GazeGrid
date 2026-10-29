@@ -596,6 +596,18 @@ private slots:
    values[key]=1.5;QVERIFY(!ProfileStore::valid(values));values[key]="50";QVERIFY(!ProfileStore::valid(values));
   }
  }
+ void scrollZonePreferencesPersistAndReset(){
+  {Controller c;c.setProperty("showScrollZones",true);c.setProperty("scrollZoneOpacity",65);c.setProperty("scrollZoneColor","#aa55cc");QVERIFY(c.savePreferences());}
+  {Controller c;QVERIFY(c.property("showScrollZones").toBool());QCOMPARE(c.property("scrollZoneOpacity").toInt(),65);QCOMPARE(c.property("scrollZoneColor").toString(),QString("#aa55cc"));c.resetPreferences();}
+  {Controller c;QVERIFY(!c.property("showScrollZones").toBool());QCOMPARE(c.property("scrollZoneOpacity").toInt(),30);QCOMPARE(c.property("scrollZoneColor").toString(),QString("#00bfff"));}
+  auto values=ProfileStore::defaults();
+  for(const auto key:{"showScrollZones","scrollZoneOpacity","scrollZoneColor"})values.remove(key);
+  QVERIFY(ProfileStore::valid(values));
+  values["showScrollZones"]="true";QVERIFY(!ProfileStore::valid(values));values.remove("showScrollZones");
+  for(const auto value:{QJsonValue(0),QJsonValue(101),QJsonValue(30.5),QJsonValue("30")}){values["scrollZoneOpacity"]=value;QVERIFY(!ProfileStore::valid(values));}
+  values.remove("scrollZoneOpacity");
+  for(const auto value:{QJsonValue("red"),QJsonValue("#12345g"),QJsonValue(123)}){values["scrollZoneColor"]=value;QVERIFY(!ProfileStore::valid(values));}
+ }
  void repeatRatePersistsAndResets(){
   {Controller c;c.setProperty("repeatIntervalMs",150);QVERIFY(c.savePreferences());}
   {Controller c;QCOMPARE(c.property("repeatIntervalMs").toInt(),150);c.resetPreferences();QCOMPARE(c.property("repeatIntervalMs").toInt(),750);}

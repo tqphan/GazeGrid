@@ -355,6 +355,8 @@ int main(int argc,char **argv){
  });
  if(!signInMode)tray.show();
  auto target=window->findChild<QQuickWindow*>("targetWindow");
+ auto scrollZones=window->findChild<QQuickWindow*>("scrollZonesWindow");
+ if(scrollZones)scrollZones->setTransientParent(nullptr);
  // Target selection and cancellation must remain available while the panel is hidden.
  if(target)target->setTransientParent(nullptr);
 #ifdef _WIN32
@@ -406,6 +408,7 @@ int main(int argc,char **argv){
   auto screen=QGuiApplication::primaryScreen();
   if(!screen){controller.displayChanged();return;}
   auto size=screen->geometry().size();auto layout=controller.property("layout").toMap();
+  if(scrollZones){scrollZones->setScreen(screen);scrollZones->setGeometry(screen->geometry());}
   controller.setDisplaySize(size.width(),size.height());
   auto dimension=[](QString value,double total){return value.endsWith('%')?value.chopped(1).toDouble()*total/100:value.toDouble();};
   int width=qMax(1,int(dimension(layout.value("width","100%").toString(),size.width())));
@@ -447,6 +450,7 @@ int main(int argc,char **argv){
    layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);layer->setActivateOnShow(false);layer->setExclusiveZone(inputMethod||minimized||fullScreen?-1:0);
    }
    if(target){target->setScreen(screen);target->resize(size);auto overlay=LayerShellQt::Window::get(target);overlay->setScope("gazegrid-target");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setExclusiveZone(-1);}
+   if(scrollZones){auto overlay=LayerShellQt::Window::get(scrollZones);overlay->setScope("gazegrid-scroll-zones");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setActivateOnShow(false);overlay->setExclusiveZone(-1);}
   }else
 #endif
   {window->setPosition(screen->geometry().topLeft()+QPoint(x,y));}

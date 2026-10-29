@@ -96,6 +96,10 @@ class Controller:public QObject{
  Q_PROPERTY(int scrollDeadzone MEMBER scrollDeadzone NOTIFY changed)
  Q_PROPERTY(int scrollAxis MEMBER scrollAxis NOTIFY changed)
  Q_PROPERTY(bool lookScrolling READ lookScrolling NOTIFY changed)
+ Q_PROPERTY(QPointF scrollCentre READ scrollCentre NOTIFY changed)
+ Q_PROPERTY(bool showScrollZones MEMBER showScrollZones NOTIFY changed)
+ Q_PROPERTY(int scrollZoneOpacity MEMBER scrollZoneOpacity NOTIFY changed)
+ Q_PROPERTY(QString scrollZoneColor MEMBER scrollZoneColor NOTIFY changed)
  Q_PROPERTY(bool magnifierEnabled READ isMagnifierEnabled WRITE setMagnifierEnabled NOTIFY changed)
  Q_PROPERTY(int magnifierRefreshHz READ getMagnifierRefreshHz WRITE setMagnifierRefreshHz NOTIFY changed)
  Q_PROPERTY(int magnifierZoom MEMBER magnifierZoom NOTIFY changed)
@@ -148,9 +152,10 @@ public:
  QString targetPrompt()const{return zoomAnimating?"Zooming in…":magnifierReady?"Choose the precise target in the magnified image":pointer.prompt();}
  QImage magnifierImage()const{return magnifiedImage;}
  QStringList heldPointerButtons()const{return pointer.heldButtons();}
- bool keyboardTemporarilyHidden()const{return hideKeyboardDuringMouseActions&&pointer.busy();}
+ bool keyboardTemporarilyHidden()const{return hideKeyboardDuringMouseActions&&pointer.hidesKeyboard();}
  bool magneticCursor()const{return pointer.magnetic();}
  bool lookScrolling()const{return pointer.lookScrolling();}
+ QPointF scrollCentre()const{return pointer.scrollCentre();}
  bool isGazeEnabled()const{return gazeEnabled;}
  int invalidGazeToleranceMs()const{return gazeToleranceMs;}
  void setInvalidGazeToleranceMs(int value);
@@ -302,6 +307,9 @@ private:
  int magnifierRevision=0;
  bool magneticMouseRelative=false;
  int scrollSpeed=100,scrollDeadzone=50,scrollAxis=0;
+ bool showScrollZones=false;
+ int scrollZoneOpacity=30;
+ QString scrollZoneColor="#00bfff";
  int magnifierZoom=4,magnifierRefreshHz=30;
  bool progressiveZoom=false,zoomAnimating=false;
  int zoomDurationMs=1500,activeZoomDurationMs=1500,activeZoom=4;
