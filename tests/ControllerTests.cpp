@@ -793,6 +793,26 @@ private slots:
   QTRY_VERIFY_WITH_TIMEOUT(!c.isGazeDwellPaused(),1000);
   QVERIFY(!points.last()[2].toBool());QCOMPARE(c.hover("test-target"),0.);
  }
+ void trackingLossPreservesLatchedModifiers(){
+  for(int tolerance:{0,50}){
+   auto values=ProfileStore::defaults();values["gazeEnabled"]=true;values["invalidGazeToleranceMs"]=tolerance;
+   Controller c(true,values);
+   QStringList releases;
+   c.configureInputMethod([](QString){return true;},[&](QString key,bool down){if(!down)releases<<key;return true;});
+   c.inputContextChanged(true,false);
+   QVERIFY(QMetaObject::invokeMethod(&c,"setTrackerConnected",Qt::DirectConnection,Q_ARG(bool,true)));
+   auto sample=[&](bool valid){QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,.5),Q_ARG(double,.5),Q_ARG(bool,valid),Q_ARG(qint64,0)));};
+   sample(true);
+   QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","LCONTROL"}}}));
+   QTRY_COMPARE(c.modifierStates().value("LCONTROL").toString(),QString("latched"));
+   sample(false);QTest::qWait(100);sample(false);
+   QCOMPARE(c.modifierStates().value("LCONTROL").toString(),QString("latched"));
+   QVERIFY(c.heldKeys().contains("LCONTROL"));QVERIFY(!releases.contains("LCONTROL"));
+   sample(true);
+   QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","A"}}}));
+   QTRY_VERIFY(c.modifierStates().isEmpty());QVERIFY(releases.contains("LCONTROL"));
+  }
+ }
  void invalidGazeTolerancePersistsAndResets(){
   {Controller c;c.setInvalidGazeToleranceMs(400);QVERIFY(c.savePreferences());}
   {Controller c;QCOMPARE(c.invalidGazeToleranceMs(),400);c.resetPreferences();QCOMPARE(c.invalidGazeToleranceMs(),250);}

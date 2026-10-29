@@ -416,7 +416,7 @@ void Controller::receiveGaze(double x,double y,bool valid,qint64 /*sampledAt*/){
     endButtonHold();runner.endDwellHold();heldDwellTarget.clear();gameController.reset();activeJoystick=-1;portal.releaseButtons();
     // A tolerated dropout must not release physical modifiers behind the
     // runner's back: recovery would leave a latched badge without Ctrl held.
-    // Full tracking loss below cancels the runner and releases every key.
+    // Full tracking loss below also preserves latched and locked modifiers.
     // Retain target selection, but stop already-running pointer actions and
     // reset scroll timing so recovery cannot accumulate a scroll jump.
     if((pointer.busy()&&!pointer.targeting())||pointer.magnetic()||pointer.lookScrolling()||!pointer.heldButtons().isEmpty())pointer.trackingLost();
@@ -428,7 +428,7 @@ void Controller::receiveGaze(double x,double y,bool valid,qint64 /*sampledAt*/){
   // continually reset mouse dwell or cancel actions started by the fallback.
   const bool wasValid=gazeAge.isValid();gazeAge.invalidate();gazeSmoothing.reset();
   const bool wasPaused=gazeLossStarted>0;gazeLossStarted=0;
-  if(wasValid){dwell.reset();pointDwell.reset();canvasDwell.reset();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseAll();pointer.trackingLost();}
+  if(wasValid){dwell.reset();pointDwell.reset();canvasDwell.reset();runner.cancel(true);endButtonHold();gameController.reset();activeJoystick=-1;portal.releaseButtons();pointer.trackingLost();}
   if(wasPaused)emit changed();
  }
  emit gazePoint(x,y,valid);
