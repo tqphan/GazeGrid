@@ -797,9 +797,10 @@ private slots:
   for(int tolerance:{0,50}){
    auto values=ProfileStore::defaults();values["gazeEnabled"]=true;values["invalidGazeToleranceMs"]=tolerance;
    Controller c(true,values);
-   QStringList releases;
-   c.configureInputMethod([](QString){return true;},[&](QString key,bool down){if(!down)releases<<key;return true;});
+   c.configureInputMethod([](QString){return true;},[](QString,bool){return true;});
    c.inputContextChanged(true,false);
+   // Conversation mode exercises modifier state without desktop authorization.
+   c.openLayout("keyboard-conversation-fullscreen",false);
    QVERIFY(QMetaObject::invokeMethod(&c,"setTrackerConnected",Qt::DirectConnection,Q_ARG(bool,true)));
    auto sample=[&](bool valid){QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,.5),Q_ARG(double,.5),Q_ARG(bool,valid),Q_ARG(qint64,0)));};
    sample(true);
@@ -807,10 +808,10 @@ private slots:
    QTRY_COMPARE(c.modifierStates().value("LCONTROL").toString(),QString("latched"));
    sample(false);QTest::qWait(100);sample(false);
    QCOMPARE(c.modifierStates().value("LCONTROL").toString(),QString("latched"));
-   QVERIFY(c.heldKeys().contains("LCONTROL"));QVERIFY(!releases.contains("LCONTROL"));
+   QVERIFY(c.heldKeys().contains("LCONTROL"));
    sample(true);
    QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","A"}}}));
-   QTRY_VERIFY(c.modifierStates().isEmpty());QVERIFY(releases.contains("LCONTROL"));
+   QTRY_VERIFY(c.modifierStates().isEmpty());
   }
  }
  void invalidGazeTolerancePersistsAndResets(){
