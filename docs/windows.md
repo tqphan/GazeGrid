@@ -195,7 +195,10 @@ detects the Winlogon desktop and selects the restricted sign-in interface there.
 It uses the existing keyboard rendering, navigation, key output, and dwell logic.
 Prediction stays off even after switching layouts. Typed text is not retained
 in scratchpads or learned words. Personal profile files are not read or written,
-and Settings, the editor, and magnifier are unavailable in this mode. The
+and Settings and the editor are unavailable in this mode. The magnifier can be
+toggled using the keyboard; its zoom and dwell preferences are copied when
+sign-in startup is configured. Magnifier toggles on the secure desktop are not
+saved. Actual secure-desktop capture still requires Windows acceptance testing. The
 registration uses `TerminateOnDesktopSwitch=0`: the normal instance stays alive
 and suspends input and eye tracking while its desktop is inactive. It resumes
 when that desktop becomes active again. A secure instance exits when its desktop

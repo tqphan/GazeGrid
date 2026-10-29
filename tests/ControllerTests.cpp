@@ -70,7 +70,8 @@ private slots:
    QCOMPARE(controller.predictionMode(),QString("off"));
    QVERIFY(!controller.savePreferences());controller.resetPreferences();controller.resetLearning();
    controller.setGazeEnabled(false);controller.setMagnifierEnabled(true);
-   QVERIFY(!controller.isMagnifierEnabled());
+   QVERIFY(controller.isMagnifierEnabled());
+   controller.setMagnifierEnabled(false);QVERIFY(!controller.isMagnifierEnabled());
   }
   const bool noFiles=QDir(directory.path()).entryList(QDir::Files).isEmpty();
   if(previous.isNull())qunsetenv("GAZEGRID_CONFIG_DIR");else qputenv("GAZEGRID_CONFIG_DIR",previous);

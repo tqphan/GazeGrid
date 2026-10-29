@@ -163,11 +163,9 @@ Window {
    if(controller.targeting){
     const point=root.usingGaze?root.gaze:Qt.point(targetPointer.mouseX/targetWindow.width,targetPointer.mouseY/targetWindow.height)
     const valid=root.usingGaze?root.gazeValid:targetPointer.containsMouse&&targetWindow.visible
-    const cancelPoint=targetCancel.mapFromItem(targetWindow.contentItem,point.x*targetWindow.width,point.y*targetWindow.height)
-    const overCancel=(!root.usingGaze&&targetCancel.hovered)||(valid&&cancelPoint.x>=0&&cancelPoint.y>=0&&cancelPoint.x<targetCancel.width&&cancelPoint.y<targetCancel.height)
-    target=overCancel?"CancelTarget":""
-    root.targetPoint=point;root.targetPointValid=valid&&!overCancel
-    root.targetProgress=controller.dwellAt(point.x,point.y,valid&&!overCancel)
+    target=""
+    root.targetPoint=point;root.targetPointValid=valid
+    root.targetProgress=controller.dwellAt(point.x,point.y,valid)
    }else{
     root.targetPointValid=false;root.targetProgress=controller.dwellAt(0,0,false)
    }
@@ -934,19 +932,6 @@ Window {
   width:root.screenWidth;height:root.screenHeight
   color:"transparent";flags:Qt.FramelessWindowHint|Qt.WindowDoesNotAcceptFocus|Qt.WindowStaysOnTopHint
   Image {anchors.fill:parent;visible:controller.magnifierReady;source:visible?"image://magnifier/"+controller.magnifierRevision:"";cache:false;fillMode:Image.Stretch}
-  Rectangle {
-   anchors.horizontalCenter:parent.horizontalCenter;y:90
-   visible:!controller.magnifierEnabled
-   width:targetLabel.implicitWidth+32;height:targetLabel.implicitHeight+20
-   color:Kirigami.Theme.backgroundColor;radius:4
-   Text {id:targetLabel;anchors.centerIn:parent;text:controller.targetPrompt;font.pixelSize:24;color:Kirigami.Theme.textColor}
-  }
-  Button {
-   id:targetCancel;anchors.horizontalCenter:parent.horizontalCenter;y:145;text:"Cancel";focusPolicy:Qt.NoFocus;z:2
-   onHoveredChanged:root.hovered=hovered?"CancelTarget":""
-   onClicked:controller.clickCommand("CancelTarget")
-   DwellIndicator {anchors.fill:parent;progress:root.hovered==="CancelTarget"?root.progress:0;style:controller.dwellIndicatorStyle;color:Kirigami.Theme.highlightColor}
-  }
   MouseArea {id:targetPointer;objectName:"targetPointer";anchors.fill:parent;hoverEnabled:true;onClicked:mouse=>controller.targetAt(mouse.x/width,mouse.y/height)}
   Canvas {
    objectName:"targetProgressRing"

@@ -74,7 +74,7 @@ private slots:
   values["clampGazeForKeyboard"]=false;values["clampGazeForPointSelection"]=false;
   auto result=WindowsSignIn::validatedProfile(values);
   QCOMPARE(result["startLayout"].toString(),QString("main-14x1-top"));QCOMPARE(result["keyboardScale"].toInt(),120);
-  QCOMPARE(result["predictionMode"].toString(),QString("off"));QVERIFY(!result["learning"].toBool());QVERIFY(!result["magnifierEnabled"].toBool());
+  QCOMPARE(result["predictionMode"].toString(),QString("off"));QVERIFY(!result["learning"].toBool());QVERIFY(result["magnifierEnabled"].toBool());
   QCOMPARE(result["invalidGazeToleranceMs"].toInt(),250);QCOMPARE(result["scratchpadTextScale"].toInt(),175);
   QVERIFY(!result["clampGazeForKeyboard"].toBool());QVERIFY(!result["clampGazeForPointSelection"].toBool());
   values["startLayout"]="../user-keyboard";QVERIFY(WindowsSignIn::validatedProfile(values).isEmpty());

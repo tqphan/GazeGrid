@@ -54,7 +54,7 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  zoomTimer.setInterval(33);connect(&zoomTimer,&QTimer::timeout,this,&Controller::updateMagnifierZoom);
  connect(&speech,&SpeechOutput::status,this,[this](QString message){actionStatus=message;emit changed();});
  clock.start();auto profile=signInMode?ProfileStore::Loaded{ProfileStore::valid(signInProfile)?signInProfile:ProfileStore::defaults(),{}}:ProfileStore(configFile("profile.json")).load();
- if(signInMode){profile.values["predictionMode"]="off";profile.values["learning"]=false;profile.values["magnifierEnabled"]=false;}
+ if(signInMode){profile.values["predictionMode"]="off";profile.values["learning"]=false;}
  setProcessPriority(profile.values["processPriority"].toInt(0));
  gazeEnabled=profile.values["gazeEnabled"].toBool(true);
  typedWordMode=profile.values["typedWordSuggestionMode"].toString("fallback");
@@ -836,13 +836,15 @@ void Controller::clearCapture(){
  ++captureEpoch;screenshot.cancel();capturePending=false;magnifierReady=false;magnifiedImage={};magnifierCrop={};captureSize={};
 }
 void Controller::setMagnifierEnabled(bool enabled){
- if(signInMode)return;
  if(magnifierEnabled==enabled)return;
  magnifierEnabled=enabled;
  // Save only the toggle; other preferences retain their explicit Save behavior.
+ // Secure-desktop toggles apply only to this instance.
+ if(!signInMode){
  ProfileStore store(configFile("profile.json"));auto saved=store.load().values;
  saved["magnifierEnabled"]=enabled;QString error;
  if(!store.save(saved,error))profileStatus="Could not remember magnifier state. "+error;
+ }
  if(!enabled&&(capturePending||magnifierReady)){clearCapture();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();}
  emit changed();
 }
