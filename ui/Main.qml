@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import org.kde.desktop as Desktop
 import org.kde.kirigami as Kirigami
 Window {
@@ -515,6 +516,11 @@ Window {
  Window {
   id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1100,root.screenWidth);height:Math.min(800,root.screenHeight-60);title:"GazeGrid Settings";color:Kirigami.Theme.backgroundColor
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
+  ColorDialog {
+   id:gazeColorDialog
+   title:"Gaze indicator color"
+   onAccepted:controller.gazeIndicatorColor=selectedColor.toString()
+  }
   property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Look to scroll","System"]
   property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","transform-move","preferences-system"]
   property var categoryDescriptions:["Connection health.","Make your keyboard feel right for you.","Fine-tune eye tracking and selection timing.","Choose how you zoom and select targets.","Personalize prediction and spoken text.","Manage keyboard and pointer access.","Adjust hands-free scrolling.","Manage application performance."]
@@ -765,8 +771,13 @@ Window {
        SettingSlider {label:"Opacity";displayValue:controller.gazeIndicatorOpacity+"%";from:5;to:100;stepSize:5;value:controller.gazeIndicatorOpacity;onMoved:controller.gazeIndicatorOpacity=value}
        RowLayout {
         Desktop.Label {text:"Color"}
-        Rectangle {width:24;height:24;radius:12;color:controller.gazeIndicatorColor;opacity:controller.gazeIndicatorOpacity/100}
-        Desktop.TextField {text:controller.gazeIndicatorColor;placeholderText:"#RRGGBB";Accessible.name:"Gaze indicator color, hexadecimal RGB";validator:RegularExpressionValidator {regularExpression:/#[0-9a-fA-F]{6}/} onEditingFinished:{if(acceptableInput)controller.gazeIndicatorColor=text}}
+        SettingsButton {
+         Accessible.name:"Gaze indicator color"
+         text:controller.gazeIndicatorColor
+         leftPadding:44
+         Rectangle {x:12;anchors.verticalCenter:parent.verticalCenter;width:20;height:20;radius:10;color:controller.gazeIndicatorColor;border.width:1;border.color:Kirigami.Theme.textColor}
+         onClicked:{gazeColorDialog.selectedColor=controller.gazeIndicatorColor;gazeColorDialog.open()}
+        }
        }
        SettingsCheckBox {text:"Morph with gaze acceleration and direction";checked:controller.gazeIndicatorMorph;onToggled:controller.gazeIndicatorMorph=checked}
       }
