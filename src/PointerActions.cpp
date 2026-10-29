@@ -118,7 +118,11 @@ void PointerActions::trackingLost(){
 }
 bool PointerActions::follow(QPointF point,bool overDesktop){
     if((!following&&!lookScroll.active())||active)return false;
-    if(!std::isfinite(point.x())||!std::isfinite(point.y())||point.x()<0||point.x()>1||point.y()<0||point.y()>1){cancel();return false;}
+    if(!std::isfinite(point.x())||!std::isfinite(point.y())){cancel();return false;}
+    if(following){
+        point.setX(qBound(0.,point.x(),1.));
+        point.setY(qBound(0.,point.y(),1.));
+    }else if(point.x()<0||point.x()>1||point.y()<0||point.y()>1){cancel();return false;}
     if(lookScroll.active()){
         if(trackingGrace.isActive()){
             trackingGrace.stop();lookScroll.resetTime(clock.elapsed());

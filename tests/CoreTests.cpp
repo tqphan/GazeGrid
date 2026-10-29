@@ -508,6 +508,21 @@ private slots:
   QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),2);
   QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(!p.magnetic());QCOMPARE(moves.size(),1);
  }
+ void magneticCursorClampsOffscreenGaze(){
+  for(bool relative:{false,true}){
+   PointerActions p;p.setMagneticRelative(relative);QList<QPointF> moves;
+   p.move=[&](double x,double y){moves<<QPointF(x,y);return true;};
+   p.moveRelativeTo=p.move;
+   QSignalSpy done(&p,&PointerActions::completed);
+   QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),1);
+   for(const QPointF point:{QPointF(-.01,.5),QPointF(1.01,.5),QPointF(.5,-.01),QPointF(.5,1.01),QPointF(-.1,1.1)}){
+    QVERIFY(p.follow(point));QVERIFY(p.magnetic());
+    QCOMPARE(moves.last(),QPointF(qBound(0.,point.x(),1.),qBound(0.,point.y(),1.)));
+   }
+   QVERIFY(p.follow({.4,.6}));QCOMPARE(moves.last(),QPointF(.4,.6));
+   QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(!p.magnetic());
+  }
+ }
  void magneticRelativeTargetsGazeImmediatelyAndWhileStationary(){
   PointerActions p;p.setMagneticRelative(true);
   QList<QPointF> targets;int absoluteMoves=0,rawMoves=0;
