@@ -25,6 +25,9 @@ public:
  bool click();
  bool button(int code,bool down);
  bool moveAbsolute(double x,double y);
+ // RemoteDesktop/libei do not expose the global cursor position needed for feedback.
+ bool relativeTargetAvailable()const{return false;}
+ bool moveRelativeTo(double,double){return false;}
  bool absoluteAvailable() const;
  bool scroll(double dy);
  bool scrollAxes(double dx,double dy);

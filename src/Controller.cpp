@@ -72,6 +72,9 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  scratchpadTextScale=profile.values["scratchpadTextScale"].toInt(100);
  magnifierEnabled=profile.values.value("magnifierEnabled").toBool(false);
  magneticMouseRelative=profile.values["magneticMouseRelative"].toBool(false);
+#ifndef _WIN32
+ magneticMouseRelative=false; // The portal cannot report the global cursor position.
+#endif
  scrollSpeed=profile.values["scrollSpeed"].toInt(100);scrollDeadzone=profile.values["scrollDeadzone"].toInt(50);scrollAxis=profile.values["scrollAxis"].toInt(0);
  magnifierZoom=profile.values["magnifierZoom"].toInt(4);
  progressiveZoom=profile.values.value("progressiveZoom").toBool(profile.values.value("liveZoom").toBool(false));
@@ -126,6 +129,7 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
 #endif
  pointer.move=[this](double x,double y){return desktopActive&&portal.moveAbsolute(x,y);};
  pointer.moveRelative=[this](double x,double y){return desktopActive&&portal.move(x,y);};
+ pointer.moveRelativeTo=[this](double x,double y){return desktopActive&&portal.moveRelativeTo(x,y);};
  pointer.button=[this](int code,bool down){return (!down||desktopActive)&&portal.button(code,down);};
  pointer.scroll=[this](double amount){return desktopActive&&portal.scroll(amount);};
  pointer.scrollAxes=[this](double x,double y){return desktopActive&&portal.scrollAxes(x,y);};
@@ -764,6 +768,9 @@ bool Controller::performAction(QString action){
  if(action=="MenuKeyboard"){recover();return true;}
  if(action=="BackFromKeyboard"){openLayout(backStack.isEmpty()?"main-14x1-bottom":backStack.takeLast(),false);return true;}
  if(PointerActions::supports(action)){
+  if(action=="MouseMagneticCursor"&&magneticMouseRelative&&!portal.relativeTargetAvailable()){
+   actionStatus="Relative magnetic mouse requires cursor-position feedback. Select Absolute movement on this desktop.";emit changed();return false;
+  }
   if(PointerActions::needsAbsolute(action)&&!(action=="MouseMagneticCursor"&&magneticMouseRelative)&&!portal.absoluteAvailable()){
    actionStatus="Pointer targeting requires an input region mapped to the primary display";emit changed();return false;
   }

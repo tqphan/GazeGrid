@@ -14,6 +14,7 @@ public:
     explicit PointerActions(QObject *parent=nullptr);
     std::function<bool(double,double)> move;
     std::function<bool(double,double)> moveRelative;
+    std::function<bool(double,double)> moveRelativeTo;
     std::function<bool(int,bool)> button;
     std::function<bool(double)> scroll;
     std::function<bool(double,double)> scrollAxes;
@@ -23,7 +24,7 @@ public:
     void cancel();
     void trackingLost();
     void configureScroll(int speed,int deadzone,int axis){lookScroll.configure(speed,deadzone,axis);}
-    void setMagneticRelative(bool relative){if(relative!=relativeMagnetic){relativeMagnetic=relative;haveFollowPoint=false;}}
+    void setMagneticRelative(bool relative){relativeMagnetic=relative;}
     bool follow(QPointF point,bool overDesktop=true);
     void setDisplaySize(QSizeF size);
     bool magnetic()const{return following;}
@@ -49,8 +50,7 @@ public:
     QTimer trackingGrace;
     QSet<int> held;
     QPointF position{.5,.5};
-    QPointF lastFollowPoint;
-    bool relativeMagnetic=false,haveFollowPoint=false;
+    bool relativeMagnetic=false;
     bool active=false,choosing=false,sourceChosen=false,following=false;
     int phase=0,dragStep=0;
     QString instruction;

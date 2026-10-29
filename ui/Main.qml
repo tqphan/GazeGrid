@@ -868,14 +868,14 @@ Window {
         Desktop.Label {text:"Movement"}
         SettingsComboBox {
          objectName:"magneticMouseMovementSelector"
-         model:["Absolute","Relative"]
-         currentIndex:controller.magneticMouseRelative?1:0
+         model:Qt.platform.os==="windows"?["Absolute","Relative"]:["Absolute"]
+         currentIndex:controller.magneticMouseRelative&&Qt.platform.os==="windows"?1:0
          Accessible.name:"Magnetic mouse movement"
          onActivated:controller.magneticMouseRelative=currentIndex===1
         }
        }
-       Desktop.Label {text:controller.magneticMouseRelative?"Moves the cursor by changes in your gaze position, starting from its current location.":"Moves the cursor directly to where you look.";wrapMode:Text.Wrap;Layout.fillWidth:true}
-       Desktop.Label {text:"Applies immediately. Save preferences to keep this setting after restarting.";wrapMode:Text.Wrap;Layout.fillWidth:true;opacity:0.6}
+       Desktop.Label {text:controller.magneticMouseRelative?"Moves the cursor toward your gaze point using relative movement and cursor-position feedback.":"Moves the cursor directly to where you look.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Desktop.Label {text:Qt.platform.os==="windows"?"Applies immediately. Save preferences to keep this setting after restarting.":"Relative movement requires global cursor-position feedback, which is unavailable through the Linux desktop portal.";wrapMode:Text.Wrap;Layout.fillWidth:true;opacity:0.6}
       }
      }
      SettingsCard {

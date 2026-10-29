@@ -10,6 +10,7 @@
 #include "KeyNames.h"
 #include "ProfileStore.h"
 #include "PointerActions.h"
+#include "RelativePointer.h"
 #include "GazeSmoothing.h"
 #include <limits>
 #include "MagnifierGeometry.h"
@@ -507,23 +508,46 @@ private slots:
   QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),2);
   QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(!p.magnetic());QCOMPARE(moves.size(),1);
  }
- void magneticRelativeUsesGazeDeltasAndResetsBaseline(){
-  PointerActions p;p.setDisplaySize({1000,800});p.setMagneticRelative(true);
-  QList<QPointF> moves;int absoluteMoves=0;
+ void magneticRelativeTargetsGazeImmediatelyAndWhileStationary(){
+  PointerActions p;p.setMagneticRelative(true);
+  QList<QPointF> targets;int absoluteMoves=0,rawMoves=0;
   p.move=[&](double,double){++absoluteMoves;return true;};
-  p.moveRelative=[&](double x,double y){moves<<QPointF(x,y);return true;};
+  p.moveRelative=[&](double,double){++rawMoves;return true;};
+  p.moveRelativeTo=[&](double x,double y){targets<<QPointF(x,y);return true;};
   QSignalSpy done(&p,&PointerActions::completed);
   QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),1);
-  QVERIFY(p.follow({.25,.25}));QVERIFY(moves.isEmpty());
-  QVERIFY(p.follow({.5,.5}));QCOMPARE(moves.last(),QPointF(250,200));QCOMPARE(absoluteMoves,0);
-  QVERIFY(p.follow({.25,.25}));QCOMPARE(moves.last(),QPointF(-250,-200));
+  QVERIFY(p.follow({.25,.25}));QCOMPARE(targets.last(),QPointF(.25,.25));
+  // Re-read cursor feedback even when gaze is unchanged or the user moved the mouse.
+  QVERIFY(p.follow({.25,.25}));QCOMPARE(targets.size(),2);
+  QCOMPARE(absoluteMoves,0);QCOMPARE(rawMoves,0);
   p.setMagneticRelative(false);QVERIFY(p.follow({.75,.75}));QCOMPARE(absoluteMoves,1);
-  p.setMagneticRelative(true);QVERIFY(p.follow({.1,.1}));QCOMPARE(moves.size(),2);
+  p.setMagneticRelative(true);QVERIFY(p.follow({.1,.1}));QCOMPARE(targets.last(),QPointF(.1,.1));
   p.trackingLost();QVERIFY(!p.magnetic());
   QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),2);
-  QVERIFY(p.follow({.9,.9}));QCOMPARE(moves.size(),2);
-  p.moveRelative=[](double,double){return false;};
+  QVERIFY(p.follow({.9,.9}));QCOMPARE(targets.last(),QPointF(.9,.9));
+  p.moveRelativeTo=[](double,double){return false;};
   QVERIFY(!p.follow({.5,.5}));QVERIFY(!p.magnetic());
+ }
+ void relativeCursorFeedbackConvergesDespiteOffsetsAndPointerSpeed(){
+  for(double speed:{0.25,1.0,2.0,4.0}){
+   RelativePointer feedback;
+   QPointF cursor(-800,250),target(1000,600);
+   auto advance=[&]{
+    const QPointF observed(std::round(cursor.x()),std::round(cursor.y()));
+    cursor+=feedback.step(observed,target)*speed;
+   };
+   // First gaze must move toward the target, including from another monitor.
+   advance();QVERIFY(cursor.x()>-800);QVERIFY(cursor.y()>250);
+   for(int i=0;i<60;++i)advance();
+   QVERIFY2(QLineF(cursor,target).length()<=3,qPrintable(QString::number(speed)));
+   // An independent physical-mouse move must not leave a permanent gaze offset.
+   cursor+=QPointF(140,-80);
+   for(int i=0;i<60;++i)advance();
+   QVERIFY(QLineF(cursor,target).length()<=3);
+   target={0,0};
+   for(int i=0;i<60;++i)advance();
+   QVERIFY(QLineF(cursor,target).length()<=3);
+  }
  }
  void actionCoverageListsMissingPackFeatures(){
   auto report=KeyboardPack::audit(PACK_PATH);QCOMPARE(report["layouts"].toList().size(),31);

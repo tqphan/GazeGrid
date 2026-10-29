@@ -24,3 +24,17 @@ bool PortalInput::moveAbsolute(double x,double y){
  return input.moveAbsolute((px-GetSystemMetrics(SM_XVIRTUALSCREEN))/(width-1),
                            (py-GetSystemMetrics(SM_YVIRTUALSCREEN))/(height-1));
 }
+
+bool PortalInput::moveRelativeTo(double x,double y){
+ if(!available||!std::isfinite(x)||!std::isfinite(y)||x<0||x>1||y<0||y>1)return false;
+ POINT cursor;
+ if(!GetCursorPos(&cursor))return false;
+ // Use the same primary-display physical coordinates as moveAbsolute, even
+ // when the cursor starts on another monitor or Qt uses a scaled geometry.
+ const int width=GetSystemMetrics(SM_CXSCREEN),height=GetSystemMetrics(SM_CYSCREEN);
+ if(width<2||height<2)return false;
+ const auto delta=relativePointer.step({double(cursor.x),double(cursor.y)},{x*(width-1),y*(height-1)});
+ if(delta.isNull())return true;
+ if(input.move(delta.x(),delta.y()))return true;
+ relativePointer.reset();return false;
+}

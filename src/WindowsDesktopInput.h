@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QVariantMap>
 #include "WindowsInput.h"
+#include "RelativePointer.h"
 // Compatibility facade for Controller's desktop-output lifecycle.
 class PortalInput:public QObject {
  Q_OBJECT
@@ -12,12 +13,14 @@ public:
  void connectPortal(){available=true;emit status("Windows desktop input connected");emit readyChanged();}
  void setRememberPermission(bool){}
  void forgetPermission(){}
- void close(){releaseAll();if(available){available=false;emit readyChanged();}}
+ void close(){relativePointer.reset();releaseAll();if(available){available=false;emit readyChanged();}}
  bool key(int code,bool down);
  bool move(double dx,double dy){return available&&input.move(dx,dy);}
  bool click(){if(!button(272,true))return false;return button(272,false);}
  bool button(int code,bool down){return available&&input.button(code,down);}
  bool moveAbsolute(double x,double y);
+ bool moveRelativeTo(double x,double y);
+ bool relativeTargetAvailable()const{return available;}
  bool absoluteAvailable()const{return available;}
  bool scroll(double dy){return scrollAxes(0,dy);}
  bool scrollAxes(double dx,double dy){return available&&input.scrollAxes(dx/120.0,dy/120.0);}
@@ -29,5 +32,6 @@ signals:
  void readyChanged();
 private:
  WindowsInput input;
+ RelativePointer relativePointer;
  bool available=false;
 };
