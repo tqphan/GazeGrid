@@ -21,6 +21,12 @@
     <CustomAction Id="PrepareSignIn" BinaryKey="SignInActions" DllEntry="PrepareSignIn" Execute="immediate" Return="check" />
     <CustomAction Id="RollbackSignIn" BinaryKey="SignInActions" DllEntry="RollbackSignIn" Execute="rollback" Impersonate="no" Return="check" />
     <CustomAction Id="ApplySignIn" BinaryKey="SignInActions" DllEntry="ApplySignIn" Execute="deferred" Impersonate="no" Return="check" />
+    <!-- Launch from the successful Finish dialog in the client UI, after files
+         and certificate trust commit. WixShellExec uses ShellExecuteEx, which
+         supports UIAccess; an ExeCommand/CreateProcess action fails with 740. -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch GazeGrid after setup" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <CustomAction Id="LaunchGazeGrid" BinaryKey="WixCA" DllEntry="WixShellExec" Execute="immediate" Impersonate="yes" Return="ignore" />
     <InstallExecuteSequence>
       <Custom Action="PrepareSignIn" Before="InstallInitialize">1</Custom>
       <Custom Action="RollbackSignIn" After="WriteRegistryValues">1</Custom>
@@ -93,6 +99,8 @@
     <SetProperty Id="DefaultUIFont" Value="GazeGrid_Font_Normal" Before="LaunchConditions" Sequence="ui">1</SetProperty>
     <UI Id="GazeGridUI">
       <UIRef Id="WixUI_Minimal" />
+      <Publish Dialog="ExitDialog" Control="Finish" Property="WixShellExecTarget" Value="[INSTALL_ROOT]gazegrid.exe" Order="1">WIXUI_EXITDIALOGOPTIONALCHECKBOX = "1" AND NOT Installed AND NOT REMOVE AND UILevel = 5</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchGazeGrid" Order="2">WIXUI_EXITDIALOGOPTIONALCHECKBOX = "1" AND NOT Installed AND NOT REMOVE AND UILevel = 5</Publish>
       <!-- MSI installer units do not grow with DefaultUIFont. Keep explicit
            room for 12-point body text, 14-point titles and option labels. -->
       <TextStyle Id="GazeGrid_Font_Normal" FaceName="Tahoma" Size="12" />

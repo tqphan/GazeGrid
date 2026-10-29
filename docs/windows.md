@@ -155,6 +155,17 @@ never removes existing certificate trust, but still installs the unsigned app.
 Microsoft documents the signature and secure-location requirements in
 [UIAccess policy](https://learn.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/user-account-control-allow-uiaccess-applications-to-prompt-for-elevation-without-using-the-secure-desktop).
 
+## Completion options
+
+After a successful interactive installation, the completion screen offers
+**Launch GazeGrid after setup**, selected by default. Uncheck it to finish
+without opening the app. Clicking **Finish** launches the installed executable
+through WiX's `WixShellExec` action, after files and certificate trust have
+committed. This uses Windows `ShellExecuteEx`, which supports UIAccess, in the
+installer's user interface process without requesting `runas`.
+Quiet installs, repairs, uninstalls, failures, and cancellations do not launch
+the app. This completion choice is separate from Windows sign-in startup below.
+
 ## Keyboard before Windows sign-in
 
 The trusted installation registers GazeGrid with Windows Ease of Access. Setup

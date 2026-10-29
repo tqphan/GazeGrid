@@ -9,7 +9,7 @@ configure_file("${CMAKE_SOURCE_DIR}/platform/windows/Installer.wxs.in"
   "${CMAKE_BINARY_DIR}/Installer.wxs" @ONLY)
 set(CPACK_WIX_EXTRA_SOURCES "${CMAKE_BINARY_DIR}/Installer.wxs")
 set(CPACK_WIX_PATCH_FILE "${CMAKE_SOURCE_DIR}/platform/windows/InstallerPatch.xml")
-set(CPACK_WIX_EXTENSIONS WixIIsExtension)
+set(CPACK_WIX_EXTENSIONS WixIIsExtension WixUtilExtension)
 # ICE30 does not evaluate mutually exclusive component conditions.
 set(CPACK_WIX_LIGHT_EXTRA_FLAGS -sice:ICE30
   -loc "${CMAKE_SOURCE_DIR}/platform/windows/Installer.en-us.wxl")
