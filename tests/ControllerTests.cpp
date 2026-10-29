@@ -51,6 +51,39 @@ class ControllerTests:public QObject {
   c.setProperty("layout",QVariantMap{{"layoutMode","canvas"},{"activateoverlappingkeys",true},{"keys",content}});
  }
 private slots:
+ void speechProfilesConfigureConversationAndPersist(){
+  ProfileStore store(appConfigDirectory()+"/profile.json");QString error;
+  QVERIFY(store.save(ProfileStore::defaults(),error,true));
+  {
+   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+   QCOMPARE(c.getSpeechProfiles().size(),1);
+   QVERIFY(!c.createSpeechProfile("  "));
+   QVERIFY(c.createSpeechProfile("Care"));
+   QVERIFY(!c.addSpeechItem("", "Please help"));
+   QVERIFY(c.addSpeechItem("Help","Please help me adjust my headrest."));
+   auto speechKeys=[&]{QVariantList result;for(const auto &entry:c.property("layout").toMap()["keys"].toList()){
+    const auto key=entry.toMap();for(const auto &command:key["commands"].toList())if(command.toMap()["text"]=="SpeakLabel")result<<key;
+   }return result;};
+   auto keys=speechKeys();QCOMPARE(keys.size(),12);
+   QCOMPARE(keys[0].toMap()["label"].toString(),QString("Help"));
+   QCOMPARE(keys[0].toMap()["commands"].toList()[0].toMap()["label"].toString(),QString("Please help me adjust my headrest."));
+   QVERIFY(!keys[1].toMap()["unavailableReason"].toString().isEmpty());
+   for(int i=1;i<12;++i)QVERIFY(c.addSpeechItem(QString::number(i),"A phrase"));
+   QVERIFY(!c.addSpeechItem("Overflow","No"));
+   QVERIFY(!c.updateSpeechItem(12,"Invalid","No"));
+   QVERIFY(c.updateSpeechItem(0,"Water","Please bring water."));
+   c.setActiveSpeechProfile(0);QCOMPARE(speechKeys()[0].toMap()["label"].toString(),QString("suction"));
+   c.setActiveSpeechProfile(1);QCOMPARE(speechKeys()[0].toMap()["label"].toString(),QString("Water"));
+   c.setActiveSpeechProfile(999);QCOMPARE(c.activeSpeechProfile(),1);
+   c.removeSpeechItem(1);QCOMPARE(c.getSpeechProfiles()[1].toMap()["items"].toList().size(),11);
+   QVERIFY(c.renameSpeechProfile("Daily care"));QVERIFY(c.savePreferences());
+  }
+  {
+   Controller c;QCOMPARE(c.activeSpeechProfile(),1);QCOMPARE(c.getSpeechProfiles()[1].toMap()["name"].toString(),QString("Daily care"));
+   c.deleteSpeechProfile();QCOMPARE(c.activeSpeechProfile(),0);QCOMPARE(c.getSpeechProfiles().size(),1);
+   c.deleteSpeechProfile();QCOMPARE(c.getSpeechProfiles().size(),1);c.resetPreferences();
+  }
+ }
  void hiddenLayoutsDoNotReplaceStartupKeyboard(){
   ProfileStore store(appConfigDirectory()+"/profile.json");QString error;
   QVERIFY(store.save(ProfileStore::defaults(),error));

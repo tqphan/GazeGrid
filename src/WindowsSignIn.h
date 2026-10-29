@@ -10,6 +10,6 @@ bool enabled();
 QJsonObject profile();
 QJsonObject profileFromData(const QByteArray &data);
 QJsonObject validatedProfile(const QJsonObject &source);
-bool configure(bool enabled,const QJsonObject &profile);
+bool configure(bool enabled,const QJsonObject &profile,bool profileOnly=false);
 int setup(const QStringList &arguments);
 }

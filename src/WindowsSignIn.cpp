@@ -75,21 +75,22 @@ int WindowsSignIn::setup(const QStringList &arguments){
  auto index=arguments.indexOf("--configure-sign-in");
  if(arguments.size()!=index+3||index!=1)return 2;
  auto mode=arguments[index+1];auto data=arguments[index+2].toLatin1();
- if((mode!="enable"&&mode!="disable")||data.size()>24000)return 2;
+ if((mode!="enable"&&mode!="disable"&&mode!="sync")||data.size()>24000)return 2;
  if(!registered())return 2;
  auto values=validatedProfile(QJsonDocument::fromJson(QByteArray::fromBase64(data)).object());
  if(values.isEmpty())return 2;
  QSettings settings(settingsPath,QSettings::NativeFormat);
- if(mode=="enable")settings.setValue("Profile",QString::fromUtf8(QJsonDocument(values).toJson(QJsonDocument::Compact)));
+ if(mode!="disable")settings.setValue("Profile",QString::fromUtf8(QJsonDocument(values).toJson(QJsonDocument::Compact)));
  settings.sync();if(settings.status()!=QSettings::NoError)return 2;
+ if(mode=="sync")return 0;
  if(SignInRegistry::set(HKEY_LOCAL_MACHINE,SignInRegistry::key,mode=="enable")!=ERROR_SUCCESS)return 2;
  QSettings installer("HKEY_LOCAL_MACHINE\\SOFTWARE\\GazeGrid\\Installer",QSettings::NativeFormat);
  installer.setValue("SignIn",mode=="enable"?"1":"0");installer.sync();
  return installer.status()==QSettings::NoError?0:2;
 }
-bool WindowsSignIn::configure(bool enabled,const QJsonObject &values){
- const auto safe=validatedProfile(enabled?values:ProfileStore::defaults());if(safe.isEmpty())return false;
- auto parameters=QString("--configure-sign-in %1 %2").arg(enabled?"enable":"disable",QString::fromLatin1(QJsonDocument(safe).toJson(QJsonDocument::Compact).toBase64()));
+bool WindowsSignIn::configure(bool enabled,const QJsonObject &values,bool profileOnly){
+ const auto safe=validatedProfile((enabled||profileOnly)?values:ProfileStore::defaults());if(safe.isEmpty())return false;
+ auto parameters=QString("--configure-sign-in %1 %2").arg(profileOnly?"sync":enabled?"enable":"disable",QString::fromLatin1(QJsonDocument(safe).toJson(QJsonDocument::Compact).toBase64()));
  const auto executable=QCoreApplication::applicationFilePath().toStdWString();const auto args=parameters.toStdWString();
  bool success=false;
  // ShellExecuteEx can itself wait for UAC. Keep the UI event loop running so

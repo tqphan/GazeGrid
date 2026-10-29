@@ -180,10 +180,13 @@ or disable the secure desktop.
 
 To copy your current preferences after installation, open **Settings → Keyboard
 → Windows sign-in**, then clear and select **Use this keyboard at sign-in**.
+Alternatively, click **Sync current settings** in the same section to refresh
+the login and secure desktop preferences without changing sign-in startup.
+This also works when sign-in startup is disabled, for UAC use while GazeGrid is running.
 Accept the administrator prompt to copy the selected
 installed layout, keyboard appearance, dwell timing, and gaze preferences to a
-protected machine-wide configuration. Clear and select the checkbox again after choosing a
-different keyboard. Clearing **Use this keyboard at sign-in** removes GazeGrid from startup
+protected machine-wide configuration. Use **Sync current settings** again after changing
+preferences. Clearing **Use this keyboard at sign-in** removes GazeGrid from startup
 without changing other accessibility tools. Repair preserves the selected mode;
 uninstall removes GazeGrid's registration and startup entry.
 

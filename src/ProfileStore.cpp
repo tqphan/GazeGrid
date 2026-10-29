@@ -3,6 +3,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QSaveFile>
 #include <QRegularExpression>
 
@@ -23,7 +24,10 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"keyCycleModes",QJsonArray{"Tap","Repeat","Hold","Toggle"}},{"magneticMouseRelative",false},{"processPriority",0},{"predictionTextScale",100},{"scratchpadTextScale",100},{"removeCompletionSpaceBeforePunctuation",true},{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",250},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",true},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeFilterType",0},{"gazeFilterGain",0.2},{"gazeSaccadeDistance",0.1},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"typedWordSuggestionMode","fallback"},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
+    QJsonArray items;
+    for(const auto &label:QStringList{"suction","index","thumb","rotate","slide","shoulders","headrest","button","butt","earbud","deflate","inflate"})
+        items.append(QJsonObject{{"label",label},{"phrase",label}});
+    return {{"keyCycleModes",QJsonArray{"Tap","Repeat","Hold","Toggle"}},{"speechProfiles",QJsonArray{QJsonObject{{"name","Default"},{"items",items}}}},{"activeSpeechProfile",0},{"magneticMouseRelative",false},{"processPriority",0},{"predictionTextScale",100},{"scratchpadTextScale",100},{"removeCompletionSpaceBeforePunctuation",true},{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",250},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",true},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeFilterType",0},{"gazeFilterGain",0.2},{"gazeSaccadeDistance",0.1},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"typedWordSuggestionMode","fallback"},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"keyboardTheme","system"},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
@@ -36,6 +40,21 @@ bool ProfileStore::valid(const QJsonObject &v){
             seen.append(mode);
         }
     }
+    if(v.contains("speechProfiles")){
+        if(!v["speechProfiles"].isArray()||v["speechProfiles"].toArray().isEmpty())return false;
+        const auto profiles=v["speechProfiles"].toArray();
+        const auto active=v["activeSpeechProfile"];
+        if(!active.isDouble()||active.toDouble()!=active.toInt()||active.toInt()<0||active.toInt()>=profiles.size())return false;
+        for(const auto &entry:profiles){
+            if(!entry.isObject())return false;
+            const auto profile=entry.toObject();
+            if(!profile["name"].isString()||profile["name"].toString().trimmed().isEmpty()||!profile["items"].isArray()||profile["items"].toArray().size()>12)return false;
+            for(const auto &item:profile["items"].toArray()){
+                const auto object=item.toObject();
+                if(!item.isObject()||!object["label"].isString()||!object["phrase"].isString()||object["label"].toString().trimmed().isEmpty()||object["phrase"].toString().trimmed().isEmpty())return false;
+            }
+        }
+    }else if(v.contains("activeSpeechProfile"))return false;
     static const QRegularExpression layout("^[A-Za-z0-9_-]+$");
     return v["version"].isDouble()&&v["version"].toDouble()==1
         &&(!v.contains("gazeEnabled")||v["gazeEnabled"].isBool())

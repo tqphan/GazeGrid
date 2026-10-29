@@ -713,6 +713,11 @@ Window {
         objectName:"signInEnabledToggle";text:"Use this keyboard at sign-in";checked:controller.signInEnabled
         onToggled:{controller.configureSignIn(checked);checked=Qt.binding(function(){return controller.signInEnabled})}
        }
+       SettingsButton {
+        objectName:"syncSignInPreferencesButton";text:"Sync current settings"
+        onClicked:controller.syncSignInPreferences()
+       }
+       Desktop.Label {text:"Copies the current keyboard, appearance, dwell, gaze and magnifier settings to login and secure desktop. Requires administrator approval. Does not change sign-in startup.";wrapMode:Text.Wrap;Layout.fillWidth:true;opacity:0.6}
       }
      }
      SettingsCard {
@@ -851,6 +856,52 @@ Window {
        SettingsCheckBox {objectName:"predictNextWordToggle";text:"Suggest the next word after a space";enabled:controller.predictionMode!=="off";checked:controller.predictNextWord;onToggled:controller.predictNextWord=checked}
        SettingsCheckBox {text:"Use and learn personal words locally";checked:controller.learning;onToggled:controller.learning=checked}
        SettingsButton {text:"Reset learned words";onClicked:controller.resetLearning()}
+      }
+     }
+     SettingsCard {
+      title:"SpeakLabel profiles";visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
+      ColumnLayout {
+       anchors.fill:parent;spacing:12
+       property var selectedProfile:controller.speechProfiles[controller.activeSpeechProfile]
+       id:speechProfileEditor
+       Desktop.Label {text:"Choose the labels and spoken phrases for the 12 conversation keys. Changes apply immediately; Save preferences keeps them after restarting.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       SettingsComboBox {
+        objectName:"speechProfileSelector";Layout.fillWidth:true
+        model:controller.speechProfiles.map(function(profile){return profile.name})
+        currentIndex:controller.activeSpeechProfile
+        Accessible.name:"Active speech profile"
+        onActivated:controller.activeSpeechProfile=currentIndex
+       }
+       RowLayout {
+        Layout.fillWidth:true
+        Desktop.TextField {id:speechProfileName;Layout.fillWidth:true;placeholderText:"Profile name";Accessible.name:"Profile name"}
+        SettingsButton {text:"Create profile";enabled:speechProfileName.text.trim().length>0;onClicked:if(controller.createSpeechProfile(speechProfileName.text))speechProfileName.clear()}
+        SettingsButton {text:"Rename";enabled:speechProfileName.text.trim().length>0;onClicked:if(controller.renameSpeechProfile(speechProfileName.text))speechProfileName.clear()}
+        SettingsButton {text:"Delete profile";enabled:controller.speechProfiles.length>1;onClicked:controller.deleteSpeechProfile()}
+       }
+       Desktop.Label {text:speechProfileEditor.selectedProfile.items.length+" / 12 items"}
+       Repeater {
+        model:speechProfileEditor.selectedProfile.items
+        delegate:ColumnLayout {
+         required property int index
+         required property var modelData
+         Layout.fillWidth:true
+         RowLayout {
+          Layout.fillWidth:true
+          Desktop.TextField {id:itemLabel;Layout.fillWidth:true;text:modelData.label;placeholderText:"Key label";Accessible.name:"Key label "+(index+1)}
+          SettingsButton {text:"Apply item";enabled:itemLabel.text.trim().length>0&&itemPhrase.text.trim().length>0;onClicked:controller.updateSpeechItem(index,itemLabel.text,itemPhrase.text)}
+          SettingsButton {text:"Remove";onClicked:controller.removeSpeechItem(index)}
+         }
+         Desktop.TextArea {id:itemPhrase;Layout.fillWidth:true;text:modelData.phrase;placeholderText:"Phrase to speak";wrapMode:Text.Wrap;Accessible.name:"Spoken phrase "+(index+1)}
+        }
+       }
+       Desktop.TextField {id:newSpeechLabel;Layout.fillWidth:true;placeholderText:"New key label";Accessible.name:"New key label"}
+       Desktop.TextArea {id:newSpeechPhrase;Layout.fillWidth:true;placeholderText:"New spoken phrase";wrapMode:Text.Wrap;Accessible.name:"New spoken phrase"}
+       SettingsButton {
+        text:"Add item";enabled:speechProfileEditor.selectedProfile.items.length<12&&newSpeechLabel.text.trim().length>0&&newSpeechPhrase.text.trim().length>0
+        onClicked:if(controller.addSpeechItem(newSpeechLabel.text,newSpeechPhrase.text)){newSpeechLabel.clear();newSpeechPhrase.clear()}
+       }
+       SettingsButton {text:"Open conversation keyboard";onClicked:{controller.openLayout("keyboard-conversation-fullscreen",true);settings.close()}}
       }
      }
      SettingsCard {

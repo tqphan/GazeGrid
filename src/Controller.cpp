@@ -55,6 +55,9 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  connect(&speech,&SpeechOutput::status,this,[this](QString message){actionStatus=message;emit changed();});
  clock.start();auto profile=signInMode?ProfileStore::Loaded{ProfileStore::valid(signInProfile)?signInProfile:ProfileStore::defaults(),{}}:ProfileStore(configFile("profile.json")).load();
  if(signInMode){profile.values["predictionMode"]="off";profile.values["learning"]=false;}
+ speechProfiles=profile.values.value("speechProfiles").toArray().toVariantList();
+ if(speechProfiles.isEmpty())speechProfiles=ProfileStore::defaults()["speechProfiles"].toArray().toVariantList();
+ speechProfileIndex=profile.values["activeSpeechProfile"].toInt(0);
  setProcessPriority(profile.values["processPriority"].toInt(0));
  gazeEnabled=profile.values["gazeEnabled"].toBool(true);
  typedWordMode=profile.values["typedWordSuggestionMode"].toString("fallback");
@@ -284,6 +287,8 @@ void Controller::setKeyCycleModes(const QStringList &modes){
 bool Controller::savePreferences(){
  if(signInMode)return false;
  QJsonObject values{{"keyCycleModes",QJsonArray::fromStringList(keyCycleModesValue)},{"magneticMouseRelative",magneticMouseRelative},{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",startupLayout},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ values["speechProfiles"]=QJsonArray::fromVariantList(speechProfiles);
+ values["activeSpeechProfile"]=speechProfileIndex;
  values["processPriority"]=processPriorityValue;
  values["invalidGazeToleranceMs"]=gazeToleranceMs;
  values["predictionTextScale"]=predictionTextScale;
@@ -300,6 +305,7 @@ void Controller::resetPreferences(){
  QString error;auto values=ProfileStore::defaults();
  if(!ProfileStore(configFile("profile.json")).save(values,error,true)){profileStatus=error;emit changed();return;}
  if(!paused)togglePause();
+ speechProfiles=values["speechProfiles"].toArray().toVariantList();speechProfileIndex=0;emit speechProfilesChanged();
  setProcessPriority(0);
  setMagnifierEnabled(false);
  setGazeEnabled(values["gazeEnabled"].toBool());
@@ -724,7 +730,7 @@ void Controller::openLayout(QString name,bool backReturnsHere){
  // Toolbars and other hidden layouts must not replace the startup keyboard.
  // The built-in default is allowed even though its XML hides it from the menu.
  if(menuLayoutNames.contains(name)||name==ProfileStore::defaults()["startLayout"].toString())startupLayout=name;
- resetCanvasPlacement();canvasEditMode.clear();sizeMoveMode=false;layout=compiled;layoutName=name;updateSuggestions();emit layoutChanged();emit changed();
+ resetCanvasPlacement();canvasEditMode.clear();sizeMoveMode=false;layout=compiled;layoutName=name;applySpeechProfile();updateSuggestions();emit layoutChanged();emit changed();
 }
 void Controller::recover(){if(!desktopActive)return;paused=false;backStack.clear();openLayout("main-14x1-bottom",false);}
 void Controller::joystick(int index,double x,double y,bool active){
@@ -1046,15 +1052,34 @@ bool Controller::isSignInEnabled()const{
  return false;
 #endif
 }
-void Controller::configureSignIn(bool enabled){
- if(signInMode||!desktopActive)return;
-#ifdef _WIN32
+QJsonObject Controller::signInPreferences() const{
  QJsonObject values{{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
  values["invalidGazeToleranceMs"]=gazeToleranceMs;
  values["predictionTextScale"]=predictionTextScale;
  values["scratchpadTextScale"]=scratchpadTextScale;
  values["clampGazeForKeyboard"]=clampGazeForKeyboard;
  values["clampGazeForPointSelection"]=clampGazeForPointSelection;
+ values["magnifierEnabled"]=magnifierEnabled;
+ values["magnifierZoom"]=magnifierZoom;
+ values["progressiveZoom"]=progressiveZoom;
+ values["zoomDurationMs"]=zoomDurationMs;
+ values["targetDwellEnabled"]=targetDwellEnabled;
+ values["targetStartDwellMs"]=targetStartDwellMs;
+ values["targetConfirmDwellMs"]=targetConfirmDwellMs;
+ values["targetDwellRadius"]=targetDwellRadius;
+ return values;
+}
+void Controller::syncSignInPreferences(){
+ if(signInMode||!desktopActive)return;
+#ifdef _WIN32
+ profileStatus=WindowsSignIn::configure(true,signInPreferences(),true)?"Current preferences copied to login and secure desktop. Prediction is disabled there.":"Could not sync preferences. Install the trusted version of GazeGrid and accept the administrator prompt.";
+ emit changed();
+#endif
+}
+void Controller::configureSignIn(bool enabled){
+ if(signInMode||!desktopActive)return;
+#ifdef _WIN32
+ const auto values=signInPreferences();
  profileStatus=WindowsSignIn::configure(enabled,values)?(enabled?"This keyboard will start before Windows sign-in. Prediction is disabled there.":"Windows sign-in startup is disabled."):"Could not change sign-in startup. Install the trusted version of GazeGrid and accept the administrator prompt.";
  emit changed();
 #endif
@@ -1080,4 +1105,57 @@ void Controller::setGazeSaccadeDistance(double value){
 void Controller::setTypedWordSuggestionMode(const QString &mode){
  if(!QStringList{"always","fallback","never"}.contains(mode)||typedWordMode==mode)return;
  typedWordMode=mode;dwell.reset();updateSuggestions();
+}
+
+void Controller::applySpeechProfile(){
+ if(layoutName!="keyboard-conversation-fullscreen"||speechProfiles.isEmpty())return;
+ auto keys=layout["keys"].toList();
+ const auto items=speechProfiles[speechProfileIndex].toMap()["items"].toList();int slot=0;
+ for(auto &value:keys){
+  auto key=value.toMap();auto commands=key["commands"].toList();bool speechKey=false;
+  for(auto &entry:commands){auto command=entry.toMap();
+   if(command["tag"]=="Action"&&command["text"].toString().trimmed()=="SpeakLabel"){
+    speechKey=true;command["label"]=slot<items.size()?items[slot].toMap()["phrase"].toString():QString();entry=command;
+   }
+  }
+  if(!speechKey)continue;
+  key["label"]=slot<items.size()?items[slot].toMap()["label"].toString():QString();
+  key["unavailableReason"]=slot<items.size()?QString():QString("No phrase configured");
+  key["commands"]=commands;value=key;++slot;
+ }
+ layout["keys"]=keys;dwell.reset();emit layoutChanged();
+}
+void Controller::speechProfileEdited(){
+ runner.cancel();speech.stop();applySpeechProfile();emit speechProfilesChanged();emit changed();
+}
+void Controller::setActiveSpeechProfile(int index){
+ if(signInMode||index<0||index>=speechProfiles.size()||index==speechProfileIndex)return;
+ speechProfileIndex=index;speechProfileEdited();
+}
+bool Controller::createSpeechProfile(QString name){
+ name=name.trimmed();if(signInMode||name.isEmpty())return false;
+ speechProfiles<<QVariantMap{{"name",name},{"items",QVariantList{}}};speechProfileIndex=speechProfiles.size()-1;speechProfileEdited();return true;
+}
+bool Controller::renameSpeechProfile(QString name){
+ name=name.trimmed();if(signInMode||name.isEmpty())return false;
+ auto profile=speechProfiles[speechProfileIndex].toMap();profile["name"]=name;speechProfiles[speechProfileIndex]=profile;speechProfileEdited();return true;
+}
+void Controller::deleteSpeechProfile(){
+ if(signInMode||speechProfiles.size()<=1)return;
+ speechProfiles.removeAt(speechProfileIndex);speechProfileIndex=qMin(speechProfileIndex,int(speechProfiles.size())-1);speechProfileEdited();
+}
+bool Controller::addSpeechItem(QString label,QString phrase){
+ if(signInMode||label.trimmed().isEmpty()||phrase.trimmed().isEmpty())return false;
+ auto profile=speechProfiles[speechProfileIndex].toMap();auto items=profile["items"].toList();if(items.size()>=12)return false;
+ items<<QVariantMap{{"label",label.trimmed()},{"phrase",phrase.trimmed()}};profile["items"]=items;speechProfiles[speechProfileIndex]=profile;speechProfileEdited();return true;
+}
+bool Controller::updateSpeechItem(int index,QString label,QString phrase){
+ if(signInMode||label.trimmed().isEmpty()||phrase.trimmed().isEmpty())return false;
+ auto profile=speechProfiles[speechProfileIndex].toMap();auto items=profile["items"].toList();if(index<0||index>=items.size())return false;
+ items[index]=QVariantMap{{"label",label.trimmed()},{"phrase",phrase.trimmed()}};profile["items"]=items;speechProfiles[speechProfileIndex]=profile;speechProfileEdited();return true;
+}
+void Controller::removeSpeechItem(int index){
+ if(signInMode)return;
+ auto profile=speechProfiles[speechProfileIndex].toMap();auto items=profile["items"].toList();if(index<0||index>=items.size())return;
+ items.removeAt(index);profile["items"]=items;speechProfiles[speechProfileIndex]=profile;speechProfileEdited();
 }

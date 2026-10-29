@@ -632,6 +632,16 @@ private slots:
   QVERIFY(p.start("MouseMoveTo"));p.select({-1,.5});p.select({qQNaN(),.5});p.select({.5,2});
   QTest::qWait(130);QCOMPARE(moves,0);QVERIFY(p.targeting());p.cancel();
  }
+ void speechProfileValidation(){
+  auto values=ProfileStore::defaults();QVERIFY(ProfileStore::valid(values));
+  values.remove("speechProfiles");values.remove("activeSpeechProfile");QVERIFY(ProfileStore::valid(values));
+  values=ProfileStore::defaults();values["activeSpeechProfile"]=1;QVERIFY(!ProfileStore::valid(values));
+  values["activeSpeechProfile"]=0.5;QVERIFY(!ProfileStore::valid(values));
+  values=ProfileStore::defaults();auto profiles=values["speechProfiles"].toArray();auto profile=profiles[0].toObject();auto items=profile["items"].toArray();
+  items.append(items[0]);profile["items"]=items;profiles[0]=profile;values["speechProfiles"]=profiles;QVERIFY(!ProfileStore::valid(values));
+  items=QJsonArray{QJsonObject{{"label","Help"},{"phrase"," "}}};profile["items"]=items;profiles[0]=profile;values["speechProfiles"]=profiles;QVERIFY(!ProfileStore::valid(values));
+  profile["items"]=QJsonArray{};profiles[0]=profile;values["speechProfiles"]=profiles;QVERIFY(ProfileStore::valid(values));
+ }
  void keyCycleModesValidation(){
   auto values=ProfileStore::defaults();QVERIFY(ProfileStore::valid(values));
   values.remove("keyCycleModes");QVERIFY(ProfileStore::valid(values));

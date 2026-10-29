@@ -15,6 +15,8 @@
 #include "SpeechOutput.h"
 class Controller:public QObject{
  Q_OBJECT
+ Q_PROPERTY(QVariantList speechProfiles READ getSpeechProfiles NOTIFY speechProfilesChanged)
+ Q_PROPERTY(int activeSpeechProfile READ activeSpeechProfile WRITE setActiveSpeechProfile NOTIFY speechProfilesChanged)
  Q_PROPERTY(int processPriority READ processPriority WRITE setProcessPriority NOTIFY changed)
  Q_PROPERTY(bool signInMode READ isSignInMode CONSTANT)
  Q_PROPERTY(bool signInEnabled READ isSignInEnabled NOTIFY changed)
@@ -117,6 +119,7 @@ public:
  bool isDesktopActive()const{return desktopActive;}
  void setDesktopActive(bool active);
  Q_INVOKABLE void configureSignIn(bool enabled);
+ Q_INVOKABLE void syncSignInPreferences();
  Q_INVOKABLE void updateKeyboardMask(QObject *window,const QVariantList &rectangles,bool enabled);
  bool isMagnifierEnabled()const{return magnifierEnabled;}
  void setMagnifierEnabled(bool enabled);
@@ -205,12 +208,22 @@ public:
  bool predictNextWord()const{return nextWordEnabled;}
  void setPredictNextWord(bool enabled);
  Q_INVOKABLE void resetLearning();
+ QVariantList getSpeechProfiles()const{return speechProfiles;}
+ int activeSpeechProfile()const{return speechProfileIndex;}
+ void setActiveSpeechProfile(int index);
+ Q_INVOKABLE bool createSpeechProfile(QString name);
+ Q_INVOKABLE bool renameSpeechProfile(QString name);
+ Q_INVOKABLE void deleteSpeechProfile();
+ Q_INVOKABLE bool addSpeechItem(QString label,QString phrase);
+ Q_INVOKABLE bool updateSpeechItem(int index,QString label,QString phrase);
+ Q_INVOKABLE void removeSpeechItem(int index);
  Q_INVOKABLE void speak();
  Q_INVOKABLE void stopSpeech();
  // Used only by deterministic external-input integration checks.
  bool executeCommands(const QVariantList &commands){return desktopActive&&runner.start(commands);}
  bool executingCommands()const{return runner.busy();}
 signals:
+ void speechProfilesChanged();
  void geometryPreferencesChanged();
  void settingsRequested();
  void changed();
@@ -220,6 +233,11 @@ signals:
  void layoutChanged();
  void gazePoint(double x,double y,bool valid);
 private:
+ QVariantList speechProfiles;
+ int speechProfileIndex=0;
+ void applySpeechProfile();
+ void speechProfileEdited();
+ QJsonObject signInPreferences() const;
  void stopTracker();
  void scheduleTrackerRetry();
  bool isSleepKey(const QString &key) const;
