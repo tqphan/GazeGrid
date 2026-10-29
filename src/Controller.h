@@ -42,6 +42,7 @@ class Controller:public QObject{
  Q_PROPERTY(bool gazeIndicatorMorph MEMBER gazeIndicatorMorph NOTIFY changed)
  Q_PROPERTY(QString buttonMode READ buttonMode NOTIFY changed)
  Q_PROPERTY(QString keyMode READ keyMode NOTIFY changed)
+ Q_PROPERTY(QStringList keyCycleModes READ keyCycleModes WRITE setKeyCycleModes NOTIFY changed)
  Q_PROPERTY(int repeatIntervalMs MEMBER repeatIntervalMs NOTIFY changed)
  Q_PROPERTY(bool preserveTogglesBetweenLayouts MEMBER preserveTogglesBetweenLayouts NOTIFY changed)
  Q_PROPERTY(bool cycleModifiersOnHover MEMBER cycleModifiersOnHover NOTIFY changed)
@@ -181,6 +182,8 @@ public:
  Q_INVOKABLE void clickCommand(QString key);
  Q_INVOKABLE double hover(QString key);
  Q_INVOKABLE QVariantMap hoverKeys(const QStringList &targets);
+ QStringList keyCycleModes()const{return keyCycleModesValue;}
+ void setKeyCycleModes(const QStringList &modes);
  QString keyMode()const{return keyModeValue;}
  QString buttonMode()const{return buttonModeValue;}
  Q_INVOKABLE double dwellAt(double x,double y,bool valid);
@@ -243,6 +246,7 @@ private:
  QList<OverlapActivation> overlapPending;
  bool collectingOverlap=false,dispatchingOverlap=false;
  QString buttonModeValue="Tap",buttonHoldTarget,buttonHoldAction;
+ QStringList keyCycleModesValue{"Tap","Repeat","Hold","Toggle"};
  QString keyModeValue="Tap",heldDwellTarget;
  qint64 lastHoldHover=0;
  int repeatIntervalMs=750;

@@ -23,10 +23,19 @@ bool write(const QString &path, const QJsonObject &values, QString &error) {
 }
 ProfileStore::ProfileStore(QString path):path(std::move(path)){}
 QJsonObject ProfileStore::defaults(){
-    return {{"magneticMouseRelative",false},{"processPriority",0},{"predictionTextScale",100},{"scratchpadTextScale",100},{"removeCompletionSpaceBeforePunctuation",true},{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",250},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",true},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeFilterType",0},{"gazeFilterGain",0.2},{"gazeSaccadeDistance",0.1},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"typedWordSuggestionMode","fallback"},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
+    return {{"keyCycleModes",QJsonArray{"Tap","Repeat","Hold","Toggle"}},{"magneticMouseRelative",false},{"processPriority",0},{"predictionTextScale",100},{"scratchpadTextScale",100},{"removeCompletionSpaceBeforePunctuation",true},{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",250},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",true},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeFilterType",0},{"gazeFilterGain",0.2},{"gazeSaccadeDistance",0.1},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"typedWordSuggestionMode","fallback"},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"keyboardTheme","system"},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
+    if(v.contains("keyCycleModes")){
+        if(!v["keyCycleModes"].isArray()||v["keyCycleModes"].toArray().isEmpty())return false;
+        QStringList seen;
+        for(const auto &entry:v["keyCycleModes"].toArray()){
+            const auto mode=entry.toString();
+            if(!entry.isString()||!QStringList{"Tap","Repeat","Hold","Toggle"}.contains(mode)||seen.contains(mode))return false;
+            seen.append(mode);
+        }
+    }
     static const QRegularExpression layout("^[A-Za-z0-9_-]+$");
     return v["version"].isDouble()&&v["version"].toDouble()==1
         &&(!v.contains("gazeEnabled")||v["gazeEnabled"].isBool())

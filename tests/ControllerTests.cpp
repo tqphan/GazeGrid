@@ -291,6 +291,24 @@ private slots:
   QCOMPARE(c.buttonMode(),QString("Repeat"));
   c.clickCommand("CycleButtonMode");QCOMPARE(c.buttonMode(),QString("Hold"));
  }
+ void selectedKeyCycleModesPersist(){
+  {
+   Controller c;c.resetPreferences();
+   c.setKeyCycleModes({"Toggle","Tap","Tap","invalid"});
+   QCOMPARE(c.keyCycleModes(),(QStringList{"Tap","Toggle"}));
+   c.clickCommand("CycleKeyMode");QCOMPARE(c.keyMode(),QString("Toggle"));
+   c.clickCommand("CycleKeyMode");QCOMPARE(c.keyMode(),QString("Tap"));
+   c.setKeyCycleModes({});QCOMPARE(c.keyCycleModes(),(QStringList{"Tap","Toggle"}));
+   c.setKeyCycleModes({"Hold"});QCOMPARE(c.keyMode(),QString("Hold"));
+   c.clickCommand("CycleKeyMode");QCOMPARE(c.keyMode(),QString("Hold"));
+   QVERIFY(c.savePreferences());
+  }
+  {
+   Controller c;QCOMPARE(c.keyCycleModes(),QStringList{"Hold"});QCOMPARE(c.keyMode(),QString("Hold"));
+   c.resetPreferences();QCOMPARE(c.keyCycleModes(),(QStringList{"Tap","Repeat","Hold","Toggle"}));
+  }
+ }
+
  void cycleKeyModeAction(){
   Controller c;
   QCOMPARE(c.keyMode(),QString("Tap"));

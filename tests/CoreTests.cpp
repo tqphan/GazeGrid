@@ -632,6 +632,15 @@ private slots:
   QVERIFY(p.start("MouseMoveTo"));p.select({-1,.5});p.select({qQNaN(),.5});p.select({.5,2});
   QTest::qWait(130);QCOMPARE(moves,0);QVERIFY(p.targeting());p.cancel();
  }
+ void keyCycleModesValidation(){
+  auto values=ProfileStore::defaults();QVERIFY(ProfileStore::valid(values));
+  values.remove("keyCycleModes");QVERIFY(ProfileStore::valid(values));
+  for(const auto &invalid:QJsonArray{QJsonArray{},QJsonArray{"Tap","Tap"},QJsonArray{"Unknown"},QJsonArray{1},"Tap"}){
+   values["keyCycleModes"]=invalid;QVERIFY(!ProfileStore::valid(values));
+  }
+  values["keyCycleModes"]=QJsonArray{"Hold"};QVERIFY(ProfileStore::valid(values));
+ }
+
  void preferencesPersistAndRecover(){
   QTemporaryDir dir;QString path=dir.filePath("nested/profile.json"),error;ProfileStore store(path);
   QCOMPARE(store.load().values,ProfileStore::defaults());QVERIFY(store.load().message.isEmpty());

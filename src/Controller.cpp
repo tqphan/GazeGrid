@@ -92,6 +92,7 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  gazeIndicatorOpacity=profile.values["gazeIndicatorOpacity"].toInt(100);
  gazeIndicatorColor=profile.values["gazeIndicatorColor"].toString("#00bfff");
  repeatIntervalMs=profile.values["repeatIntervalMs"].toInt(750);
+ if(profile.values.contains("keyCycleModes"))setKeyCycleModes(profile.values["keyCycleModes"].toVariant().toStringList());
  preserveTogglesBetweenLayouts=profile.values["preserveTogglesBetweenLayouts"].toBool();
  cycleModifiersOnHover=profile.values["cycleModifiersOnHover"].toBool();
  hideKeyboardDuringMouseActions=profile.values["hideKeyboardDuringMouseActions"].toBool();
@@ -266,9 +267,23 @@ void Controller::inputContextChanged(bool active,bool sensitive){
  else updateSuggestions();
  actionStatus=active?(sensitive?"Native input ready — private field":"Native text input ready"):"Select a text field to use native input";emit changed();
 }
+void Controller::setKeyCycleModes(const QStringList &modes){
+ QStringList selected;
+ for(const auto &mode:QStringList{"Tap","Repeat","Hold","Toggle"})
+  if(modes.contains(mode))selected.append(mode);
+ if(selected.isEmpty()||selected==keyCycleModesValue)return;
+ keyCycleModesValue=selected;
+ if(!selected.contains(keyModeValue)){
+  clearOverlap();runner.endDwellHold();heldDwellTarget.clear();runner.releaseToggledKeys();
+  keyModeValue=selected.first();
+  actionStatus="Key mode: "+keyModeValue;
+ }
+ emit changed();
+}
+
 bool Controller::savePreferences(){
  if(signInMode)return false;
- QJsonObject values{{"magneticMouseRelative",magneticMouseRelative},{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",startupLayout},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"keyCycleModes",QJsonArray::fromStringList(keyCycleModesValue)},{"magneticMouseRelative",magneticMouseRelative},{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",startupLayout},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  values["processPriority"]=processPriorityValue;
  values["invalidGazeToleranceMs"]=gazeToleranceMs;
  values["predictionTextScale"]=predictionTextScale;
@@ -296,6 +311,7 @@ void Controller::resetPreferences(){
  dwellIndicatorStyle="bar";
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";typedWordMode="fallback";nextWordEnabled=true;completionSpaceEnabled=true;sentenceStartersEnabled=true;backStack.clear();
  repeatIntervalMs=750;
+ setKeyCycleModes({"Tap","Repeat","Hold","Toggle"});
  preserveTogglesBetweenLayouts=false;
  cycleModifiersOnHover=false;
  hideKeyboardDuringMouseActions=false;
@@ -750,7 +766,7 @@ bool Controller::performAction(QString action){
   clearOverlap();
   runner.endDwellHold();heldDwellTarget.clear();
   runner.releaseToggledKeys();
-  keyModeValue=keyModeValue=="Tap"?"Repeat":keyModeValue=="Repeat"?"Hold":keyModeValue=="Hold"?"Toggle":"Tap";
+  keyModeValue=keyCycleModesValue[(keyCycleModesValue.indexOf(keyModeValue)+1)%keyCycleModesValue.size()];
   actionStatus="Key mode: "+keyModeValue;emit changed();return true;
  }
  if(GameController::supports(action))return runner.textOnly?true:gameController.perform(action);

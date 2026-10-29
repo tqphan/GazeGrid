@@ -773,6 +773,23 @@ Window {
        Tool {text:"Button mode: "+controller.buttonMode+" (cycle)";command:"CycleButtonMode"}
        Tool {text:"Key mode: "+controller.keyMode+" (cycle)";command:"CycleKeyMode"}
        Desktop.Label {text:"Tap → Repeat → Hold → Toggle. Hold presses after dwell and releases when mouse or gaze leaves. Toggle keeps a key pressed until selected again. Applies to all physical keyboard keys except modifiers (Shift, Ctrl, Alt and Super/Windows).";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Desktop.Label {text:"Modes included when cycling key mode (keep at least one selected):";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Repeater {
+        model:["Tap","Repeat","Hold","Toggle"]
+        delegate:SettingsCheckBox {
+         required property string modelData
+         objectName:"keyCycleMode"+modelData
+         text:modelData
+         checked:controller.keyCycleModes.indexOf(modelData)>=0
+         enabled:!checked||controller.keyCycleModes.length>1
+         onToggled:{
+          let modes=controller.keyCycleModes.slice()
+          if(checked)modes.push(modelData)
+          else modes=modes.filter(function(mode){return mode!==modelData})
+          controller.keyCycleModes=modes
+         }
+        }
+       }
        SettingsCheckBox {text:"Preserve toggled keys between layouts";checked:controller.preserveTogglesBetweenLayouts;onToggled:controller.preserveTogglesBetweenLayouts=checked}
        SettingsCheckBox {text:"Cycle modifiers while hovering";checked:controller.cycleModifiersOnHover;onToggled:controller.cycleModifiersOnHover=checked}
        SettingSlider {label:"Repeat rate";displayValue:(1000/controller.repeatIntervalMs).toFixed(1)+" / sec ("+controller.repeatIntervalMs+" ms)";from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
