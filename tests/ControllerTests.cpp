@@ -960,6 +960,34 @@ private slots:
   {Controller controller;QVERIFY(!controller.isMagnifierEnabled());controller.setMagnifierEnabled(true);controller.resetPreferences();QVERIFY(!controller.isMagnifierEnabled());}
   {Controller controller;QVERIFY(!controller.isMagnifierEnabled());}
  }
+ void magnifierRefreshPreferences(){
+  Controller controller;controller.resetPreferences();
+  QCOMPARE(controller.property("magnifierRefreshHz").toInt(),30);
+  for(int hz:{15,30,45,60}){
+   controller.setProperty("magnifierRefreshHz",hz);QVERIFY(controller.savePreferences());
+   Controller restored;QCOMPARE(restored.property("magnifierRefreshHz").toInt(),hz);
+  }
+  controller.setProperty("magnifierRefreshHz",25);
+  QCOMPARE(controller.property("magnifierRefreshHz").toInt(),60);
+  auto profile=ProfileStore::defaults();profile["magnifierRefreshHz"]=30.5;
+  QVERIFY(!ProfileStore::valid(profile));
+  controller.resetPreferences();
+ }
+ void liveMagnifierReplacesPixelsAndIgnoresCancelledFrames(){
+  Controller controller;controller.setProperty("targeting",true);controller.setProperty("capturePending",true);
+  controller.setProperty("progressiveZoom",false);
+  QImage frame(QGuiApplication::primaryScreen()->size(),QImage::Format_RGB32);frame.fill(Qt::red);
+  QVERIFY(QMetaObject::invokeMethod(&controller,"receiveMagnifierFrame",Qt::DirectConnection,Q_ARG(QImage,frame)));
+  const auto size=controller.magnifierImage().size();
+  frame.fill(Qt::blue);
+  QVERIFY(QMetaObject::invokeMethod(&controller,"receiveLiveMagnifierFrame",Qt::DirectConnection,Q_ARG(QImage,frame)));
+  QCOMPARE(controller.magnifierImage().size(),size);
+  QCOMPARE(controller.magnifierImage().pixelColor(0,0),QColor(Qt::blue));
+  QVERIFY(!controller.property("capturePending").toBool());
+  controller.clickCommand("CancelTarget");
+  QVERIFY(QMetaObject::invokeMethod(&controller,"receiveLiveMagnifierFrame",Qt::DirectConnection,Q_ARG(QImage,frame)));
+  QVERIFY(controller.magnifierImage().isNull());
+ }
  void progressiveZoomGrowsAndStopsAtChosenMagnification(){
   Controller controller;controller.inputContextChanged(true,false);
   controller.setProperty("targeting",true);controller.setProperty("capturePending",true);

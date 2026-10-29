@@ -6,3 +6,8 @@ component: 0.1.9 → 0.2.0, and 0.9.9 → 1.0.0.
 
 Version 0.1.10 was already published before this rule was established. Leave that
 release intact; the version sequence resumes at 0.2.0.
+
+# Settings UI copy
+
+When adding new settings, use the briefest clear labels. Do not add descriptions
+or explanations of what settings do.

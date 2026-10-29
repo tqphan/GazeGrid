@@ -39,6 +39,7 @@ public:
     void changed();
     void completed(bool success);
  private:
+    void reset(bool preserveMagnetic);
     struct Operation { QString action; QPointF source,target; } current,last;
     void execute();
     void tick();
@@ -47,7 +48,7 @@ public:
     bool click(int code);
     bool moveTo(QPointF p);
     QTimer timer;
-    QTimer trackingGrace;
+    bool scrollTrackingPaused=false;
     QSet<int> held;
     QPointF position{.5,.5};
     bool relativeMagnetic=false;

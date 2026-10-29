@@ -463,7 +463,7 @@ private slots:
   const auto delta=scroll.update({600,400},50,true);
   QVERIFY(delta.x()>0);QVERIFY(delta.y()<0);QCOMPARE(delta.x(),-delta.y());
   QCOMPARE(scroll.update({800,800},75,false),QPointF()); // Keyboard/controls never scroll.
-  QCOMPARE(scroll.update({800,800},400,true),QPointF());QVERIFY(!scroll.active());
+  QCOMPARE(scroll.update({800,800},400,true),QPointF());QVERIFY(scroll.active());
   scroll.start({500,500},500);QCOMPARE(scroll.update({800,800},499,true),QPointF());QVERIFY(!scroll.active());
  }
  void lookScrollSettingsControlSpeedDeadzoneAndAxes(){
@@ -483,7 +483,7 @@ private slots:
   QTest::qWait(25);QVERIFY(p.follow({.8,.8},true));QCOMPARE(scrolls.size(),1);QVERIFY(scrolls[0].x()>0);QVERIFY(scrolls[0].y()>0);
   QVERIFY(p.start("LookToScrollActive"));QVERIFY(!p.targeting());QTRY_COMPARE(done.count(),2);QVERIFY(!p.lookScrolling());
  }
- void lookScrollPausesThroughBlinkAndStopsOnLongLoss(){
+ void lookScrollPausesThroughTrackingLossAndResumes(){
   PointerActions p;p.setDisplaySize({1000,1000});QList<QPointF> scrolls;
   p.move=[](double,double){return true;};
   p.scrollAxes=[&](double x,double y){scrolls<<QPointF(x,y);return true;};
@@ -494,7 +494,11 @@ private slots:
   QTest::qWait(25);QVERIFY(p.follow({.5,.8},true));QCOMPARE(scrolls.size(),2);
   p.trackingLost();
   for(int i=0;i<4;++i){QTest::qWait(200);p.trackingLost();}
-  QVERIFY(!p.lookScrolling());QVERIFY(!p.follow({.5,.8},true));QCOMPARE(scrolls.size(),2);
+  QVERIFY(p.lookScrolling());
+  QVERIFY(!p.follow({qQNaN(),0},true));QVERIFY(p.lookScrolling());QCOMPARE(scrolls.size(),2);
+  QVERIFY(p.follow({.5,.8},true));QCOMPARE(scrolls.size(),2);
+  QTest::qWait(25);QVERIFY(p.follow({.5,.8},true));QCOMPARE(scrolls.size(),3);
+  p.cancel();QVERIFY(!p.lookScrolling());
   QVERIFY(p.start("MouseMoveAndLeftClick"));p.select({.5,.5});p.trackingLost();
   QVERIFY(!p.busy()); // Other pointer actions still cancel immediately.
  }
@@ -506,7 +510,8 @@ private slots:
   QVERIFY(p.start("MouseMoveTo"));QVERIFY(!p.follow({.8,.9}));QCOMPARE(moves.size(),1);p.cancel();
   QVERIFY(!p.magnetic());QVERIFY(!p.follow({.4,.5}));
   QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),2);
-  QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(!p.magnetic());QCOMPARE(moves.size(),1);
+  QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(p.magnetic());QCOMPARE(moves.size(),1);
+  QVERIFY(p.follow({.4,.5}));QCOMPARE(moves.last(),QPointF(.4,.5));
  }
  void magneticCursorClampsOffscreenGaze(){
   for(bool relative:{false,true}){
@@ -520,7 +525,11 @@ private slots:
     QCOMPARE(moves.last(),QPointF(qBound(0.,point.x(),1.),qBound(0.,point.y(),1.)));
    }
    QVERIFY(p.follow({.4,.6}));QCOMPARE(moves.last(),QPointF(.4,.6));
-   QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(!p.magnetic());
+   QVERIFY(!p.follow({qQNaN(),0}));QVERIFY(p.magnetic());
+   const auto moveCount=moves.size();
+   p.trackingLost();p.trackingLost();QVERIFY(p.magnetic());QCOMPARE(moves.size(),moveCount);
+   QVERIFY(p.follow({.3,.7}));QCOMPARE(moves.last(),QPointF(.3,.7));
+   p.cancel();QVERIFY(!p.magnetic());
   }
  }
  void magneticRelativeTargetsGazeImmediatelyAndWhileStationary(){
@@ -537,8 +546,7 @@ private slots:
   QCOMPARE(absoluteMoves,0);QCOMPARE(rawMoves,0);
   p.setMagneticRelative(false);QVERIFY(p.follow({.75,.75}));QCOMPARE(absoluteMoves,1);
   p.setMagneticRelative(true);QVERIFY(p.follow({.1,.1}));QCOMPARE(targets.last(),QPointF(.1,.1));
-  p.trackingLost();QVERIFY(!p.magnetic());
-  QVERIFY(p.start("MouseMagneticCursor"));QTRY_COMPARE(done.count(),2);
+  p.trackingLost();QVERIFY(p.magnetic());
   QVERIFY(p.follow({.9,.9}));QCOMPARE(targets.last(),QPointF(.9,.9));
   p.moveRelativeTo=[](double,double){return false;};
   QVERIFY(!p.follow({.5,.5}));QVERIFY(!p.magnetic());

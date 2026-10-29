@@ -16,7 +16,7 @@ const QString settingsPath="HKEY_LOCAL_MACHINE\\SOFTWARE\\GazeGrid\\SignIn";
 QJsonObject WindowsSignIn::validatedProfile(const QJsonObject &source){
  auto result=ProfileStore::defaults();
  // Only keyboard presentation, gaze and magnifier preferences cross the desktop boundary.
- for(const auto &name:{"magnifierEnabled","magnifierZoom","progressiveZoom","zoomDurationMs","targetDwellEnabled","targetStartDwellMs","targetConfirmDwellMs","targetDwellRadius"})
+ for(const auto &name:{"magnifierRefreshHz","magnifierEnabled","magnifierZoom","progressiveZoom","zoomDurationMs","targetDwellEnabled","targetStartDwellMs","targetConfirmDwellMs","targetDwellRadius"})
   if(source.contains(name))result[name]=source[name];
  for(const auto &name:{"startLayout","keyboardScale","keyboardTheme","dwellMs","dwellIndicatorStyle","gazeEnabled","clampGazeForKeyboard","clampGazeForPointSelection","invalidGazeToleranceMs","gazeFilterType","gazeFilterGain","gazeSaccadeDistance","gazeSmoothingLevel","smoothWhenChangingGazeTarget","shortLabelScale","longLabelScale","scratchpadTextScale"})
   if(source.contains(name))result[name]=source[name];

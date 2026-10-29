@@ -65,3 +65,6 @@ void ScreenshotPortal::response(uint code,const QVariantMap &results){
  }
  emit captured(image);
 }
+
+// The screenshot portal is a single-shot API; live capture requires a screencast session.
+void ScreenshotPortal::startLive(int){}

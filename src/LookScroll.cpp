@@ -6,7 +6,8 @@ void LookScroll::configure(int speedPercent,int deadzonePixels,int axes){
 }
 QPointF LookScroll::update(QPointF point,qint64 now,bool overDesktop){
     if(!enabled)return {};
-    if(!std::isfinite(point.x())||!std::isfinite(point.y())||now<last||now-last>200){stop();return {};}
+    if(!std::isfinite(point.x())||!std::isfinite(point.y())||now<last){stop();return {};}
+    if(now-last>200){last=now;return {};}
     const double seconds=std::min<qint64>(now-last,100)/1000.0;last=now;
     if(!overDesktop)return {};
     auto velocity=[this](double distance){

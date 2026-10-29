@@ -359,6 +359,7 @@ int main(int argc,char **argv){
  if(target)target->setTransientParent(nullptr);
 #ifdef _WIN32
  if(target&&QGuiApplication::platformName()=="windows"){
+  SetWindowDisplayAffinity(reinterpret_cast<HWND>(target->winId()),0x00000011 /* WDA_EXCLUDEFROMCAPTURE */);
   target->setProperty("waitForFreshFrame",true);
   target->setProperty("frameReady",false);
   struct Presentation {

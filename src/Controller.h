@@ -97,6 +97,7 @@ class Controller:public QObject{
  Q_PROPERTY(int scrollAxis MEMBER scrollAxis NOTIFY changed)
  Q_PROPERTY(bool lookScrolling READ lookScrolling NOTIFY changed)
  Q_PROPERTY(bool magnifierEnabled READ isMagnifierEnabled WRITE setMagnifierEnabled NOTIFY changed)
+ Q_PROPERTY(int magnifierRefreshHz READ getMagnifierRefreshHz WRITE setMagnifierRefreshHz NOTIFY changed)
  Q_PROPERTY(int magnifierZoom MEMBER magnifierZoom NOTIFY changed)
  Q_PROPERTY(bool progressiveZoom MEMBER progressiveZoom NOTIFY changed)
  Q_PROPERTY(int zoomDurationMs MEMBER zoomDurationMs NOTIFY changed)
@@ -121,6 +122,8 @@ public:
  Q_INVOKABLE void configureSignIn(bool enabled);
  Q_INVOKABLE void syncSignInPreferences();
  Q_INVOKABLE void updateKeyboardMask(QObject *window,const QVariantList &rectangles,bool enabled);
+ int getMagnifierRefreshHz()const{return magnifierRefreshHz;}
+ void setMagnifierRefreshHz(int hz);
  bool isMagnifierEnabled()const{return magnifierEnabled;}
  void setMagnifierEnabled(bool enabled);
  PortalInput *output(){return &portal;}
@@ -286,6 +289,7 @@ private:
  bool desktopActive=true,desktopOutputRequested=false;
  ScreenshotPortal screenshot;
  Q_SLOT void receiveMagnifierFrame(QImage image);
+ Q_SLOT void receiveLiveMagnifierFrame(QImage image);
  QTimer zoomTimer;
  QElapsedTimer zoomClock;
  QImage capturedImage;
@@ -298,7 +302,7 @@ private:
  int magnifierRevision=0;
  bool magneticMouseRelative=false;
  int scrollSpeed=100,scrollDeadzone=50,scrollAxis=0;
- int magnifierZoom=4;
+ int magnifierZoom=4,magnifierRefreshHz=30;
  bool progressiveZoom=false,zoomAnimating=false;
  int zoomDurationMs=1500,activeZoomDurationMs=1500,activeZoom=4;
  PointDwell pointDwell;

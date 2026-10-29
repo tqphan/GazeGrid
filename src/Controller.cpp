@@ -79,6 +79,7 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  magneticMouseRelative=false; // The portal cannot report the global cursor position.
 #endif
  scrollSpeed=profile.values["scrollSpeed"].toInt(100);scrollDeadzone=profile.values["scrollDeadzone"].toInt(50);scrollAxis=profile.values["scrollAxis"].toInt(0);
+ magnifierRefreshHz=profile.values["magnifierRefreshHz"].toInt(30);
  magnifierZoom=profile.values["magnifierZoom"].toInt(4);
  progressiveZoom=profile.values.value("progressiveZoom").toBool(profile.values.value("liveZoom").toBool(false));
  zoomDurationMs=profile.values.value("zoomDurationMs").toInt(1500);
@@ -142,7 +143,11 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  connect(&screenshot,&ScreenshotPortal::failed,this,[this](QString error){
   clearCapture();runner.cancel();endButtonHold();gameController.reset();activeJoystick=-1;pointer.cancel();actionStatus=error;emit changed();
  });
- connect(&screenshot,&ScreenshotPortal::captured,this,[this](QImage image){receiveMagnifierFrame(image);});
+ connect(&screenshot,&ScreenshotPortal::liveFrame,this,&Controller::receiveLiveMagnifierFrame);
+ connect(&screenshot,&ScreenshotPortal::captured,this,[this](QImage image){
+  receiveMagnifierFrame(image);
+  if(magnifierReady)screenshot.startLive(magnifierRefreshHz);
+ });
  connect(&pointer,&PointerActions::completed,this,[this](bool ok){actionStatus=pointer.prompt();runner.resume(ok);emit changed();});
  runner.sendKey=[this](QString name,bool down){return (!down||desktopActive)&&portal.key(KeyNames::linuxCode(name),down);};
  connect(&gameController,&GameController::changed,this,&Controller::changed);
@@ -286,7 +291,7 @@ void Controller::setKeyCycleModes(const QStringList &modes){
 
 bool Controller::savePreferences(){
  if(signInMode)return false;
- QJsonObject values{{"keyCycleModes",QJsonArray::fromStringList(keyCycleModesValue)},{"magneticMouseRelative",magneticMouseRelative},{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",startupLayout},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"keyCycleModes",QJsonArray::fromStringList(keyCycleModesValue)},{"magneticMouseRelative",magneticMouseRelative},{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",startupLayout},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierRefreshHz",magnifierRefreshHz},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  values["speechProfiles"]=QJsonArray::fromVariantList(speechProfiles);
  values["activeSpeechProfile"]=speechProfileIndex;
  values["processPriority"]=processPriorityValue;
@@ -325,7 +330,7 @@ void Controller::resetPreferences(){
  scrollSpeed=100;scrollDeadzone=50;scrollAxis=0;
  gazeIndicatorSize=18;gazeIndicatorOpacity=100;gazeIndicatorColor="#00bfff";gazeIndicatorMorph=false;
  setRestoreCorner(2);setRestoreWidth(64);setRestoreHeight(64);restoreOpacity=100;
- setKeyboardScale(100);keyboardTheme="system";shortLabelScale=values["shortLabelScale"].toInt();longLabelScale=values["longLabelScale"].toInt();magnifierZoom=values["magnifierZoom"].toInt();progressiveZoom=false;zoomDurationMs=1500;targetDwellEnabled=true;targetStartDwellMs=750;targetConfirmDwellMs=1000;targetDwellRadius=40;rememberDesktop=false;
+ setKeyboardScale(100);keyboardTheme="system";shortLabelScale=values["shortLabelScale"].toInt();longLabelScale=values["longLabelScale"].toInt();magnifierZoom=values["magnifierZoom"].toInt();setMagnifierRefreshHz(30);progressiveZoom=false;zoomDurationMs=1500;targetDwellEnabled=true;targetStartDwellMs=750;targetConfirmDwellMs=1000;targetDwellRadius=40;rememberDesktop=false;
  setGazeFilterType(values["gazeFilterType"].toInt(0));
  setGazeFilterGain(values["gazeFilterGain"].toDouble(0.2));
  setGazeSaccadeDistance(values["gazeSaccadeDistance"].toDouble(0.1));
@@ -837,6 +842,11 @@ double Controller::dwellAt(double x,double y,bool valid){
  }
  return pointDwell.progress(clock.elapsed(),duration);
 }
+void Controller::receiveLiveMagnifierFrame(QImage image){
+ if(!targeting||paused||!magnifierReady)return;
+ if(image.size()!=captureSize){clearCapture();pointer.cancel();actionStatus="Display size changed; target selection cancelled";emit changed();return;}
+ capturedImage=std::move(image);updateMagnifierZoom();
+}
 void Controller::receiveMagnifierFrame(QImage image){
  if(!targeting||paused||!capturePending)return;
  auto screen=QGuiApplication::primaryScreen();
@@ -866,6 +876,13 @@ void Controller::clearCapture(){
  pointDwell.reset();
  zoomTimer.stop();zoomAnimating=false;capturedImage={};
  ++captureEpoch;screenshot.cancel();capturePending=false;magnifierReady=false;magnifiedImage={};magnifierCrop={};captureSize={};
+}
+void Controller::setMagnifierRefreshHz(int hz){
+ if(hz!=15&&hz!=30&&hz!=45&&hz!=60)return;
+ if(magnifierRefreshHz==hz)return;
+ magnifierRefreshHz=hz;
+ if(magnifierReady)screenshot.startLive(hz);
+ emit changed();
 }
 void Controller::setMagnifierEnabled(bool enabled){
  if(magnifierEnabled==enabled)return;
@@ -1060,6 +1077,7 @@ QJsonObject Controller::signInPreferences() const{
  values["clampGazeForKeyboard"]=clampGazeForKeyboard;
  values["clampGazeForPointSelection"]=clampGazeForPointSelection;
  values["magnifierEnabled"]=magnifierEnabled;
+ values["magnifierRefreshHz"]=magnifierRefreshHz;
  values["magnifierZoom"]=magnifierZoom;
  values["progressiveZoom"]=progressiveZoom;
  values["zoomDurationMs"]=zoomDurationMs;

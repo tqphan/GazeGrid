@@ -19,15 +19,17 @@ public:
  ~ScreenshotPortal()override;
  void capture();
  void cancel();
+ void startLive(int hz);
 signals:
  void captured(QImage image);
  void failed(QString message);
+ void liveFrame(QImage image);
 private slots:
  void response(uint code,const QVariantMap &results);
 private:
  QString requestPath;
  quint64 generation=0;
- QTimer timeout;
+ QTimer timeout,liveTimer;
  QList<QRectF> captureDisplays;
  int captureDisplay=-1;
 };

@@ -4,8 +4,6 @@
 PointerActions::PointerActions(QObject *parent):QObject(parent){
     clock.start();
     timer.setSingleShot(true);connect(&timer,&QTimer::timeout,this,&PointerActions::tick);
-    trackingGrace.setSingleShot(true);trackingGrace.setInterval(750);
-    connect(&trackingGrace,&QTimer::timeout,this,&PointerActions::cancel);
 }
 bool PointerActions::supports(const QString &a){
     static const QSet<QString> names{"MouseMoveTo","MouseMoveAndLeftClick","MouseMoveAndLeftDoubleClick",
@@ -28,7 +26,7 @@ bool PointerActions::start(const QString &a,int initialDelayMs){
     // A click or drag must not silently release a separately held button.
     const int clickButton=current.action=="MouseMoveAndRightClick"?273:current.action=="MouseMoveAndMiddleClick"?274:272;
     if((current.action.contains("Click")||current.action=="MouseDrag")&&held.contains(clickButton))return false;
-    trackingGrace.stop();
+    scrollTrackingPaused=false;
     active=true;sourceChosen=false;phase=0;
     choosing=a!="RepeatLastMouseAction"&&(a=="MouseMoveTo"||a.startsWith("MouseMoveAnd")||a=="MouseDrag"||(a=="LookToScrollActive"&&!lookScroll.active()));
     instruction=a=="MouseDrag"?"Choose the drag source":"Choose a desktop target";
@@ -103,29 +101,29 @@ void PointerActions::finish(bool success){
     emit changed();emit completed(success);
 }
 void PointerActions::cancel(){
-    trackingGrace.stop();
-    timer.stop();active=false;choosing=false;phase=0;sourceChosen=false;last={};following=false;
+    reset(false);
+}
+void PointerActions::reset(bool preserveMagnetic){
+    scrollTrackingPaused=false;
+    timer.stop();active=false;choosing=false;phase=0;sourceChosen=false;last={};following=preserveMagnetic&&following;
     lookScroll.stop();
     if(releaseAll)releaseAll();held.clear();instruction.clear();emit changed();
 }
 void PointerActions::trackingLost(){
-    // Keep an established scroll anchor through a blink, but never run pending
-    // clicks or targeting operations without tracking. Repeated invalid samples
-    // must not extend the grace period.
-    if(!active&&lookScroll.active()){
-        if(!trackingGrace.isActive())trackingGrace.start();
-    }else cancel();
+    // Preserve continuous modes, but cancel pending clicks and target selection.
+    if(!active&&lookScroll.active())scrollTrackingPaused=true;
+    else reset(true);
 }
 bool PointerActions::follow(QPointF point,bool overDesktop){
     if((!following&&!lookScroll.active())||active)return false;
-    if(!std::isfinite(point.x())||!std::isfinite(point.y())){cancel();return false;}
+    if(!std::isfinite(point.x())||!std::isfinite(point.y())){trackingLost();return false;}
     if(following){
         point.setX(qBound(0.,point.x(),1.));
         point.setY(qBound(0.,point.y(),1.));
     }else if(point.x()<0||point.x()>1||point.y()<0||point.y()>1){cancel();return false;}
     if(lookScroll.active()){
-        if(trackingGrace.isActive()){
-            trackingGrace.stop();lookScroll.resetTime(clock.elapsed());
+        if(scrollTrackingPaused){
+            scrollTrackingPaused=false;lookScroll.resetTime(clock.elapsed());
             return true;
         }
         const auto delta=lookScroll.update({point.x()*displaySize.width(),point.y()*displaySize.height()},clock.elapsed(),overDesktop);
