@@ -51,6 +51,35 @@ class ControllerTests:public QObject {
   c.setProperty("layout",QVariantMap{{"layoutMode","canvas"},{"activateoverlappingkeys",true},{"keys",content}});
  }
 private slots:
+ void hiddenLayoutsDoNotReplaceStartupKeyboard(){
+  ProfileStore store(appConfigDirectory()+"/profile.json");QString error;
+  QVERIFY(store.save(ProfileStore::defaults(),error));
+  {
+   Controller c;
+   c.openLayout("main-14x1-top",false);
+   for(const auto &hidden:{"mouse-14x1-bottom","minimized-off-screen-bottom"}){
+    c.openLayout(hidden,false);
+    QCOMPARE(c.property("layoutName").toString(),QString(hidden));
+    c.setProperty("dwellMs",1250);QVERIFY(c.savePreferences());
+    const auto saved=store.load().values;
+    QCOMPARE(saved["startLayout"].toString(),QString("main-14x1-top"));
+    QCOMPARE(saved["dwellMs"].toInt(),1250);
+   }
+  }
+  {Controller c;QCOMPARE(c.property("layoutName").toString(),QString("main-14x1-top"));c.resetPreferences();}
+ }
+ void hiddenSavedStartupFallsBackToDefault(){
+  ProfileStore store(appConfigDirectory()+"/profile.json");QString error;
+  auto values=ProfileStore::defaults();values["startLayout"]="mouse-14x1-bottom";
+  QVERIFY(store.save(values,error));
+  {
+   Controller c;
+   QCOMPARE(c.property("layoutName").toString(),ProfileStore::defaults()["startLayout"].toString());
+   c.openLayout("mouse-14x1-bottom",false);QVERIFY(c.savePreferences());
+   QCOMPARE(store.load().values["startLayout"].toString(),ProfileStore::defaults()["startLayout"].toString());
+  }
+  {Controller c;QCOMPARE(c.property("layoutName").toString(),ProfileStore::defaults()["startLayout"].toString());c.resetPreferences();}
+ }
  void signInUsesTheSelectedKeyboardWithoutRetainingText(){
   QTemporaryDir directory;const auto previous=qgetenv("GAZEGRID_CONFIG_DIR");
   qputenv("GAZEGRID_CONFIG_DIR",directory.path().toUtf8());

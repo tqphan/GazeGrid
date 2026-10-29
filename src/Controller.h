@@ -312,7 +312,7 @@ private:
  QString canvasEditMode;QVariantMap canvasEditPreview;
  QPointF canvasAnchor;bool canvasAnchorValid=false,canvasPlacementArmed=false,canvasPlacementBlocked=false;
  Dwell canvasDwell;
- QVariantMap layout;QString layoutName;QStringList layoutNames,menuLayoutNames,backStack;
+ QVariantMap layout;QString layoutName,startupLayout;QStringList layoutNames,menuLayoutNames,backStack;
  int suggestionOffset=0;
  QString typedWordMode="fallback";
  QString predictionModeValue="context";bool nextWordEnabled=true;bool completionSpaceEnabled=true;bool sentenceStartersEnabled=true;
