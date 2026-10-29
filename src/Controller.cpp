@@ -387,7 +387,10 @@ void Controller::receiveGaze(double x,double y,bool valid,qint64 /*sampledAt*/){
   if(gazeAge.isValid()&&gazeEnabled&&trackerConnected&&gazeToleranceMs>0){
    if(!gazeLossStarted){
     gazeLossStarted=now;pauseGazeDwell();
-    endButtonHold();runner.endDwellHold();heldDwellTarget.clear();gameController.reset();activeJoystick=-1;portal.releaseAll();
+    endButtonHold();runner.endDwellHold();heldDwellTarget.clear();gameController.reset();activeJoystick=-1;portal.releaseButtons();
+    // A tolerated dropout must not release physical modifiers behind the
+    // runner's back: recovery would leave a latched badge without Ctrl held.
+    // Full tracking loss below cancels the runner and releases every key.
     // Retain target selection, but stop already-running pointer actions and
     // reset scroll timing so recovery cannot accumulate a scroll jump.
     if((pointer.busy()&&!pointer.targeting())||pointer.magnetic()||pointer.lookScrolling()||!pointer.heldButtons().isEmpty())pointer.trackingLost();
