@@ -846,7 +846,20 @@ Window {
        SettingsCheckBox {text:"Preserve toggled keys between layouts";checked:controller.preserveTogglesBetweenLayouts;onToggled:controller.preserveTogglesBetweenLayouts=checked}
        SettingsCheckBox {text:"Cycle modifiers while hovering";checked:controller.cycleModifiersOnHover;onToggled:controller.cycleModifiersOnHover=checked}
        SettingSlider {label:"Repeat rate";displayValue:(1000/controller.repeatIntervalMs).toFixed(1)+" / sec ("+controller.repeatIntervalMs+" ms)";from:100;to:2000;stepSize:50;value:controller.repeatIntervalMs;onMoved:controller.repeatIntervalMs=value;Accessible.name:"Repeat interval in milliseconds"}
-       SettingSlider {label:"Keyboard dwell";displayValue:controller.dwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.dwellMs;onMoved:controller.dwellMs=value}
+       SettingSlider {objectName:"allGroupDwellSlider";label:"All groups";displayValue:controller.dwellMs+" ms";from:250;to:2500;stepSize:50;value:controller.dwellMs;onMoved:controller.setAllGroupDwellTimes(value)}
+       SettingSlider {label:"Keyboard dwell";displayValue:controller.dwellMs+" ms";from:250;to:2500;stepSize:50;value:controller.dwellMs;onMoved:controller.dwellMs=value}
+       Repeater {
+        model:["Alphabet","Numbers","Punctuations","Modifiers","Functions","Predictions","Conversations","Navigation","Editing","Mouse","Gamepad","Others"]
+        delegate:SettingSlider {
+         required property string modelData
+         objectName:"groupDwell"+modelData
+         label:modelData
+         property int milliseconds:controller.groupDwellTimes[modelData]===undefined?controller.dwellMs:controller.groupDwellTimes[modelData]
+         displayValue:milliseconds+" ms"
+         from:250;to:2500;stepSize:50;value:milliseconds
+         onMoved:controller.setGroupDwellTime(modelData,value)
+        }
+       }
 
       }
      }
@@ -869,8 +882,8 @@ Window {
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        SettingsCheckBox {text:"Select pointer targets by dwell";checked:controller.targetDwellEnabled;onToggled:controller.targetDwellEnabled=checked}
-       SettingSlider {label:"Start zoom / target dwell";displayValue:controller.targetStartDwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.targetStartDwellMs;enabled:controller.targetDwellEnabled;onMoved:controller.targetStartDwellMs=value}
-       SettingSlider {label:"Confirm zoomed target dwell";displayValue:controller.targetConfirmDwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.targetConfirmDwellMs;enabled:controller.targetDwellEnabled;onMoved:controller.targetConfirmDwellMs=value}
+       SettingSlider {label:"Start zoom / target dwell";displayValue:controller.targetStartDwellMs+" ms";from:250;to:2500;stepSize:50;value:controller.targetStartDwellMs;enabled:controller.targetDwellEnabled;onMoved:controller.targetStartDwellMs=value}
+       SettingSlider {label:"Confirm zoomed target dwell";displayValue:controller.targetConfirmDwellMs+" ms";from:250;to:2500;stepSize:50;value:controller.targetConfirmDwellMs;enabled:controller.targetDwellEnabled;onMoved:controller.targetConfirmDwellMs=value}
        SettingSlider {label:"Target dwell movement tolerance";displayValue:controller.targetDwellRadius+" px";from:10;to:100;stepSize:5;value:controller.targetDwellRadius;enabled:controller.targetDwellEnabled;onMoved:controller.targetDwellRadius=value}
        Desktop.Label {text:"Progress style"}
        SettingsComboBox {

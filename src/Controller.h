@@ -53,6 +53,7 @@ class Controller:public QObject{
  Q_PROPERTY(QString lockStyle MEMBER lockStyle NOTIFY changed)
  Q_PROPERTY(QString dwellIndicatorStyle MEMBER dwellIndicatorStyle NOTIFY changed)
  Q_PROPERTY(int dwellMs MEMBER dwellMs NOTIFY changed)
+ Q_PROPERTY(QVariantMap groupDwellTimes READ groupDwellTimes NOTIFY changed)
  Q_PROPERTY(int restoreCorner READ restoreCorner WRITE setRestoreCorner NOTIFY geometryPreferencesChanged)
  Q_PROPERTY(int restoreOpacity MEMBER restoreOpacity NOTIFY changed)
  Q_PROPERTY(int restoreWidth READ restoreWidth WRITE setRestoreWidth NOTIFY geometryPreferencesChanged)
@@ -124,6 +125,10 @@ class Controller:public QObject{
  Q_PROPERTY(bool magnifierReady MEMBER magnifierReady NOTIFY changed)
  Q_PROPERTY(int magnifierRevision MEMBER magnifierRevision NOTIFY magnifierFrameChanged)
 public:
+ QVariantMap groupDwellTimes()const{return groupDwellValues;}
+ Q_INVOKABLE void setGroupDwellTime(QString group,int milliseconds);
+ Q_INVOKABLE void setAllGroupDwellTimes(int milliseconds);
+ Q_INVOKABLE int dwellDuration(QString target)const;
  int processPriority()const{return processPriorityValue;}
  void setProcessPriority(int priority);
  // An injected tracker must outlive this controller; production uses the owned worker.
@@ -341,6 +346,7 @@ private:
  bool paused=false,literal=false,learning=false,targeting=false,gazeEnabled=false;
  QString latchStyle="outline",lockStyle="fill";
  QString dwellIndicatorStyle="bar";
+ QVariantMap groupDwellValues;
  int dwellMs=750;
  int processPriorityValue=0;
  int scalePercent=100;

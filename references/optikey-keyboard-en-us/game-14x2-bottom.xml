@@ -19,24 +19,40 @@
     ForegroundColor="#ffffff" 
     ForegroundOpacity="0.75"
     Name="All" />
+  <KeyGroup Name="Alphabet" />
+  <KeyGroup Name="Numbers" />
+  <KeyGroup Name="Punctuations" />
+  <KeyGroup Name="Modifiers" />
+  <KeyGroup Name="Functions" />
+  <KeyGroup Name="Predictions" />
+  <KeyGroup Name="Conversations" />
+  <KeyGroup Name="Others" />
+  <KeyGroup Name="Navigation" />
+  <KeyGroup Name="Editing" />
+  <KeyGroup Name="Mouse" />
+  <KeyGroup Name="Gamepad" />
   <Content>
     <DynamicKey>
       <Symbol>UpArrowKeyIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">game-14x2-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowsAllDirectionsIcon</Symbol>
       <Action>MouseMagneticCursor</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>EscapeKeyIcon</Symbol>
       <KeyToggle>Escape</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Label>␣</Label>
       <KeyDown>SPACE</KeyDown>
       <Wait>10</Wait>
       <KeyUp>SPACE</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>C</ShiftDownLabel>
@@ -44,6 +60,7 @@
       <KeyDown>c</KeyDown>
       <Wait>10</Wait>
       <KeyUp>c</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>I</ShiftDownLabel>
@@ -51,14 +68,17 @@
       <KeyDown>i</KeyDown>
       <Wait>10</Wait>
       <KeyUp>i</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>KeyboardIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">keyboard-alphabet-14x4-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseNeutralIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">mouse-14x1-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>F</ShiftDownLabel>
@@ -66,6 +86,7 @@
       <KeyDown>f</KeyDown>
       <Wait>10</Wait>
       <KeyUp>f</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>Q</ShiftDownLabel>
@@ -73,11 +94,13 @@
       <KeyDown>q</KeyDown>
       <Wait>10</Wait>
       <KeyUp>q</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>W</ShiftDownLabel>
       <Label>w</Label>  
       <KeyToggle>w</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>E</ShiftDownLabel>
@@ -85,30 +108,37 @@
       <KeyDown>e</KeyDown>
       <Wait>10</Wait>
       <KeyUp>e</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MoreIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">game-14x1-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>NoIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">main-14x1-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ShiftKeyIcon</Symbol>
       <KeyToggle>LSHIFT</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>CtrlKeyIcon</Symbol>
       <KeyToggle>LCTRL</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>AltKeyIcon</Symbol>
       <KeyToggle>LMENU</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>WinKeyIcon</Symbol>
       <KeyToggle>LWin</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>Z</ShiftDownLabel>
@@ -116,45 +146,53 @@
       <KeyDown>z</KeyDown>
       <Wait>10</Wait>
       <KeyUp>z</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Label>1</Label>
       <KeyDown>VK_1</KeyDown>
       <Wait>10</Wait>
       <KeyUp>VK_1</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Label>2</Label>
       <KeyDown>VK_2</KeyDown>
       <Wait>10</Wait>
       <KeyUp>VK_2</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Label>3</Label>
       <KeyDown>VK_3</KeyDown>
       <Wait>10</Wait>
       <KeyUp>VK_3</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Label>4</Label>
       <KeyDown>VK_4</KeyDown>
       <Wait>10</Wait>
       <KeyUp>VK_4</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>A</ShiftDownLabel>
       <Label>a</Label>
       <KeyToggle>a</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>S</ShiftDownLabel>
       <Label>s</Label>
       <KeyToggle>s</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>D</ShiftDownLabel>
       <Label>d</Label>
       <KeyToggle>d</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>X</ShiftDownLabel>
@@ -162,6 +200,7 @@
       <KeyDown>x</KeyDown>
       <Wait>10</Wait>
       <KeyUp>x</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>R</ShiftDownLabel>
@@ -169,6 +208,7 @@
       <KeyDown>r</KeyDown>
       <Wait>10</Wait>
       <KeyUp>r</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
   </Content>
 </Keyboard>

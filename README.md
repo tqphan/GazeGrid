@@ -266,6 +266,10 @@ Pause, tracking loss, mode changes and entering conversation mode still release 
 
 ## Key group dwell time
 
+All bundled keyboards categorize selectable keys as Alphabet, Numbers, Punctuations, Modifiers, Functions, Predictions, Conversations, Navigation, Editing, Mouse, Gamepad, or Others. **Settings → Gaze & dwell** has a dwell slider for each category (250–2500 ms). Changes apply immediately across keyboards; **Save preferences and startup keyboard** retains them. The All groups slider sets Keyboard dwell and every category together; individual category sliders can then be adjusted separately. Until a category slider is changed, it follows Keyboard dwell. Reset preferences clears category overrides. Predictions applies to prediction slots; Conversations applies to spoken phrase keys.
+
+An individual key's XML `CompletionTimes` takes priority over its category slider. Category sliders override group XML timing; without a slider override, group XML timing and then Keyboard dwell apply. Repeat rate remains separate.
+
 Set `CompletionTimes` in milliseconds on a keyboard's `KeyGroup` to share dwell timing:
 
 ```xml

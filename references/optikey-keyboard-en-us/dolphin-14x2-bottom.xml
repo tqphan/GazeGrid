@@ -15,51 +15,74 @@
     <Cols>14</Cols>
   </Grid>
   <KeyGroup BackgroundColor="#230F18" ForegroundColor="#ffffff" ForegroundOpacity="0.75" Name="Default" />
+  <KeyGroup Name="Alphabet" />
+  <KeyGroup Name="Numbers" />
+  <KeyGroup Name="Punctuations" />
+  <KeyGroup Name="Modifiers" />
+  <KeyGroup Name="Functions" />
+  <KeyGroup Name="Predictions" />
+  <KeyGroup Name="Conversations" />
+  <KeyGroup Name="Others" />
+  <KeyGroup Name="Navigation" />
+  <KeyGroup Name="Editing" />
+  <KeyGroup Name="Mouse" />
+  <KeyGroup Name="Gamepad" />
   <Content>
     <DynamicKey>
       <Symbol>UpArrowKeyIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">dolphin-14x2-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowsAllDirectionsIcon</Symbol>
       <Action>MouseMagneticCursor</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>LookToScrollActiveIcon</Symbol>
       <Action>LookToScrollActive</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseLeftButtonClickIcon</Symbol>
       <Action>F21</Action>
+      <KeyGroup>Functions</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseMiddleButtonClickIcon</Symbol>
       <Action>F22</Action>
+      <KeyGroup>Functions</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseRightButtonClickIcon</Symbol>
       <Action>F23</Action>
+      <KeyGroup>Functions</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>KeyboardIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">keyboard-alphabet-14x4-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseNeutralIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">mouse-14x1-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>BrowserIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">web-14x1-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>WinKeyIcon</Symbol>
       <KeyDown>LWIN</KeyDown>
       <KeyUp>LWIN</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>TransferUpDownIcon</Symbol>
       <Action>F24</Action>
+      <KeyGroup>Functions</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>CtrlAltTab</Symbol>
@@ -69,72 +92,89 @@
       <KeyUp>TAB</KeyUp>
       <KeyUp>LMenu</KeyUp>
       <KeyUp>LCONTROL</KeyUp>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MoreIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">dolphin-14x1-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MinimizeDownIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">minimized-off-screen-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ShiftKeyIcon</Symbol>
       <KeyToggle>LSHIFT</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>CtrlKeyIcon</Symbol>
       <KeyToggle>LCTRL</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>AltKeyIcon</Symbol>
       <KeyToggle>LMENU</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>WinKeyIcon</Symbol>
       <KeyToggle>LWin</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseLeftButtonTripleClickIcon</Symbol>
       <Action>MouseLeftClick</Action>
       <Action>MouseLeftClick</Action>
       <Action>MouseLeftClick</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowPointingToLeftIcon</Symbol>
       <Action>MouseMoveToLeft</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowPointingToRightIcon</Symbol>
       <Action>MouseMoveToRight</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowPointingToTopIcon</Symbol>
       <Action>MouseMoveToTop</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowPointingToBottomIcon</Symbol>
       <Action>MouseMoveToBottom</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseMiddleButtonClickIcon</Symbol>
       <Action>MouseMoveAndMiddleClick</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseMiddleButtonDownUpIcon</Symbol>
       <Action>MouseMiddleDownUp</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ZoomToLocationIcon</Symbol>
       <Action>MouseMagnifier</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseScrollToTopIcon</Symbol>
       <Action>MouseScrollToTop</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseScrollToBottomIcon</Symbol>
       <Action>MouseScrollToBottom</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
   </Content>
 </Keyboard>

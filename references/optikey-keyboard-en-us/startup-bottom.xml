@@ -16,11 +16,24 @@
     <Cols>1</Cols>
   </Grid>
   <KeyGroup Name="Minimize" Opacity="0.75" />
+  <KeyGroup Name="Alphabet" />
+  <KeyGroup Name="Numbers" />
+  <KeyGroup Name="Punctuations" />
+  <KeyGroup Name="Modifiers" />
+  <KeyGroup Name="Functions" />
+  <KeyGroup Name="Predictions" />
+  <KeyGroup Name="Conversations" />
+  <KeyGroup Name="Others" />
+  <KeyGroup Name="Navigation" />
+  <KeyGroup Name="Editing" />
+  <KeyGroup Name="Mouse" />
+  <KeyGroup Name="Gamepad" />
   <Content>
     <DynamicKey CompletionTimes="750">
       <Symbol>MinimiseIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="false">main-14x1-bottom</ChangeKeyboard>
       <KeyGroup>Minimize</KeyGroup>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
   </Content>
 </Keyboard>

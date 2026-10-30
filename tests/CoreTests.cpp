@@ -25,6 +25,27 @@ class CoreTests:public QObject{
  Q_OBJECT
 static QVariantMap cmd(QString tag,QString text){return {{"tag",tag},{"text",text}};}
 private slots:
+ void bundledDwellGroups(){
+  const QStringList groups{"Alphabet","Numbers","Punctuations","Modifiers","Functions","Predictions","Conversations","Navigation","Editing","Mouse","Gamepad","Others"};
+  const QDir dir(PACK_PATH);
+  for(const auto &name:dir.entryList({"*.xml"},QDir::Files)){
+   const auto layout=KeyboardLayout::fromXml(KeyboardPack::load(dir.filePath(name)));
+   QVERIFY2(!layout.contains("error"),qPrintable(name));
+   for(const auto &value:layout["keys"].toList()){
+    const auto key=value.toMap();if(key["kind"]=="Scratchpad")continue;
+    QVERIFY2(groups.contains(key["dwellGroup"].toString()),qPrintable(name+": "+key["label"].toString()));
+   }
+  }
+ }
+ void groupDwellPreferencesValidation(){
+  auto values=ProfileStore::defaults();QVERIFY(ProfileStore::valid(values));
+  values["groupDwellTimes"]=QJsonObject{{"Alphabet",250},{"Others",3000}};QVERIFY(ProfileStore::valid(values));
+  for(const auto &invalid:QJsonArray{0,249,3001,750.5,"750",true}){
+   values["groupDwellTimes"]=QJsonObject{{"Alphabet",invalid}};QVERIFY(!ProfileStore::valid(values));
+  }
+  values["groupDwellTimes"]=QJsonObject{{"Unknown",750}};QVERIFY(!ProfileStore::valid(values));
+  values["groupDwellTimes"]=QJsonArray{};QVERIFY(!ProfileStore::valid(values));
+ }
  void keyGroupDwellTimes(){
   QTemporaryDir dir;QFile file(dir.filePath("dwell.xml"));
   auto load=[&](const QString &groups,const QString &attributes,const QString &membership){
@@ -51,6 +72,7 @@ private slots:
    const auto layout=load(test.groups,test.attributes,test.membership);
    QVERIFY2(!layout.contains("error"),qPrintable(layout["error"].toString()));
    QCOMPARE(layout["keys"].toList().first().toMap()["dwell"].toInt(),test.expected);
+   QCOMPARE(layout["keys"].toList().first().toMap()["individualDwell"].toBool(),!test.attributes.isEmpty());
   }
  }
  void processPriorityPreferences(){

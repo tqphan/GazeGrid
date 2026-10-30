@@ -19,47 +19,69 @@
     ForegroundColor="#ffffff"
     ForegroundOpacity="0.75"
     Name="Default" />
+  <KeyGroup Name="Alphabet" />
+  <KeyGroup Name="Numbers" />
+  <KeyGroup Name="Punctuations" />
+  <KeyGroup Name="Modifiers" />
+  <KeyGroup Name="Functions" />
+  <KeyGroup Name="Predictions" />
+  <KeyGroup Name="Conversations" />
+  <KeyGroup Name="Others" />
+  <KeyGroup Name="Navigation" />
+  <KeyGroup Name="Editing" />
+  <KeyGroup Name="Mouse" />
+  <KeyGroup Name="Gamepad" />
   <Content>
     <DynamicKey>
       <Symbol>DownArrowKeyIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">main-14x1-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowsAllDirectionsIcon</Symbol>
       <Action>MouseMagneticCursor</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>LookToScrollActiveIcon</Symbol>
       <Action>LookToScrollActive</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseLeftButtonClickIcon</Symbol>
       <Action>MouseMoveAndLeftClick</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseRightButtonClickIcon</Symbol>
       <Action>MouseMoveAndRightClick</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>DpadIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">game-14x1-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>KeyboardIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">keyboard-alphabet-14x4-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseNeutralIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">mouse-14x1-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>BrowserIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">web-14x1-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>WinKeyIcon</Symbol>
       <KeyDown>LWIN</KeyDown>
       <KeyUp>LWIN</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>TransferUpDownIcon</Symbol>
@@ -69,6 +91,7 @@
       <KeyUp>LEFT</KeyUp>
       <KeyUp>LSHIFT</KeyUp>
       <KeyUp>LWIN</KeyUp>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>SearchTextIcon</Symbol>
@@ -79,14 +102,17 @@
       <KeyUp>LSHIFT</KeyUp>
       <KeyUp>LCONTROL</KeyUp>
       <!-- <Action>MenuKeyboard</Action> -->
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ConversationIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">keyboard-conversation-fullscreen</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MinimiseIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">minimized-off-screen-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
   </Content>
 </Keyboard>

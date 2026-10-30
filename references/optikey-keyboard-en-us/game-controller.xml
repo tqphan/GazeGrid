@@ -1,27 +1,89 @@
-<Keyboard><Name>Virtual Game Controller</Name><Width>100%</Width><Height>40%</Height><Position>Bottom</Position><WindowState>Floating</WindowState><Grid><Rows>4</Rows><Cols>12</Cols></Grid><Content>
-<Joystick row="0" col="0" width="3" height="3" stick="Left"><Label>Left joystick</Label></Joystick>
-<Joystick row="0" col="9" width="3" height="3" stick="Right"><Label>Right joystick</Label></Joystick>
-<DynamicKey row="0" col="3"><Label>A</Label><Action>GamepadATap</Action></DynamicKey>
-<DynamicKey row="0" col="4"><Label>B</Label><Action>GamepadBTap</Action></DynamicKey>
-<DynamicKey row="0" col="5"><Label>X</Label><Action>GamepadXTap</Action></DynamicKey>
-<DynamicKey row="0" col="6"><Label>Y</Label><Action>GamepadYTap</Action></DynamicKey>
-<DynamicKey row="0" col="7"><Label>LB</Label><Action>GamepadLeftShoulderToggle</Action></DynamicKey>
-<DynamicKey row="0" col="8"><Label>RB</Label><Action>GamepadRightShoulderToggle</Action></DynamicKey>
-<DynamicKey row="1" col="3"><Label>↑</Label><Action>GamepadDpadUpToggle</Action></DynamicKey>
-<DynamicKey row="1" col="4"><Label>↓</Label><Action>GamepadDpadDownToggle</Action></DynamicKey>
-<DynamicKey row="1" col="5"><Label>←</Label><Action>GamepadDpadLeftToggle</Action></DynamicKey>
-<DynamicKey row="1" col="6"><Label>→</Label><Action>GamepadDpadRightToggle</Action></DynamicKey>
-<DynamicKey row="1" col="7"><Label>L3</Label><Action>GamepadLeftStickTap</Action></DynamicKey>
-<DynamicKey row="1" col="8"><Label>R3</Label><Action>GamepadRightStickTap</Action></DynamicKey>
-<DynamicKey row="2" col="3"><Label>LT on</Label><Action>GamepadLeftTrigger:1</Action></DynamicKey>
-<DynamicKey row="2" col="4"><Label>LT off</Label><Action>GamepadLeftTrigger:0</Action></DynamicKey>
-<DynamicKey row="2" col="5"><Label>RT on</Label><Action>GamepadRightTrigger:1</Action></DynamicKey>
-<DynamicKey row="2" col="6"><Label>RT off</Label><Action>GamepadRightTrigger:0</Action></DynamicKey>
-<DynamicKey row="2" col="7"><Label>Back</Label><Action>GamepadBackTap</Action></DynamicKey>
-<DynamicKey row="2" col="8"><Label>Start</Label><Action>GamepadStartTap</Action></DynamicKey>
-<DynamicKey row="3" col="0" width="3"><Label>Release all</Label><Action>GamepadReset</Action></DynamicKey>
-<DynamicKey row="3" col="3"><Label>Guide</Label><Action>GamepadGuideTap</Action></DynamicKey>
-<DynamicKey row="3" col="4" width="2"><Label>Button mode</Label><Action>CycleButtonMode</Action></DynamicKey>
-<DynamicKey row="3" col="6" width="3"><Label>Pause</Label><Action>Sleep</Action></DynamicKey>
-<DynamicKey row="3" col="9" width="3"><Label>Return</Label><Action>BackFromKeyboard</Action></DynamicKey>
+<Keyboard><Name>Virtual Game Controller</Name><Width>100%</Width><Height>40%</Height><Position>Bottom</Position><WindowState>Floating</WindowState><Grid><Rows>4</Rows><Cols>12</Cols></Grid>
+<KeyGroup Name="Alphabet" />
+<KeyGroup Name="Numbers" />
+<KeyGroup Name="Punctuations" />
+<KeyGroup Name="Modifiers" />
+<KeyGroup Name="Functions" />
+<KeyGroup Name="Predictions" />
+<KeyGroup Name="Conversations" />
+<KeyGroup Name="Navigation" />
+<KeyGroup Name="Editing" />
+<KeyGroup Name="Mouse" />
+<KeyGroup Name="Gamepad" />
+<KeyGroup Name="Others" />
+<Content>
+<Joystick row="0" col="0" width="3" height="3" stick="Left"><Label>Left joystick</Label>
+  <KeyGroup>Gamepad</KeyGroup>
+</Joystick>
+<Joystick row="0" col="9" width="3" height="3" stick="Right"><Label>Right joystick</Label>
+  <KeyGroup>Gamepad</KeyGroup>
+</Joystick>
+<DynamicKey row="0" col="3"><Label>A</Label><Action>GamepadATap</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="0" col="4"><Label>B</Label><Action>GamepadBTap</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="0" col="5"><Label>X</Label><Action>GamepadXTap</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="0" col="6"><Label>Y</Label><Action>GamepadYTap</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="0" col="7"><Label>LB</Label><Action>GamepadLeftShoulderToggle</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="0" col="8"><Label>RB</Label><Action>GamepadRightShoulderToggle</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="1" col="3"><Label>↑</Label><Action>GamepadDpadUpToggle</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="1" col="4"><Label>↓</Label><Action>GamepadDpadDownToggle</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="1" col="5"><Label>←</Label><Action>GamepadDpadLeftToggle</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="1" col="6"><Label>→</Label><Action>GamepadDpadRightToggle</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="1" col="7"><Label>L3</Label><Action>GamepadLeftStickTap</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="1" col="8"><Label>R3</Label><Action>GamepadRightStickTap</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="2" col="3"><Label>LT on</Label><Action>GamepadLeftTrigger:1</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="2" col="4"><Label>LT off</Label><Action>GamepadLeftTrigger:0</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="2" col="5"><Label>RT on</Label><Action>GamepadRightTrigger:1</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="2" col="6"><Label>RT off</Label><Action>GamepadRightTrigger:0</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="2" col="7"><Label>Back</Label><Action>GamepadBackTap</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="2" col="8"><Label>Start</Label><Action>GamepadStartTap</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="3" col="0" width="3"><Label>Release all</Label><Action>GamepadReset</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="3" col="3"><Label>Guide</Label><Action>GamepadGuideTap</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="3" col="4" width="2"><Label>Button mode</Label><Action>CycleButtonMode</Action>
+  <KeyGroup>Gamepad</KeyGroup>
+</DynamicKey>
+<DynamicKey row="3" col="6" width="3"><Label>Pause</Label><Action>Sleep</Action><KeyGroup>Others</KeyGroup>
+</DynamicKey>
+<DynamicKey row="3" col="9" width="3"><Label>Return</Label><Action>BackFromKeyboard</Action>
+  <KeyGroup>Navigation</KeyGroup>
+</DynamicKey>
 </Content></Keyboard>

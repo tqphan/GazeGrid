@@ -51,6 +51,62 @@ class ControllerTests:public QObject {
   c.setProperty("layout",QVariantMap{{"layoutMode","canvas"},{"activateoverlappingkeys",true},{"keys",content}});
  }
 private slots:
+ void allGroupDwellTimes(){
+  Controller c;c.resetPreferences();c.setGroupDwellTime("Alphabet",950);
+  c.setAllGroupDwellTimes(1500);
+  QCOMPARE(c.property("dwellMs").toInt(),1500);
+  const auto groups=c.groupDwellTimes();QCOMPARE(groups.size(),12);
+  for(const auto &value:groups)QCOMPARE(value.toInt(),1500);
+  c.setGroupDwellTime("Alphabet",1000);
+  QCOMPARE(c.groupDwellTimes().value("Alphabet").toInt(),1000);
+  QCOMPARE(c.groupDwellTimes().value("Numbers").toInt(),1500);
+  c.setAllGroupDwellTimes(2500);
+  for(const auto &value:c.groupDwellTimes())QCOMPARE(value.toInt(),2500);
+  c.setAllGroupDwellTimes(2550);c.setGroupDwellTime("Alphabet",2550);
+  QCOMPARE(c.property("dwellMs").toInt(),2500);
+  QCOMPARE(c.groupDwellTimes().value("Alphabet").toInt(),2500);
+  QVERIFY(c.savePreferences());
+  Controller restored;QCOMPARE(restored.groupDwellTimes(),c.groupDwellTimes());
+  QCOMPARE(restored.property("dwellMs").toInt(),2500);restored.resetPreferences();
+ }
+ void legacyDwellSliderLimits(){
+  auto values=ProfileStore::defaults();values["dwellMs"]=3000;
+  values["groupDwellTimes"]=QJsonObject{{"Alphabet",3000},{"Numbers",1200}};
+  values["targetStartDwellMs"]=3000;values["targetConfirmDwellMs"]=2800;
+  QString error;QVERIFY(ProfileStore(appConfigDirectory()+"/profile.json").save(values,error,true));
+  Controller c;QCOMPARE(c.property("dwellMs").toInt(),2500);
+  QCOMPARE(c.groupDwellTimes().value("Alphabet").toInt(),2500);
+  QCOMPARE(c.groupDwellTimes().value("Numbers").toInt(),1200);
+  QCOMPARE(c.property("targetStartDwellMs").toInt(),2500);
+  QCOMPARE(c.property("targetConfirmDwellMs").toInt(),2500);
+  c.resetPreferences();
+ }
+ void groupDwellTimingAndPersistence(){
+  {
+   Controller c;c.resetPreferences();c.setProperty("dwellMs",850);
+   QCOMPARE(c.dwellDuration("suggest:0"),850);
+   c.setGroupDwellTime("Predictions",1200);QCOMPARE(c.dwellDuration("suggest:0"),1200);
+   c.setGroupDwellTime("Alphabet",950);c.setGroupDwellTime("Numbers",1300);
+   c.setProperty("layout",QVariantMap{{"keys",QVariantList{
+    QVariantMap{{"dwellGroup","Alphabet"},{"dwell",1100}},
+    QVariantMap{{"dwellGroup","Numbers"}},
+    QVariantMap{{"dwellGroup","Alphabet"},{"dwell",600},{"individualDwell",true}},
+    QVariantMap{{"dwellGroup","Alphabet"},{"dwell",0},{"individualDwell",true}},
+    QVariantMap{{"dwell",1150}}
+   }}});
+   QCOMPARE(c.dwellDuration("key:0"),950);QCOMPARE(c.dwellDuration("key:1"),1300);
+   QCOMPARE(c.dwellDuration("key:2"),600);QCOMPARE(c.dwellDuration("key:3"),850);
+   QCOMPARE(c.dwellDuration("key:4"),1150);QCOMPARE(c.dwellDuration("key:99"),850);
+   c.setGroupDwellTime("Alphabet",20);QCOMPARE(c.dwellDuration("key:0"),950);
+   c.setGroupDwellTime("Unknown",750);QVERIFY(!c.groupDwellTimes().contains("Unknown"));
+   QVERIFY(c.savePreferences());
+  }
+  {
+   Controller c;QCOMPARE(c.groupDwellTimes().value("Alphabet").toInt(),950);
+   QCOMPARE(c.dwellDuration("suggest:0"),1200);
+   c.resetPreferences();QVERIFY(c.groupDwellTimes().isEmpty());QCOMPARE(c.dwellDuration("suggest:0"),750);
+  }
+ }
  void speechProfilesConfigureConversationAndPersist(){
   ProfileStore store(appConfigDirectory()+"/profile.json");QString error;
   QVERIFY(store.save(ProfileStore::defaults(),error,true));

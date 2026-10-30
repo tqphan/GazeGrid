@@ -19,18 +19,33 @@
     ForegroundColor="#ffffff"
     ForegroundOpacity="0.75"
     Name="All" />
+  <KeyGroup Name="Alphabet" />
+  <KeyGroup Name="Numbers" />
+  <KeyGroup Name="Punctuations" />
+  <KeyGroup Name="Modifiers" />
+  <KeyGroup Name="Functions" />
+  <KeyGroup Name="Predictions" />
+  <KeyGroup Name="Conversations" />
+  <KeyGroup Name="Others" />
+  <KeyGroup Name="Navigation" />
+  <KeyGroup Name="Editing" />
+  <KeyGroup Name="Mouse" />
+  <KeyGroup Name="Gamepad" />
   <Content>
     <DynamicKey>
       <Symbol>DownArrowKeyIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">game-14x1-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <!-- <DynamicKey>
       <Label>Gamepad</Label>
       <ChangeKeyboard BackReturnsHere="true">game-controller</ChangeKeyboard>
+    <KeyGroup>Navigation</KeyGroup>
     </DynamicKey> -->
     <DynamicKey>
       <Symbol>AltKeyIcon</Symbol>
       <KeyToggle>LMENU</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>EscapeKeyIcon</Symbol>
@@ -38,12 +53,14 @@
       <Wait>10</Wait>
       <KeyUp>Escape</KeyUp>
       <!-- <KeyToggle>Escape</KeyToggle> -->
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Label>␣</Label>
       <KeyDown>SPACE</KeyDown>
       <Wait>10</Wait>
       <KeyUp>SPACE</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>C</ShiftDownLabel>
@@ -51,6 +68,7 @@
       <KeyDown>c</KeyDown>
       <Wait>10</Wait>
       <KeyUp>c</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>I</ShiftDownLabel>
@@ -58,14 +76,17 @@
       <KeyDown>i</KeyDown>
       <Wait>10</Wait>
       <KeyUp>i</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>KeyboardIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">keyboard-alphabet-14x4-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseNeutralIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">mouse-14x1-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>F</ShiftDownLabel>
@@ -73,6 +94,7 @@
       <KeyDown>f</KeyDown>
       <Wait>10</Wait>
       <KeyUp>f</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>Q</ShiftDownLabel>
@@ -80,11 +102,13 @@
       <KeyDown>q</KeyDown>
       <Wait>10</Wait>
       <KeyUp>q</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>W</ShiftDownLabel>
       <Label>w</Label>
       <KeyToggle>w</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>E</ShiftDownLabel>
@@ -92,14 +116,17 @@
       <KeyDown>e</KeyDown>
       <Wait>10</Wait>
       <KeyUp>e</KeyUp>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MoreIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">game-14x2-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MinimiseIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">minimized-off-screen-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
   </Content>
 </Keyboard>

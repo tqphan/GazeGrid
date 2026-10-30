@@ -26,79 +26,108 @@
   <KeyGroup Name="Pagination" BackgroundColor="#10394c"/>
   <KeyGroup Name="Exit" BackgroundColor="#0c240c"/>
   <KeyGroup Name="Mirror" BackgroundColor="#0c240c"/> -->
+  <KeyGroup Name="Alphabet" />
+  <KeyGroup Name="Numbers" />
+  <KeyGroup Name="Punctuations" />
+  <KeyGroup Name="Modifiers" />
+  <KeyGroup Name="Functions" />
+  <KeyGroup Name="Predictions" />
+  <KeyGroup Name="Conversations" />
+  <KeyGroup Name="Others" />
+  <KeyGroup Name="Navigation" />
+  <KeyGroup Name="Editing" />
+  <KeyGroup Name="Mouse" />
+  <KeyGroup Name="Gamepad" />
   <Content>
     <DynamicKey>
       <Symbol>MoonZzzIcon</Symbol>
       <Action>Sleep</Action>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>suction</Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label> index </Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label> thumb </Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>rotate</Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label> slide </Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>shoulders</Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>NoIcon</Symbol>
       <Action>BackFromKeyboard</Action>
       <KeyGroup>Exit</KeyGroup>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <!-- Row 0 -->
     <DynamicKey>
       <Symbol>PreviousSpeechProfileIcon</Symbol>
       <Action>PreviousSpeechProfile</Action>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>headrest</Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>button</Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label> butt </Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>earbud</Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>deflate</Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>inflate</Label>
       <Action>SpeakLabel</Action>
+      <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>NextSpeechProfileIcon</Symbol>
       <Action>NextSpeechProfile</Action>
       <KeyGroup>Exit</KeyGroup>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <!-- Row 0 -->
     <DynamicKey>
       <Symbol>EraserIcon</Symbol>
       <Action>ClearScratchpad</Action>
       <KeyGroup>Exit</KeyGroup>
+      <KeyGroup>Editing</KeyGroup>
     </DynamicKey>
     <Scratchpad Width="12">
     </Scratchpad>
@@ -106,18 +135,22 @@
       <Symbol>SpeakIcon</Symbol>
       <Action>Speak</Action>
       <KeyGroup>Modifier</KeyGroup>
+      <KeyGroup>Modifiers</KeyGroup>
     </DynamicKey>
     <!-- Row -->
     <DynamicKey>
       <Symbol>SuggestionLeftIcon</Symbol>
       <Action>PreviousSuggestions</Action>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <SuggestionRow Width="12">
       <KeyGroup>Suggestion</KeyGroup>
+      <KeyGroup>Predictions</KeyGroup>
     </SuggestionRow>
     <DynamicKey>
       <Symbol>SuggestionRightIcon</Symbol>
       <Action>NextSuggestions</Action>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <!-- Row 1 -->
     <DynamicKey>
@@ -125,94 +158,110 @@
       <KeyDown>CAPITAL</KeyDown>
       <KeyUp>CAPITAL</KeyUp>
       <KeyGroup>Modifier</KeyGroup>
+      <KeyGroup>Modifiers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>!</ShiftDownLabel>
       <Label>1</Label>
       <Text>1</Text>
       <KeyGroup>Numeric</KeyGroup>
+      <KeyGroup>Numbers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>@</ShiftDownLabel>
       <Label>2</Label>
       <Text>2</Text>
       <KeyGroup>Numeric</KeyGroup>
+      <KeyGroup>Numbers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>#</ShiftDownLabel>
       <Label>3</Label>
       <Text>3</Text>
       <KeyGroup>Numeric</KeyGroup>
+      <KeyGroup>Numbers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>$</ShiftDownLabel>
       <Label>4</Label>
       <Text>4</Text>
       <KeyGroup>Numeric</KeyGroup>
+      <KeyGroup>Numbers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>%</ShiftDownLabel>
       <Label>5</Label>
       <Text>5</Text>
       <KeyGroup>Numeric</KeyGroup>
+      <KeyGroup>Numbers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>^</ShiftDownLabel>
       <Label>6</Label>
       <Text>6</Text>
       <KeyGroup>Numeric</KeyGroup>
+      <KeyGroup>Numbers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>&amp;</ShiftDownLabel>
       <Label>7</Label>
       <Text>7</Text>
       <KeyGroup>Numeric</KeyGroup>
+      <KeyGroup>Numbers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>*</ShiftDownLabel>
       <Label>8</Label>
       <Text>8</Text>
       <KeyGroup>Numeric</KeyGroup>
+      <KeyGroup>Numbers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>(</ShiftDownLabel>
       <Label>9</Label>
       <Text>9</Text>
       <KeyGroup>Numeric</KeyGroup>
+      <KeyGroup>Numbers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>)</ShiftDownLabel>
       <Label>0</Label>
       <Text>0</Text>
       <KeyGroup>Numeric</KeyGroup>
+      <KeyGroup>Numbers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>_</ShiftDownLabel>
       <Label>-</Label>
       <Text>-</Text>
       <KeyGroup>Punctuation</KeyGroup>
+      <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>+</ShiftDownLabel>
       <Label>=</Label>
       <Text>=</Text>
       <KeyGroup>Punctuation</KeyGroup>
+      <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>BackManyIcon</Symbol>
       <Action>BackMany</Action>
       <KeyGroup>Modifier</KeyGroup>
+      <KeyGroup>Editing</KeyGroup>
     </DynamicKey>
 
     <DynamicKey>
       <Symbol>ShiftKeyIcon</Symbol>
       <Action>LeftShift</Action>
       <KeyGroup>Modifier</KeyGroup>
+      <KeyGroup>Modifiers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>TabKeyIcon</Symbol>
       <Text>&#9;</Text>
       <KeyGroup>Modifier</KeyGroup>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>Q</ShiftDownLabel>
@@ -279,23 +328,27 @@
       <Label>'</Label>
       <Text>'</Text>
       <KeyGroup>Punctuation</KeyGroup>
+      <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>BackspaceKeyIcon</Symbol>
       <Action>BackOne</Action>
       <KeyGroup>Modifier</KeyGroup>
+      <KeyGroup>Editing</KeyGroup>
     </DynamicKey>
     <!-- Row 2 -->
     <DynamicKey>
       <Symbol>WinKeyIcon</Symbol>
       <Action>LeftWin</Action>
       <KeyGroup>Modifier</KeyGroup>
+      <KeyGroup>Modifiers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>:</ShiftDownLabel>
       <Label>;</Label>
       <Text>;</Text>
       <KeyGroup>Punctuation</KeyGroup>
+      <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>A</ShiftDownLabel>
@@ -356,33 +409,38 @@
       <Label>[</Label>
       <Text>[</Text>
       <KeyGroup>Punctuation</KeyGroup>
+      <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>}</ShiftDownLabel>
       <Label>]</Label>
       <Text>]</Text>
       <KeyGroup>Punctuation</KeyGroup>
+      <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>EnterIcon</Symbol>
       <Text>&#13;</Text>
       <KeyGroup>Modifier</KeyGroup>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <!-- Row 3 -->
     <DynamicKey>
       <Symbol>CtrlKeyIcon</Symbol>
       <Action>LeftCtrl</Action>
       <KeyGroup>Modifier</KeyGroup>
+      <KeyGroup>Modifiers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>AltKeyIcon</Symbol>
       <Action>LeftAlt</Action>
       <KeyGroup>Modifier</KeyGroup>
+      <KeyGroup>Modifiers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Label>␣</Label>
       <Text>&#32;</Text>
-      <KeyGroup>Alphabet</KeyGroup>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>Z</ShiftDownLabel>
@@ -431,24 +489,28 @@
       <Label>.</Label>
       <Text>.</Text>
       <KeyGroup>Punctuation</KeyGroup>
+      <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>&lt;</ShiftDownLabel>
       <Label>,</Label>
       <Text>,</Text>
       <KeyGroup>Punctuation</KeyGroup>
+      <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>_</ShiftDownLabel>
       <Label>-</Label>
       <Text>-</Text>
       <KeyGroup>Punctuation</KeyGroup>
+      <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <ShiftDownLabel>?</ShiftDownLabel>
       <Label>/</Label>
       <Text>/</Text>
       <KeyGroup>Punctuation</KeyGroup>
+      <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
   </Content>
 </Keyboard>

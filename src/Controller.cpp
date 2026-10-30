@@ -11,6 +11,7 @@
 #include <cmath>
 #include <algorithm>
 #include "Controller.h"
+#include "DwellGroups.h"
 #include "KeyboardPack.h"
 #include "KeyboardLayout.h"
 #include "KeyNames.h"
@@ -70,7 +71,10 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  latchStyle=profile.values.value("latchStyle").toString("outline");
  lockStyle=profile.values.value("lockStyle").toString("fill");
  dwellIndicatorStyle=profile.values.value("dwellIndicatorStyle").toString("bar");
- dwellMs=profile.values["dwellMs"].toInt();literal=profile.values["literal"].toBool();learning=profile.values["learning"].toBool();profileStatus=profile.message;
+ groupDwellValues=profile.values["groupDwellTimes"].toObject().toVariantMap();
+ // Retain older profiles while bringing their slider values within the new limit.
+ for(auto it=groupDwellValues.begin();it!=groupDwellValues.end();++it)it.value()=qMin(it.value().toInt(),2500);
+ dwellMs=qMin(profile.values["dwellMs"].toInt(),2500);literal=profile.values["literal"].toBool();learning=profile.values["learning"].toBool();profileStatus=profile.message;
  scalePercent=profile.values["keyboardScale"].toInt(100);keyboardTheme=profile.values["highContrast"].toBool()?QStringLiteral("high-contrast"):profile.values["keyboardTheme"].toString("system");
  shortLabelScale=profile.values.value("shortLabelScale").toInt(profile.values.value("enlargeShortLabels").toBool(true)?150:100);
  longLabelScale=profile.values["longLabelScale"].toInt(100);
@@ -91,8 +95,8 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  progressiveZoom=profile.values.value("progressiveZoom").toBool(profile.values.value("liveZoom").toBool(false));
  zoomDurationMs=profile.values.value("zoomDurationMs").toInt(1500);
  targetDwellEnabled=profile.values.value("targetDwellEnabled").toBool(true);
- targetStartDwellMs=profile.values.value("targetStartDwellMs").toInt(750);
- targetConfirmDwellMs=profile.values.value("targetConfirmDwellMs").toInt(1000);
+ targetStartDwellMs=qMin(profile.values.value("targetStartDwellMs").toInt(750),2500);
+ targetConfirmDwellMs=qMin(profile.values.value("targetConfirmDwellMs").toInt(1000),2500);
  targetProgressStyle=profile.values.value("targetProgressStyle").toString("ring");
  targetProgressSize=profile.values.value("targetProgressSize").toInt(56);
  targetProgressThickness=profile.values.value("targetProgressThickness").toInt(5);
@@ -304,6 +308,7 @@ void Controller::setKeyCycleModes(const QStringList &modes){
 bool Controller::savePreferences(){
  if(signInMode)return false;
  QJsonObject values{{"clampScrollGaze",clampScrollGaze},{"cancelScrollOffscreen",cancelScrollOffscreen},{"showScrollZones",showScrollZones},{"scrollZoneOpacity",scrollZoneOpacity},{"scrollZoneColor",scrollZoneColor},{"keyCycleModes",QJsonArray::fromStringList(keyCycleModesValue)},{"magneticMouseRelative",magneticMouseRelative},{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"latchStyle",latchStyle},{"lockStyle",lockStyle},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",startupLayout},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierRefreshHz",magnifierRefreshHz},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetProgressStyle",targetProgressStyle},{"targetProgressSize",targetProgressSize},{"targetProgressThickness",targetProgressThickness},{"targetProgressOpacity",targetProgressOpacity},{"targetProgressColor",targetProgressColor},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ values["groupDwellTimes"]=QJsonObject::fromVariantMap(groupDwellValues);
  values["speechProfiles"]=QJsonArray::fromVariantList(speechProfiles);
  values["activeSpeechProfile"]=speechProfileIndex;
  values["processPriority"]=processPriorityValue;
@@ -333,6 +338,7 @@ void Controller::resetPreferences(){
  clampGazeForKeyboard=false;clampGazeForPointSelection=true;
  latchStyle="outline";lockStyle="fill";
  dwellIndicatorStyle="bar";
+ groupDwellValues.clear();
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";typedWordMode="fallback";nextWordEnabled=true;completionSpaceEnabled=true;sentenceStartersEnabled=true;backStack.clear();
  repeatIntervalMs=750;
  setKeyCycleModes({"Tap","Repeat","Hold","Toggle"});
@@ -520,9 +526,34 @@ void Controller::endButtonHold(){
  const auto action=buttonHoldAction;buttonHoldAction.clear();buttonHoldTarget.clear();
  if(!action.isEmpty())gameController.perform(action);
 }
+void Controller::setAllGroupDwellTimes(int milliseconds){
+ if(milliseconds<250||milliseconds>2500)return;
+ dwellMs=milliseconds;
+ for(const auto &group:dwellGroupNames())groupDwellValues[group]=milliseconds;
+ dwell.reset();clearOverlap();emit changed();
+}
+void Controller::setGroupDwellTime(QString group,int milliseconds){
+ if(!dwellGroupNames().contains(group)||milliseconds<250||milliseconds>2500)return;
+ if(groupDwellValues.value(group).toInt()==milliseconds)return;
+ groupDwellValues[group]=milliseconds;dwell.reset();clearOverlap();emit changed();
+}
+int Controller::dwellDuration(QString target)const{
+ if(target.startsWith("suggest:"))return groupDwellValues.value("Predictions",dwellMs).toInt();
+ if(target.startsWith("key:")){
+  bool ok=false;const int index=target.mid(4).toInt(&ok);const auto keys=layout["keys"].toList();
+  if(ok&&index>=0&&index<keys.size()){
+   const auto entry=keys[index].toMap();const int custom=entry["dwell"].toInt();
+   if(entry["individualDwell"].toBool())return custom>0?custom:dwellMs;
+   const auto group=entry["dwellGroup"].toString();
+   if(groupDwellValues.contains(group))return groupDwellValues[group].toInt();
+   if(custom>0)return custom;
+  }
+ }
+ return dwellMs;
+}
 double Controller::hover(QString key){
  if(!desktopActive)return 0;
- if(gazeLossStarted){pauseGazeDwell();return dwell.progress(clock.elapsed(),dwellMs,repeatIntervalMs);}
+ if(gazeLossStarted){pauseGazeDwell();return dwell.progress(clock.elapsed(),sizeMoveMode?dwellMs:dwellDuration(key),repeatIntervalMs);}
  if(!collectingOverlap)clearOverlap();
  if(sizeMoveMode){
   if(paused||runner.busy()){dwell.inhibit(key,clock.elapsed());return 0;}
@@ -543,11 +574,11 @@ double Controller::hover(QString key){
  }
  const bool recovery=key=="Pause"||key=="Recover"||key=="CancelTarget"||key=="Connect"||key=="Tobii"||key=="Settings"||key=="Speak"||key=="StopSpeech"||isSleepKey(key);
  if(!recovery&&(paused||runner.busy())){dwell.inhibit(key,clock.elapsed());return 0;}
- int duration=dwellMs;bool repeatKey=false;QVariantList holdCommands;QString buttonHold;
+ int duration=dwellDuration(key);bool repeatKey=false;QVariantList holdCommands;QString buttonHold;
  if(key.startsWith("key:")){
   bool valid=false;const int i=key.mid(4).toInt(&valid);const auto keys=layout["keys"].toList();
   if(valid&&i>=0&&i<keys.size()){
-   const auto entry=keys[i].toMap();const int custom=entry["dwell"].toInt();if(custom>0)duration=custom;
+   const auto entry=keys[i].toMap();
    const auto commands=entry["commands"].toList();
    const auto fixedMode=entry["mode"].toString();
    const auto keyMode=fixedMode.isEmpty()?keyModeValue:fixedMode;
@@ -1116,7 +1147,7 @@ bool Controller::isSignInEnabled()const{
 #endif
 }
 QJsonObject Controller::signInPreferences() const{
- QJsonObject values{{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"latchStyle",latchStyle},{"lockStyle",lockStyle},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
+ QJsonObject values{{"groupDwellTimes",QJsonObject::fromVariantMap(groupDwellValues)},{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"latchStyle",latchStyle},{"lockStyle",lockStyle},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
  values["invalidGazeToleranceMs"]=gazeToleranceMs;
  values["predictionTextScale"]=predictionTextScale;
  values["scratchpadTextScale"]=scratchpadTextScale;

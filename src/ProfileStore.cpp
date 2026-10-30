@@ -1,4 +1,5 @@
 #include "ProfileStore.h"
+#include "DwellGroups.h"
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
@@ -27,10 +28,18 @@ QJsonObject ProfileStore::defaults(){
     QJsonArray items;
     for(const auto &label:QStringList{"suction","index","thumb","rotate","slide","shoulders","headrest","button","butt","earbud","deflate","inflate"})
         items.append(QJsonObject{{"label",label},{"phrase",label}});
-    return {{"clampScrollGaze",true},{"cancelScrollOffscreen",false},{"showScrollZones",false},{"scrollZoneOpacity",30},{"scrollZoneColor","#00bfff"},{"keyCycleModes",QJsonArray{"Tap","Repeat","Hold","Toggle"}},{"speechProfiles",QJsonArray{QJsonObject{{"name","Default"},{"items",items}}}},{"activeSpeechProfile",0},{"magneticMouseRelative",false},{"processPriority",0},{"predictionTextScale",100},{"scratchpadTextScale",100},{"removeCompletionSpaceBeforePunctuation",true},{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",500},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",true},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeFilterType",0},{"gazeFilterGain",0.2},{"gazeSaccadeDistance",0.1},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"latchStyle","outline"},{"lockStyle","fill"},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"typedWordSuggestionMode","fallback"},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
+    return {{"groupDwellTimes",QJsonObject{}},{"clampScrollGaze",true},{"cancelScrollOffscreen",false},{"showScrollZones",false},{"scrollZoneOpacity",30},{"scrollZoneColor","#00bfff"},{"keyCycleModes",QJsonArray{"Tap","Repeat","Hold","Toggle"}},{"speechProfiles",QJsonArray{QJsonObject{{"name","Default"},{"items",items}}}},{"activeSpeechProfile",0},{"magneticMouseRelative",false},{"processPriority",0},{"predictionTextScale",100},{"scratchpadTextScale",100},{"removeCompletionSpaceBeforePunctuation",true},{"clampGazeForKeyboard",false},{"clampGazeForPointSelection",true},{"invalidGazeToleranceMs",500},{"scrollSpeed",100},{"scrollDeadzone",50},{"scrollAxis",0},{"gazeEnabled",true},{"repeatIntervalMs",750},{"preserveTogglesBetweenLayouts",false},{"cycleModifiersOnHover",false},{"hideKeyboardDuringMouseActions",false},{"gazeIndicatorSize",18},{"gazeIndicatorOpacity",100},{"gazeIndicatorColor","#00bfff"},{"gazeIndicatorMorph",false},{"version",1},{"restoreCorner",2},{"restoreWidth",64},{"restoreHeight",64},{"restoreOpacity",100},{"gazeFilterType",0},{"gazeFilterGain",0.2},{"gazeSaccadeDistance",0.1},{"gazeSmoothingLevel",1},{"smoothWhenChangingGazeTarget",false},{"dwellMs",750},{"latchStyle","outline"},{"lockStyle","fill"},{"dwellIndicatorStyle","bar"},{"literal",false},{"learning",false},{"typedWordSuggestionMode","fallback"},{"predictionMode","context"},{"predictNextWord",true},{"addSpaceAfterCompletion",true},{"suggestSentenceStarters",true},
             {"startLayout","keyboard-alphabet-14x4-bottom"},{"keyboardScale",100},{"keyboardTheme","system"},{"shortLabelScale",150},{"longLabelScale",100},{"magnifierRefreshHz",30},{"magnifierZoom",4},{"magnifierEnabled",false},{"progressiveZoom",false},{"zoomDurationMs",1500},{"targetDwellEnabled",true},{"targetStartDwellMs",750},{"targetConfirmDwellMs",1000},{"targetProgressStyle","ring"},{"targetProgressSize",56},{"targetProgressThickness",5},{"targetProgressOpacity",100},{"targetProgressColor","#00bfff"},{"targetDwellRadius",40},{"rememberDesktop",false}};
 }
 bool ProfileStore::valid(const QJsonObject &v){
+    if(v.contains("groupDwellTimes")){
+        if(!v["groupDwellTimes"].isObject())return false;
+        const auto groups=v["groupDwellTimes"].toObject();
+        for(auto it=groups.begin();it!=groups.end();++it){
+            const auto value=it.value();
+            if(!dwellGroupNames().contains(it.key())||!value.isDouble()||value.toDouble()!=value.toInt()||value.toInt()<250||value.toInt()>3000)return false;
+        }
+    }
     if(v.contains("keyCycleModes")){
         if(!v["keyCycleModes"].isArray()||v["keyCycleModes"].toArray().isEmpty())return false;
         QStringList seen;

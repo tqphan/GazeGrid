@@ -1,4 +1,5 @@
 #include "KeyboardLayout.h"
+#include "DwellGroups.h"
 #include "ActionRunner.h"
 #include "KeyboardPack.h"
 #include <QDomDocument>
@@ -79,8 +80,10 @@ QVariantMap KeyboardLayout::fromXml(const QVariantMap &root){
                 if(tag!="DynamicKey"||(!button&&ActionRunner::dwellKey(commands).first.isEmpty()))
                     return {{"error","Key mode requires a single non-modifier keyboard key or digital gamepad button"}};
             }
+            QString dwellGroup;
+            for(const auto &name:dwellGroupNames())if(memberships.contains(name))dwellGroup=name;
             int dwell=style.value("completiontimes",0).toString().split(',').first().toInt();
-            keys<<QVariantMap{{"mode",mode},{"suggestionCount",suggestions},{"row",row},{"col",col},{"width",width},{"height",height},{"kind",tag},{"label",field(n,"Label")},{"shiftLabel",field(n,"ShiftDownLabel")},{"symbol",field(n,"Symbol").trimmed()},{"style",style},{"commands",commands},{"dwell",dwell}};
+            keys<<QVariantMap{{"dwellGroup",dwellGroup},{"individualDwell",attr.contains("completiontimes")},{"mode",mode},{"suggestionCount",suggestions},{"row",row},{"col",col},{"width",width},{"height",height},{"kind",tag},{"label",field(n,"Label")},{"shiftLabel",field(n,"ShiftDownLabel")},{"symbol",field(n,"Symbol").trimmed()},{"style",style},{"commands",commands},{"dwell",dwell}};
         }
     }
     layout["layoutMode"]=canvas?"canvas":"grid";layout["rows"]=rows;layout["cols"]=cols;layout["keys"]=keys;return layout;

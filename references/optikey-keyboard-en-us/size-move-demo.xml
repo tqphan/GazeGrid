@@ -6,15 +6,37 @@
  <PersistKeyGeometry>true</PersistKeyGeometry>
  <Width>100%</Width><Height>100%</Height><Position>Bottom</Position>
  <Canvas><Width>100</Width><Height>100</Height></Canvas>
+ <KeyGroup Name="Alphabet" />
+ <KeyGroup Name="Numbers" />
+ <KeyGroup Name="Punctuations" />
+ <KeyGroup Name="Modifiers" />
+ <KeyGroup Name="Functions" />
+ <KeyGroup Name="Predictions" />
+ <KeyGroup Name="Conversations" />
+ <KeyGroup Name="Navigation" />
+ <KeyGroup Name="Editing" />
+ <KeyGroup Name="Mouse" />
+ <KeyGroup Name="Gamepad" />
+ <KeyGroup Name="Others" />
  <Content>
-  <DynamicKey X="2" Y="2" Width="30" Height="18"><Label>Move mode</Label><Action>MoveModeToggle</Action></DynamicKey>
-  <DynamicKey X="70" Y="2" Width="28" Height="18"><Label>Keyboard menu</Label><Action>MenuKeyboard</Action></DynamicKey>
+  <DynamicKey X="2" Y="2" Width="30" Height="18"><Label>Move mode</Label><Action>MoveModeToggle</Action><KeyGroup>Others</KeyGroup>
+  </DynamicKey>
+  <DynamicKey X="70" Y="2" Width="28" Height="18"><Label>Keyboard menu</Label><Action>MenuKeyboard</Action>
+    <KeyGroup>Navigation</KeyGroup>
+  </DynamicKey>
   <Scratchpad X="2" Y="24" Width="96" Height="16"/>
-  <DynamicKey X="5" Y="48" Width="20" Height="28"><Label>A</Label><Text>a</Text></DynamicKey>
-  <DynamicKey X="30" Y="48" Width="20" Height="28"><Label>B</Label><Text>b</Text></DynamicKey>
-  <DynamicKey X="55" Y="48" Width="20" Height="28"><Label>C</Label><Text>c</Text></DynamicKey>
-  <DynamicKey X="5" Y="82" Width="70" Height="16"><Label>Space</Label><Text> </Text></DynamicKey>
-  <DynamicKey X="80" Y="48" Width="18" Height="50"><Label>Clear</Label><Action>ClearScratchpad</Action></DynamicKey>
-  <DynamicKey X="36" Y="2" Width="30" Height="18"><Label>Resize mode</Label><Action>SizeModeToggle</Action></DynamicKey>
+  <DynamicKey X="5" Y="48" Width="20" Height="28"><Label>A</Label><Text>a</Text><KeyGroup>Alphabet</KeyGroup>
+  </DynamicKey>
+  <DynamicKey X="30" Y="48" Width="20" Height="28"><Label>B</Label><Text>b</Text><KeyGroup>Alphabet</KeyGroup>
+  </DynamicKey>
+  <DynamicKey X="55" Y="48" Width="20" Height="28"><Label>C</Label><Text>c</Text><KeyGroup>Alphabet</KeyGroup>
+  </DynamicKey>
+  <DynamicKey X="5" Y="82" Width="70" Height="16"><Label>Space</Label><Text> </Text><KeyGroup>Others</KeyGroup>
+  </DynamicKey>
+  <DynamicKey X="80" Y="48" Width="18" Height="50"><Label>Clear</Label><Action>ClearScratchpad</Action>
+    <KeyGroup>Editing</KeyGroup>
+  </DynamicKey>
+  <DynamicKey X="36" Y="2" Width="30" Height="18"><Label>Resize mode</Label><Action>SizeModeToggle</Action><KeyGroup>Others</KeyGroup>
+  </DynamicKey>
  </Content>
 </Keyboard>

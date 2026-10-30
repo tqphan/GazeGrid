@@ -19,120 +19,160 @@
     ForegroundColor="#ffffff"
     ForegroundOpacity="0.75"
     Name="All" />
+  <KeyGroup Name="Alphabet" />
+  <KeyGroup Name="Numbers" />
+  <KeyGroup Name="Punctuations" />
+  <KeyGroup Name="Modifiers" />
+  <KeyGroup Name="Functions" />
+  <KeyGroup Name="Predictions" />
+  <KeyGroup Name="Conversations" />
+  <KeyGroup Name="Others" />
+  <KeyGroup Name="Navigation" />
+  <KeyGroup Name="Editing" />
+  <KeyGroup Name="Mouse" />
+  <KeyGroup Name="Gamepad" />
   <Content>
     <DynamicKey>
       <Symbol>UpArrowKeyIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">mouse-14x2-top</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowsAllDirectionsIcon</Symbol>
       <Action>MouseMagneticCursor</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>LookToScrollActiveIcon</Symbol>
       <Action>LookToScrollActive</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseLeftButtonClickIcon</Symbol>
       <Action>MouseMoveAndLeftClick</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseLeftButtonDoubleClickIcon</Symbol>
       <Action>MouseMoveAndLeftDoubleClick</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseMoveToPointIcon</Symbol>
       <Action>MouseMoveTo</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>KeyboardIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">keyboard-alphabet-14x4-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ReplayLastMouseActionIcon</Symbol>
       <Action>RepeatLastMouseAction</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseLeftButtonClickDragIcon</Symbol>
       <Action>MouseDrag</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseRightButtonClickIcon</Symbol>
       <Action>MouseMoveAndRightClick</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseLeftButtonDownUpIcon</Symbol>
       <Action>MouseLeftDownUp</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseRightButtonDownUpIcon</Symbol>
       <Action>MouseRightDownUp</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MoreIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">mouse-14x1-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>NoIcon</Symbol>
       <ChangeKeyboard BackReturnsHere="true">main-14x1-bottom</ChangeKeyboard>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ShiftKeyIcon</Symbol>
       <KeyToggle>LSHIFT</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>CtrlKeyIcon</Symbol>
       <KeyToggle>LCTRL</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>AltKeyIcon</Symbol>
       <KeyToggle>LMENU</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>WinKeyIcon</Symbol>
       <KeyToggle>LWin</KeyToggle>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseLeftButtonTripleClickIcon</Symbol>
       <Action>MouseLeftClick</Action>
       <Action>MouseLeftClick</Action>
       <Action>MouseLeftClick</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowPointingToLeftIcon</Symbol>
       <Action>MouseMoveToLeft</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowPointingToRightIcon</Symbol>
       <Action>MouseMoveToRight</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowPointingToTopIcon</Symbol>
       <Action>MouseMoveToTop</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ArrowPointingToBottomIcon</Symbol>
       <Action>MouseMoveToBottom</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseMiddleButtonClickIcon</Symbol>
       <Action>MouseMoveAndMiddleClick</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseMiddleButtonDownUpIcon</Symbol>
       <Action>MouseMiddleDownUp</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>ZoomToLocationIcon</Symbol>
       <Action>MouseMagnifier</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseScrollToTopIcon</Symbol>
       <Action>MouseScrollToTop</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
     <DynamicKey>
       <Symbol>MouseScrollToBottomIcon</Symbol>
       <Action>MouseScrollToBottom</Action>
+      <KeyGroup>Mouse</KeyGroup>
     </DynamicKey>
   </Content>
 </Keyboard>
