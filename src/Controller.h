@@ -112,6 +112,11 @@ class Controller:public QObject{
  Q_PROPERTY(bool targetDwellEnabled MEMBER targetDwellEnabled NOTIFY changed)
  Q_PROPERTY(int targetStartDwellMs MEMBER targetStartDwellMs NOTIFY changed)
  Q_PROPERTY(int targetConfirmDwellMs MEMBER targetConfirmDwellMs NOTIFY changed)
+ Q_PROPERTY(QString targetProgressStyle MEMBER targetProgressStyle NOTIFY changed)
+ Q_PROPERTY(int targetProgressSize MEMBER targetProgressSize NOTIFY changed)
+ Q_PROPERTY(int targetProgressThickness MEMBER targetProgressThickness NOTIFY changed)
+ Q_PROPERTY(int targetProgressOpacity MEMBER targetProgressOpacity NOTIFY changed)
+ Q_PROPERTY(QString targetProgressColor MEMBER targetProgressColor NOTIFY changed)
  Q_PROPERTY(int targetDwellRadius MEMBER targetDwellRadius NOTIFY changed)
  Q_PROPERTY(bool zoomAnimating MEMBER zoomAnimating NOTIFY changed)
  Q_PROPERTY(bool capturePending MEMBER capturePending NOTIFY changed)
@@ -320,6 +325,11 @@ private:
  int zoomDurationMs=1500,activeZoomDurationMs=1500,activeZoom=4;
  PointDwell pointDwell;
  bool targetDwellEnabled=true;
+ QString targetProgressStyle="ring";
+ int targetProgressSize=56;
+ int targetProgressThickness=5;
+ int targetProgressOpacity=100;
+ QString targetProgressColor="#00bfff";
  int targetStartDwellMs=750,targetConfirmDwellMs=1000,targetDwellRadius=40;
  quint64 captureEpoch=0;
  QString portalStatus="Desktop control disconnected",tobiiStatus="Tobii ready to connect",actionStatus="Choose Authorize to enable desktop output";

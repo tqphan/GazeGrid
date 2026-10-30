@@ -523,6 +523,10 @@ Window {
    title:"Gaze indicator color"
    onAccepted:controller.gazeIndicatorColor=selectedColor.toString()
   }
+  ColorDialog {
+   id:targetProgressColorDialog;title:"Progress color"
+   onAccepted:controller.targetProgressColor=selectedColor.toString()
+  }
   property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Look to scroll","System"]
   property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","transform-move","preferences-system"]
   property var categoryDescriptions:["Connection health.","Make your keyboard feel right for you.","Fine-tune eye tracking and selection timing.","Choose how you zoom and select targets.","Personalize prediction and spoken text.","Manage keyboard and pointer access.","Adjust hands-free scrolling.","Manage application performance."]
@@ -861,6 +865,31 @@ Window {
        SettingSlider {label:"Start zoom / target dwell";displayValue:controller.targetStartDwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.targetStartDwellMs;enabled:controller.targetDwellEnabled;onMoved:controller.targetStartDwellMs=value}
        SettingSlider {label:"Confirm zoomed target dwell";displayValue:controller.targetConfirmDwellMs+" ms";from:250;to:3000;stepSize:50;value:controller.targetConfirmDwellMs;enabled:controller.targetDwellEnabled;onMoved:controller.targetConfirmDwellMs=value}
        SettingSlider {label:"Target dwell movement tolerance";displayValue:controller.targetDwellRadius+" px";from:10;to:100;stepSize:5;value:controller.targetDwellRadius;enabled:controller.targetDwellEnabled;onMoved:controller.targetDwellRadius=value}
+       Desktop.Label {text:"Progress style"}
+       SettingsComboBox {
+        objectName:"targetProgressStyleSelector";Layout.fillWidth:true;model:["Ring","Pie","Shrinking ring"]
+        currentIndex:["ring","pie","shrink"].indexOf(controller.targetProgressStyle)
+        onActivated:controller.targetProgressStyle=["ring","pie","shrink"][currentIndex]
+        Accessible.name:"Progress style"
+       }
+       SettingSlider {label:"Size";displayValue:controller.targetProgressSize+" px";from:24;to:160;stepSize:1;value:controller.targetProgressSize;onMoved:controller.targetProgressSize=value}
+       SettingSlider {label:"Thickness";displayValue:controller.targetProgressThickness+" px";from:1;to:12;stepSize:1;value:controller.targetProgressThickness;onMoved:controller.targetProgressThickness=value}
+       SettingSlider {label:"Opacity";displayValue:controller.targetProgressOpacity+"%";from:5;to:100;stepSize:1;value:controller.targetProgressOpacity;onMoved:controller.targetProgressOpacity=value}
+       SettingsButton {
+        text:"Color";Accessible.name:"Progress color";leftPadding:44
+        Rectangle {x:12;anchors.verticalCenter:parent.verticalCenter;width:20;height:20;radius:10;color:controller.targetProgressColor;border.width:1;border.color:Kirigami.Theme.textColor}
+        onClicked:{targetProgressColorDialog.selectedColor=controller.targetProgressColor;targetProgressColorDialog.open()}
+       }
+       Item {
+        Layout.fillWidth:true;implicitHeight:176
+        PointProgress {
+         anchors.centerIn:parent
+         width:controller.targetProgressSize;height:width
+         style:controller.targetProgressStyle;color:controller.targetProgressColor
+         thickness:controller.targetProgressThickness;opacity:controller.targetProgressOpacity/100
+         NumberAnimation on progress {from:0;to:1;duration:controller.targetStartDwellMs;loops:Animation.Infinite;running:settings.visible&&settingsCategory.currentIndex===3}
+        }
+       }
       }
      }
      SettingsCard {
@@ -1091,22 +1120,14 @@ Window {
   color:"transparent";flags:Qt.FramelessWindowHint|Qt.WindowDoesNotAcceptFocus|Qt.WindowStaysOnTopHint
   Image {anchors.fill:parent;visible:controller.magnifierReady;source:visible?"image://magnifier/"+controller.magnifierRevision:"";cache:false;fillMode:Image.Stretch}
   MouseArea {id:targetPointer;objectName:"targetPointer";anchors.fill:parent;hoverEnabled:true;onClicked:mouse=>controller.targetAt(mouse.x/width,mouse.y/height)}
-  Canvas {
+  PointProgress {
    objectName:"targetProgressRing"
    visible:controller.targeting&&root.targetPointValid&&!controller.capturePending&&!controller.zoomAnimating
    x:root.targetPoint.x*targetWindow.width-width/2;y:root.targetPoint.y*targetWindow.height-height/2
-   width:56;height:56
-   property real progress:root.targetProgress
-   property color ringColor:root.dwellColor
-   onProgressChanged:requestPaint()
-   onRingColorChanged:requestPaint()
-   onVisibleChanged:requestPaint()
-   onPaint:{
-    const ctx=getContext("2d");ctx.clearRect(0,0,width,height)
-    ctx.lineWidth=3;ctx.strokeStyle=ringColor;ctx.globalAlpha=.35
-    ctx.beginPath();ctx.arc(width/2,height/2,23,0,2*Math.PI);ctx.stroke()
-    ctx.globalAlpha=1;ctx.lineWidth=5;ctx.beginPath();ctx.arc(width/2,height/2,23,-Math.PI/2,-Math.PI/2+2*Math.PI*progress);ctx.stroke()
-   }
+   width:controller.targetProgressSize;height:width
+   progress:root.targetProgress;style:controller.targetProgressStyle
+   color:controller.targetProgressColor;thickness:controller.targetProgressThickness
+   opacity:controller.targetProgressOpacity/100
   }
  }
 }

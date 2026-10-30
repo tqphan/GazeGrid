@@ -1091,6 +1091,20 @@ private slots:
   QVERIFY(store.load().values.value("progressiveZoom").toBool());
   QVERIFY(store.save(ProfileStore::defaults(),error,true));
  }
+ void targetProgressPreferences(){
+  const QVariantMap custom{{"targetProgressStyle","pie"},{"targetProgressSize",90},{"targetProgressThickness",8},{"targetProgressOpacity",65},{"targetProgressColor","#ff1234"}};
+  const auto defaults=ProfileStore::defaults();
+  {Controller c;for(auto i=custom.begin();i!=custom.end();++i)c.setProperty(i.key().toUtf8().constData(),i.value());QVERIFY(c.savePreferences());}
+  {Controller c;for(auto i=custom.begin();i!=custom.end();++i)QCOMPARE(c.property(i.key().toUtf8().constData()),i.value());
+   c.resetPreferences();for(auto i=custom.begin();i!=custom.end();++i)QCOMPARE(c.property(i.key().toUtf8().constData()),defaults[i.key()].toVariant());}
+  ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
+  auto legacy=defaults;for(auto i=custom.begin();i!=custom.end();++i)legacy.remove(i.key());
+  QVERIFY(store.save(legacy,error));
+  {Controller c;for(auto i=custom.begin();i!=custom.end();++i)QCOMPARE(c.property(i.key().toUtf8().constData()),defaults[i.key()].toVariant());}
+  const QList<QPair<QString,QJsonValue>> invalid{{"targetProgressStyle","bad"},{"targetProgressColor","red"},{"targetProgressSize",23},{"targetProgressSize",161},{"targetProgressSize",50.5},{"targetProgressThickness",0},{"targetProgressThickness",13},{"targetProgressOpacity",4},{"targetProgressOpacity",101}};
+  for(const auto &entry:invalid){auto values=defaults;values[entry.first]=entry.second;QVERIFY(!store.save(values,error));}
+  QVERIFY(store.save(defaults,error));
+ }
  void targetDwellSettingsPersistAndReset(){
   {Controller controller;controller.setProperty("targetDwellEnabled",false);controller.setProperty("targetStartDwellMs",500);
    controller.setProperty("targetConfirmDwellMs",1500);controller.setProperty("targetDwellRadius",65);QVERIFY(controller.savePreferences());}
