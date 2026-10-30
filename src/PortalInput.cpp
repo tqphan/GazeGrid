@@ -31,7 +31,7 @@ QVariantMap PortalInput::probe(){
 }
 void PortalInput::setReady(bool v){if(available!=v){available=v;emit readyChanged();}}
 void PortalInput::request(const QString &method,const QVariantList &args,QVariantMap options,std::function<void(QVariantMap)> next){
- auto bus=QDBusConnection::sessionBus();QString token="gaze-grid_"+QUuid::createUuid().toString(QUuid::Id128);
+ auto bus=QDBusConnection::sessionBus();QString token="gaze_grid_"+QUuid::createUuid().toString(QUuid::Id128);
  QString sender=bus.baseService().mid(1);sender.replace('.','_');
  requestPath="/org/freedesktop/portal/desktop/request/"+sender+"/"+token;
  options["handle_token"]=token;continuation=std::move(next);
@@ -53,7 +53,7 @@ void PortalInput::response(uint code,const QVariantMap &results){
 }
 void PortalInput::connectPortal(){
  if(pending||available)return;pending=true;persistenceRequested=false;permissionNotice.clear();emit status("Requesting desktop control…");
- request("CreateSession",{},{{"session_handle_token","gaze-grid_"+QUuid::createUuid().toString(QUuid::Id128)}},[this](QVariantMap r){
+ request("CreateSession",{},{{"session_handle_token","gaze_grid_"+QUuid::createUuid().toString(QUuid::Id128)}},[this](QVariantMap r){
   session=r["session_handle"].toString();
   if(session.isEmpty()){emit status("Portal returned no session");close();return;}
   QDBusConnection::sessionBus().connect(service,session,"org.freedesktop.portal.Session","Closed",this,SLOT(sessionClosed()));
