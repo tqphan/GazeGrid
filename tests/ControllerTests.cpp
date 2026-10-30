@@ -872,8 +872,8 @@ private slots:
  }
  void invalidGazeTolerancePersistsAndResets(){
   {Controller c;c.setInvalidGazeToleranceMs(400);QVERIFY(c.savePreferences());}
-  {Controller c;QCOMPARE(c.invalidGazeToleranceMs(),400);c.resetPreferences();QCOMPARE(c.invalidGazeToleranceMs(),250);}
-  {Controller c;QCOMPARE(c.invalidGazeToleranceMs(),250);}
+  {Controller c;QCOMPARE(c.invalidGazeToleranceMs(),400);c.resetPreferences();QCOMPARE(c.invalidGazeToleranceMs(),500);}
+  {Controller c;QCOMPARE(c.invalidGazeToleranceMs(),500);}
  }
  void offscreenGazeClampsWithoutCanceling(){
   Controller c;c.setProperty("clampGazeForKeyboard",true);c.setGazeSmoothingLevel(0);

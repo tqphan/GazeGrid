@@ -117,7 +117,7 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  filterGain=profile.values["gazeFilterGain"].toDouble(0.2);
  saccadeDistance=profile.values["gazeSaccadeDistance"].toDouble(0.1);
  smoothingLevel=profile.values["gazeSmoothingLevel"].toInt(1);smoothTargetChanges=profile.values["smoothWhenChangingGazeTarget"].toBool();
- gazeToleranceMs=profile.values["invalidGazeToleranceMs"].toInt(250);
+ gazeToleranceMs=profile.values["invalidGazeToleranceMs"].toInt(500);
  clampGazeForKeyboard=profile.values["clampGazeForKeyboard"].toBool(false);
  clampGazeForPointSelection=profile.values["clampGazeForPointSelection"].toBool(true);
  layoutNames=QDir(keyboardPackDirectory()).entryList({"*.xml"},QDir::Files,QDir::Name);for(auto &name:layoutNames)name.chop(4);
@@ -326,7 +326,7 @@ void Controller::resetPreferences(){
  setProcessPriority(0);
  setMagnifierEnabled(false);
  setGazeEnabled(values["gazeEnabled"].toBool());
- setInvalidGazeToleranceMs(250);
+ setInvalidGazeToleranceMs(500);
  setRemoveCompletionSpaceBeforePunctuation(true);
  predictionTextScale=values["predictionTextScale"].toInt();
  scratchpadTextScale=values["scratchpadTextScale"].toInt();

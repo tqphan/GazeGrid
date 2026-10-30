@@ -356,7 +356,7 @@ private:
  bool trackerConnected=false;
  bool nativeMode=false,nativeActive=false,sensitiveInput=false;
  qint64 gazeLossStarted=0;
- int gazeToleranceMs=250;
+ int gazeToleranceMs=500;
  bool clampGazeForKeyboard=false,clampGazeForPointSelection=true;
  bool lastGazeClamped=true;
  int sizeMoveSelection=-1;

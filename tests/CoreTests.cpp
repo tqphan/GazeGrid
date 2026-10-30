@@ -948,7 +948,7 @@ private slots:
   QCOMPARE(key.progress(550,500),0.);QCOMPARE(point.progress(550,500),0.);
  }
  void invalidGazeToleranceProfileValidation(){
-  auto values=ProfileStore::defaults();QCOMPARE(values["invalidGazeToleranceMs"].toInt(),250);
+  auto values=ProfileStore::defaults();QCOMPARE(values["invalidGazeToleranceMs"].toInt(),500);
   values.remove("invalidGazeToleranceMs");QVERIFY(ProfileStore::valid(values));
   for(const auto &invalid:QList<QJsonValue>{-1,1001,1.5,"100",true}){
    values["invalidGazeToleranceMs"]=invalid;QVERIFY(!ProfileStore::valid(values));
