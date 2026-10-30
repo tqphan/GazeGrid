@@ -34,8 +34,8 @@ $changes = if (Test-Path $changesPath) { Get-Content $changesPath -Raw } else { 
 @"
 $changes
 
-- The MSI is signed with the self-signed gaze-grid certificate.
-- Setup selects Accept by default to trust the gaze-grid certificate for all users. Verify its thumbprint before continuing. Accept installs the certificate and signed UIAccess app under Program Files.
+- The MSI is signed with the existing self-signed GazeGrid certificate.
+- Setup selects Accept by default to trust the GazeGrid signing certificate for all users. Verify its thumbprint before continuing. Accept installs the certificate and signed UIAccess app under Program Files.
 - Decline installs an unsigned app with UIAccess disabled: it cannot send input to higher-privilege windows or stay on top of all windows. Silent installations also default to Accept; pass GAZE_GRID_TRUST_CERTIFICATE=0 to decline.
 - Certificate trust remains after uninstall. Administrators can revoke it using certlm.msc in Trusted Root Certification Authorities / Certificates.
 - The completion screen offers Launch gaze-grid after setup, selected by default. Uncheck it to finish without opening the app. Launch uses the installed app's UIAccess-compatible Windows shell path after certificate trust is installed. Quiet installations and maintenance do not launch the app.

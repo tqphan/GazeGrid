@@ -78,7 +78,7 @@
       <Component Id="gaze_gridCertificate" Guid="*" Win64="yes" Permanent="yes">
         <Condition>GAZE_GRID_TRUST_CERTIFICATE = "1"</Condition>
         <RegistryValue Root="HKLM" Key="Software\gaze-grid\Certificates" Name="@GAZE_GRID_CERTIFICATE_THUMBPRINT@" Value="1" Type="integer" KeyPath="yes" />
-        <iis:Certificate Id="gaze_gridTrust" Name="gaze-grid" BinaryKey="gaze_gridPublicCer" StoreLocation="localMachine" StoreName="root" Request="no" Overwrite="no" />
+        <iis:Certificate Id="gaze_gridTrust" Name="GazeGrid" BinaryKey="gaze_gridPublicCer" StoreLocation="localMachine" StoreName="root" Request="no" Overwrite="no" />
       </Component>
     </DirectoryRef>
     <DirectoryRef Id="TARGETDIR">
@@ -108,7 +108,7 @@
       <Dialog Id="gaze_gridTrustDlg" Width="520" Height="360" Title="gaze-grid accessibility permissions">
         <Control Id="Title" Type="Text" X="20" Y="12" Width="480" Height="26" Text="{\gaze_grid_Font_Title}Choose Windows accessibility access" />
         <Control Id="Explanation" Type="Text" X="20" Y="44" Width="480" Height="44" Text="A trusted signature and installation in Program Files grant UIAccess, allowing input to elevated windows. Optional sign-in startup is registered separately with Windows accessibility." />
-        <Control Id="TrustExplanation" Type="Text" X="20" Y="92" Width="480" Height="48" Text="Accepting installs the self-signed gaze-grid certificate in this computer's Trusted Root Certification Authorities store. This trusts software signed with this identity for all users. Accept only if you trust the publisher and have verified the certificate." />
+        <Control Id="TrustExplanation" Type="Text" X="20" Y="92" Width="480" Height="48" Text="Accepting installs the existing self-signed GazeGrid certificate in this computer's Trusted Root Certification Authorities store. This trusts software signed with this identity for all users. Accept only if you trust the publisher and have verified the certificate." />
         <Control Id="Fingerprint" Type="Text" X="20" Y="145" Width="480" Height="30" Text="Certificate thumbprint: @GAZE_GRID_CERTIFICATE_THUMBPRINT@" />
         <Control Id="Choice" Type="RadioButtonGroup" Property="GAZE_GRID_TRUST_CERTIFICATE" X="20" Y="182" Width="480" Height="54">
           <RadioButtonGroup Property="GAZE_GRID_TRUST_CERTIFICATE">

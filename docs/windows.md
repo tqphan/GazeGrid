@@ -291,9 +291,9 @@ never the PFX. Do not distribute these changing CI identities as releases.
 **Actions → Signed Windows MSI → Run workflow**. It uses the `windows-release`
 environment and these secrets:
 
-- `GAZE_GRID_SIGNING_PFX_BASE64`: base64-encoded persistent gaze-grid PFX.
-- `GAZE_GRID_SIGNING_PFX_PASSWORD`: its export password.
-- `GAZE_GRID_TOBII_HEADERS_BASE64`: a base64 ZIP containing only
+- `GAZEGRID_SIGNING_PFX_BASE64`: base64-encoded existing persistent GazeGrid PFX.
+- `GAZEGRID_SIGNING_PFX_PASSWORD`: its export password.
+- `GAZEGRID_TOBII_HEADERS_BASE64`: a base64 ZIP containing only
   `include/tobii/tobii.h` and `include/tobii/tobii_streams.h` from Stream Engine
   4.23.0.3. The archive SHA-256 and exact file list are pinned in
   `platform/windows/tobii-sdk.json`; `Restore-TobiiSdk.ps1` verifies both before

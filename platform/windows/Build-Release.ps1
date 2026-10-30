@@ -12,8 +12,8 @@ function Invoke-Checked([string]$Program, [string[]]$Arguments) {
 }
 $root = (Resolve-Path "$PSScriptRoot/../..").Path
 $cert = Get-Item "Cert:\CurrentUser\My\$CertificateThumbprint"
-if ($cert.Subject -ne 'CN=gaze-grid' -or $cert.Issuer -ne $cert.Subject -or !$cert.HasPrivateKey -or $cert.NotAfter -le (Get-Date)) {
-    throw 'An unexpired self-signed CN=gaze-grid certificate with its private key is required.'
+if ($cert.Subject -ne 'CN=GazeGrid' -or $cert.Issuer -ne $cert.Subject -or !$cert.HasPrivateKey -or $cert.NotAfter -le (Get-Date)) {
+    throw 'An unexpired self-signed CN=GazeGrid certificate with its private key is required.'
 }
 $signCommand = Get-Command signtool.exe -ErrorAction SilentlyContinue
 $signTool = if ($signCommand) { $signCommand.Source } else { $null }

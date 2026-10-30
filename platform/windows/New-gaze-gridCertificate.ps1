@@ -23,7 +23,7 @@ New-Item -ItemType Directory -Force $OutputDirectory | Out-Null
 if ((Test-Path "$OutputDirectory/gaze-grid.pfx") -or (Test-Path "$OutputDirectory/gaze-grid.cer")) {
     throw 'Certificate output already exists; preserve the existing signing identity.'
 }
-$cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=gaze-grid' `
+$cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=GazeGrid' `
     -FriendlyName 'gaze-grid' -CertStoreLocation Cert:\CurrentUser\My `
     -KeyAlgorithm RSA -KeyLength 3072 -HashAlgorithm SHA256 `
     -KeyExportPolicy Exportable -NotAfter (Get-Date).AddYears(3)
@@ -47,11 +47,11 @@ Write-Host @'
 
 2. Under Environment secrets, choose Add secret and add BOTH:
 
-   GAZE_GRID_SIGNING_PFX_BASE64
+   GAZEGRID_SIGNING_PFX_BASE64
      Value: the base64-encoded PFX. Use the clipboard prompt below,
      or run the displayed PowerShell command. Paste the entire value.
 
-   GAZE_GRID_SIGNING_PFX_PASSWORD
+   GAZEGRID_SIGNING_PFX_PASSWORD
      Value: the exact password you chose when this script prompted you.
      Enter the password itself, not a SecureString or base64 value.
 
@@ -91,7 +91,7 @@ if ($interactiveSetup) {
     if ($copyAnswer.Trim() -match '^(y|yes)$') {
         try {
             [Convert]::ToBase64String([IO.File]::ReadAllBytes($pfxPath)) | Set-Clipboard
-            Write-Host 'Copied. Paste into GAZE_GRID_SIGNING_PFX_BASE64, then clear the clipboard.'
+            Write-Host 'Copied. Paste into GAZEGRID_SIGNING_PFX_BASE64, then clear the clipboard.'
         } catch {
             Write-Warning 'The certificate was created, but clipboard copying failed. Use the command above in a desktop PowerShell session.'
         }
