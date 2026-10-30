@@ -62,8 +62,7 @@
     </DynamicKey>
     <!-- Row 0 -->
     <DynamicKey>
-      <Label>Previous
-profile</Label>
+      <Symbol>PreviousSpeechProfileIcon</Symbol>
       <Action>PreviousSpeechProfile</Action>
     </DynamicKey>
     <DynamicKey Width="2">
@@ -91,8 +90,7 @@ profile</Label>
       <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey>
-      <Label>Next
-profile</Label>
+      <Symbol>NextSpeechProfileIcon</Symbol>
       <Action>NextSpeechProfile</Action>
       <KeyGroup>Exit</KeyGroup>
     </DynamicKey>
