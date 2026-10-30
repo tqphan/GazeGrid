@@ -527,9 +527,9 @@ Window {
    id:targetProgressColorDialog;title:"Progress color"
    onAccepted:controller.targetProgressColor=selectedColor.toString()
   }
-  property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Desktop access","Look to scroll","System"]
-  property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","preferences-desktop","transform-move","preferences-system"]
-  property var categoryDescriptions:["Connection health.","Make your keyboard feel right for you.","Fine-tune eye tracking and selection timing.","Choose how you zoom and select targets.","Personalize prediction and spoken text.","Manage keyboard and pointer access.","Adjust hands-free scrolling.","Manage application performance."]
+  property var categoryNames:["Status","Keyboard","Gaze & dwell","Magnifier","Typing & speech","Conversations","Desktop access","Look to scroll","System"]
+  property var categoryIcons:["dialog-information","input-keyboard","input-mouse","zoom-in","edit-text-frame-update","user-identity","preferences-desktop","transform-move","preferences-system"]
+  property var categoryDescriptions:["Connection health.","Make your keyboard feel right for you.","Fine-tune eye tracking and selection timing.","Choose how you zoom and select targets.","Personalize prediction and spoken text.","","Manage keyboard and pointer access.","Adjust hands-free scrolling.","Manage application performance."]
   component SettingsButton:Desktop.Button {
    id:buttonControl;implicitHeight:38;implicitWidth:Math.max(88,contentItem.implicitWidth+32);leftPadding:16;rightPadding:16
    contentItem:Text {text:buttonControl.text;color:buttonControl.highlighted?"white":Kirigami.Theme.textColor;font.pixelSize:13;font.weight:Font.Medium;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter;opacity:buttonControl.enabled?1:0.4}
@@ -625,7 +625,7 @@ Window {
      ColumnLayout {
       Layout.fillWidth:true;spacing:6
       Kirigami.Heading {text:settings.categoryNames[settingsCategory.currentIndex];level:1;font.weight:Font.DemiBold}
-      Desktop.Label {text:settings.categoryDescriptions[settingsCategory.currentIndex];opacity:0.6;wrapMode:Text.Wrap;Layout.fillWidth:true}
+      Desktop.Label {visible:text.length>0;text:settings.categoryDescriptions[settingsCategory.currentIndex];opacity:0.6;wrapMode:Text.Wrap;Layout.fillWidth:true}
      }
      Rectangle {
       implicitWidth:inputStatus.implicitWidth+28;implicitHeight:30;radius:15;color:controller.paused?Qt.rgba(0.8,0.6,0.2,0.12):Qt.rgba(0.2,0.75,0.5,0.12)
@@ -937,12 +937,12 @@ Window {
       }
      }
      SettingsCard {
-      title:"SpeakLabel profiles";visible:settingsCategory.currentIndex==4;Layout.fillWidth:true
+      title:"Profiles";objectName:"conversationProfilesCard";visible:settingsCategory.currentIndex==5;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:12
        property var selectedProfile:controller.speechProfiles[controller.activeSpeechProfile]
        id:speechProfileEditor
-       Desktop.Label {text:"Choose the labels and spoken phrases for the 12 conversation keys. Changes apply immediately; Save preferences keeps them after restarting.";wrapMode:Text.Wrap;Layout.fillWidth:true}
+       Desktop.Label {text:"Active profile";font.bold:true}
        SettingsComboBox {
         objectName:"speechProfileSelector";Layout.fillWidth:true
         model:controller.speechProfiles.map(function(profile){return profile.name})
@@ -950,36 +950,44 @@ Window {
         Accessible.name:"Active speech profile"
         onActivated:controller.activeSpeechProfile=currentIndex
        }
-       RowLayout {
-        Layout.fillWidth:true
-        Desktop.TextField {id:speechProfileName;Layout.fillWidth:true;placeholderText:"Profile name";Accessible.name:"Profile name"}
+       Desktop.TextField {id:speechProfileName;Layout.fillWidth:true;placeholderText:"Profile name";Accessible.name:"Profile name"}
+       Flow {
+        Layout.fillWidth:true;spacing:8
         SettingsButton {text:"Create profile";enabled:speechProfileName.text.trim().length>0;onClicked:if(controller.createSpeechProfile(speechProfileName.text))speechProfileName.clear()}
         SettingsButton {text:"Rename";enabled:speechProfileName.text.trim().length>0;onClicked:if(controller.renameSpeechProfile(speechProfileName.text))speechProfileName.clear()}
         SettingsButton {text:"Delete profile";enabled:controller.speechProfiles.length>1;onClicked:controller.deleteSpeechProfile()}
        }
-       Desktop.Label {text:speechProfileEditor.selectedProfile.items.length+" / 12 items"}
+       Kirigami.Separator {Layout.fillWidth:true}
+       Desktop.Label {text:"Phrases  "+speechProfileEditor.selectedProfile.items.length+" / 12";font.bold:true}
        Repeater {
         model:speechProfileEditor.selectedProfile.items
-        delegate:ColumnLayout {
+        delegate:Rectangle {
          required property int index
          required property var modelData
-         Layout.fillWidth:true
+         Layout.fillWidth:true;implicitHeight:phraseFields.implicitHeight+28
+         radius:8;color:Qt.rgba(0.5,0.5,0.5,0.05);border.color:Qt.rgba(0.5,0.5,0.5,0.18)
+         ColumnLayout {
+          id:phraseFields;anchors.fill:parent;anchors.margins:14;spacing:10
          RowLayout {
           Layout.fillWidth:true
+          Desktop.Label {text:index+1;font.bold:true;opacity:0.6;Layout.preferredWidth:24}
           Desktop.TextField {id:itemLabel;Layout.fillWidth:true;text:modelData.label;placeholderText:"Key label";Accessible.name:"Key label "+(index+1)}
-          SettingsButton {text:"Apply item";enabled:itemLabel.text.trim().length>0&&itemPhrase.text.trim().length>0;onClicked:controller.updateSpeechItem(index,itemLabel.text,itemPhrase.text)}
+          SettingsButton {text:"Apply";enabled:itemLabel.text.trim().length>0&&itemPhrase.text.trim().length>0;onClicked:controller.updateSpeechItem(index,itemLabel.text,itemPhrase.text)}
           SettingsButton {text:"Remove";onClicked:controller.removeSpeechItem(index)}
          }
-         Desktop.TextArea {id:itemPhrase;Layout.fillWidth:true;text:modelData.phrase;placeholderText:"Phrase to speak";wrapMode:Text.Wrap;Accessible.name:"Spoken phrase "+(index+1)}
+         Desktop.TextArea {id:itemPhrase;Layout.preferredHeight:Math.max(64,implicitHeight);Layout.fillWidth:true;text:modelData.phrase;placeholderText:"Phrase to speak";wrapMode:Text.Wrap;Accessible.name:"Spoken phrase "+(index+1)}
+         }
         }
        }
+       Kirigami.Separator {Layout.fillWidth:true}
+       Desktop.Label {text:"New phrase";font.bold:true}
        Desktop.TextField {id:newSpeechLabel;Layout.fillWidth:true;placeholderText:"New key label";Accessible.name:"New key label"}
        Desktop.TextArea {id:newSpeechPhrase;Layout.fillWidth:true;placeholderText:"New spoken phrase";wrapMode:Text.Wrap;Accessible.name:"New spoken phrase"}
        SettingsButton {
-        text:"Add item";enabled:speechProfileEditor.selectedProfile.items.length<12&&newSpeechLabel.text.trim().length>0&&newSpeechPhrase.text.trim().length>0
+        text:"Add phrase";highlighted:true;enabled:speechProfileEditor.selectedProfile.items.length<12&&newSpeechLabel.text.trim().length>0&&newSpeechPhrase.text.trim().length>0
         onClicked:if(controller.addSpeechItem(newSpeechLabel.text,newSpeechPhrase.text)){newSpeechLabel.clear();newSpeechPhrase.clear()}
        }
-       SettingsButton {text:"Open conversation keyboard";onClicked:{controller.openLayout("keyboard-conversation-fullscreen",true);settings.close()}}
+       SettingsButton {text:"Open keyboard";onClicked:{controller.openLayout("keyboard-conversation-fullscreen",true);settings.close()}}
       }
      }
      SettingsCard {
@@ -996,7 +1004,7 @@ Window {
       }
      }
      SettingsCard {
-      title:settings.categoryNames[5];visible:settingsCategory.currentIndex==5;Layout.fillWidth:true
+      title:settings.categoryNames[6];visible:settingsCategory.currentIndex==6;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        Tool {id:authorize;text:"Connect desktop control";command:"Connect"}
@@ -1023,7 +1031,7 @@ Window {
       }
      }
      SettingsCard {
-      title:settings.categoryNames[6];visible:settingsCategory.currentIndex==6;Layout.fillWidth:true
+      title:settings.categoryNames[7];visible:settingsCategory.currentIndex==7;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        SettingSlider {label:"Scroll speed";displayValue:controller.scrollSpeed+"%";from:10;to:300;stepSize:10;value:controller.scrollSpeed;onMoved:controller.scrollSpeed=value}
@@ -1041,7 +1049,7 @@ Window {
       }
      }
      SettingsCard {
-      title:settings.categoryNames[7];visible:settingsCategory.currentIndex==7;Layout.fillWidth:true
+      title:settings.categoryNames[8];visible:settingsCategory.currentIndex==8;Layout.fillWidth:true
       ColumnLayout {
        anchors.fill:parent;spacing:Kirigami.Units.largeSpacing
        RowLayout {

@@ -247,10 +247,10 @@ Use `Tap`, `Repeat`, `Hold`, or `Toggle`; omit `mode` to follow the cycle.
 This works for keyboard keys and digital gamepad buttons.
 See [fixed XML modes](docs/game-controller.md#fixed-xml-modes) for examples.
 
-In Settings > Typing & speech > SpeakLabel profiles, create and select named
+In Settings > Conversations > Profiles, create and select named
 profiles for the conversation keyboard. Each profile holds up to 12 items with a
-key label and a separate phrase to speak. Use Apply item after editing an item;
-profile switches apply immediately. Open conversation keyboard from this panel
+key label and a separate phrase to speak. Use Apply after editing an item;
+profile switches apply immediately. Use Open keyboard from this panel
 to use the keys. Save preferences to keep profiles and the selection after restarting.
 
 Custom keys can use `<Label>headrest</Label><Action>SpeakLabel</Action>` to speak
