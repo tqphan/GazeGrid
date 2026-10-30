@@ -484,6 +484,25 @@ private slots:
   QTest::qWait(25);QVERIFY(p.follow({.8,.8},true));QCOMPARE(scrolls.size(),1);QVERIFY(scrolls[0].x()>0);QVERIFY(scrolls[0].y()>0);
   QVERIFY(p.start("LookToScrollActive"));QVERIFY(!p.targeting());QTRY_COMPARE(done.count(),2);QVERIFY(!p.lookScrolling());
  }
+ void lookScrollOffscreenPolicy(){
+  for(bool clamp:{false,true})for(bool cancel:{false,true}){
+   PointerActions p;p.setDisplaySize({1000,1000});p.setScrollGazePolicy(clamp,cancel);
+   p.move=[](double,double){return true;};
+   QList<QPointF> deltas;p.scrollAxes=[&](double x,double y){deltas<<QPointF(x,y);return true;};
+   QVERIFY(p.start("LookToScrollActive"));p.select({.5,.5});QTRY_VERIFY(p.lookScrolling());
+   QTest::qWait(25);QVERIFY(p.follow({1.2,.8})!=cancel);QCOMPARE(p.lookScrolling(),!cancel);
+   if(!cancel){
+    QVERIFY(!deltas.isEmpty());
+    const auto delta=deltas.last();
+    const double expectedRatio=(.1+(clamp?450:650)*.1)/(.1+250*.1);
+    QVERIFY(qAbs(delta.x()/delta.y()-expectedRatio)<.000001);
+   }
+  }
+  PointerActions p;p.setDisplaySize({1000,1000});p.move=[](double,double){return true;};
+  p.scrollAxes=[](double,double){return true;};
+  QVERIFY(p.start("LookToScrollActive"));p.select({.5,.5});QTRY_VERIFY(p.lookScrolling());
+  QVERIFY(p.follow({-.1,1.1}));QVERIFY(p.lookScrolling());
+ }
  void lookScrollPausesThroughTrackingLossAndResumes(){
   PointerActions p;p.setDisplaySize({1000,1000});QList<QPointF> scrolls;
   p.move=[](double,double){return true;};

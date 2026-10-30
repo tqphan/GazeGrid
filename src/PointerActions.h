@@ -24,6 +24,7 @@ public:
     void cancel();
     void trackingLost();
     void configureScroll(int speed,int deadzone,int axis){lookScroll.configure(speed,deadzone,axis);}
+    void setScrollGazePolicy(bool clamp,bool cancelOffscreen){clampScrollGaze=clamp;cancelScrollOffscreen=cancelOffscreen;}
     void setMagneticRelative(bool relative){relativeMagnetic=relative;}
     bool follow(QPointF point,bool overDesktop=true);
     void setDisplaySize(QSizeF size);
@@ -54,6 +55,7 @@ public:
     QSet<int> held;
     QPointF position{.5,.5};
     bool relativeMagnetic=false;
+    bool clampScrollGaze=true,cancelScrollOffscreen=false;
     bool active=false,choosing=false,sourceChosen=false,following=false;
     int phase=0,dragStep=0;
     QString instruction;

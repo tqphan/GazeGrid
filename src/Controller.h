@@ -97,6 +97,8 @@ class Controller:public QObject{
  Q_PROPERTY(int scrollSpeed MEMBER scrollSpeed NOTIFY changed)
  Q_PROPERTY(int scrollDeadzone MEMBER scrollDeadzone NOTIFY changed)
  Q_PROPERTY(int scrollAxis MEMBER scrollAxis NOTIFY changed)
+ Q_PROPERTY(bool clampScrollGaze MEMBER clampScrollGaze NOTIFY changed)
+ Q_PROPERTY(bool cancelScrollOffscreen MEMBER cancelScrollOffscreen NOTIFY changed)
  Q_PROPERTY(bool lookScrolling READ lookScrolling NOTIFY changed)
  Q_PROPERTY(QPointF scrollCentre READ scrollCentre NOTIFY changed)
  Q_PROPERTY(bool showScrollZones MEMBER showScrollZones NOTIFY changed)
@@ -309,6 +311,7 @@ private:
  int magnifierRevision=0;
  bool magneticMouseRelative=false;
  int scrollSpeed=100,scrollDeadzone=50,scrollAxis=0;
+ bool clampScrollGaze=true,cancelScrollOffscreen=false;
  bool showScrollZones=false;
  int scrollZoneOpacity=30;
  QString scrollZoneColor="#00bfff";

@@ -586,6 +586,15 @@ private slots:
   {Controller c;QVERIFY(c.isGazeEnabled());c.resetPreferences();QVERIFY(c.isGazeEnabled());}
   {Controller c;QVERIFY(c.isGazeEnabled());}
  }
+ void scrollGazePolicyPersistsAndResets(){
+  {Controller c;c.setProperty("clampScrollGaze",false);c.setProperty("cancelScrollOffscreen",true);QVERIFY(c.savePreferences());}
+  {Controller c;QVERIFY(!c.property("clampScrollGaze").toBool());QVERIFY(c.property("cancelScrollOffscreen").toBool());c.resetPreferences();}
+  {Controller c;QVERIFY(c.property("clampScrollGaze").toBool());QVERIFY(!c.property("cancelScrollOffscreen").toBool());}
+  for(const auto key:{"clampScrollGaze","cancelScrollOffscreen"}){
+   auto values=ProfileStore::defaults();values.remove(key);QVERIFY(ProfileStore::valid(values));
+   values[key]="true";QVERIFY(!ProfileStore::valid(values));
+  }
+ }
  void scrollSettingsPersistAndReset(){
   {Controller c;c.setProperty("scrollSpeed",170);c.setProperty("scrollDeadzone",90);c.setProperty("scrollAxis",1);QVERIFY(c.savePreferences());}
   {Controller c;QCOMPARE(c.property("scrollSpeed").toInt(),170);QCOMPARE(c.property("scrollDeadzone").toInt(),90);QCOMPARE(c.property("scrollAxis").toInt(),1);c.resetPreferences();}

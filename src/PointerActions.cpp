@@ -120,7 +120,13 @@ bool PointerActions::follow(QPointF point,bool overDesktop){
     if(following){
         point.setX(qBound(0.,point.x(),1.));
         point.setY(qBound(0.,point.y(),1.));
-    }else if(point.x()<0||point.x()>1||point.y()<0||point.y()>1){cancel();return false;}
+    }else if(point.x()<0||point.x()>1||point.y()<0||point.y()>1){
+        if(cancelScrollOffscreen){cancel();return false;}
+        if(clampScrollGaze){
+            point.setX(qBound(0.,point.x(),1.));
+            point.setY(qBound(0.,point.y(),1.));
+        }
+    }
     if(lookScroll.active()){
         if(scrollTrackingPaused){
             scrollTrackingPaused=false;lookScroll.resetTime(clock.elapsed());

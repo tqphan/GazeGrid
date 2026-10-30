@@ -993,6 +993,8 @@ Window {
        SettingSlider {label:"Scroll speed";displayValue:controller.scrollSpeed+"%";from:10;to:300;stepSize:10;value:controller.scrollSpeed;onMoved:controller.scrollSpeed=value}
        SettingSlider {label:"Centre dead zone";displayValue:controller.scrollDeadzone+" px";from:10;to:200;stepSize:5;value:controller.scrollDeadzone;onMoved:controller.scrollDeadzone=value}
        RowLayout {Desktop.Label {text:"Direction"} SettingsComboBox {model:["Both axes","Vertical only","Horizontal only"];currentIndex:controller.scrollAxis;onActivated:controller.scrollAxis=currentIndex}}
+       SettingsCheckBox {text:"Clamp gaze";checked:controller.clampScrollGaze;enabled:!controller.cancelScrollOffscreen;onToggled:controller.clampScrollGaze=checked}
+       SettingsCheckBox {text:"Cancel off-screen";checked:controller.cancelScrollOffscreen;onToggled:controller.cancelScrollOffscreen=checked}
        SettingsCheckBox {objectName:"showScrollZonesToggle";text:"Show zones";checked:controller.showScrollZones;onToggled:controller.showScrollZones=checked}
        SettingSlider {label:"Zone opacity";displayValue:controller.scrollZoneOpacity+"%";from:5;to:100;stepSize:5;value:controller.scrollZoneOpacity;onMoved:controller.scrollZoneOpacity=value}
        RowLayout {
