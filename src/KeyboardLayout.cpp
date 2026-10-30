@@ -79,7 +79,7 @@ QVariantMap KeyboardLayout::fromXml(const QVariantMap &root){
                 if(tag!="DynamicKey"||(!button&&ActionRunner::dwellKey(commands).first.isEmpty()))
                     return {{"error","Key mode requires a single non-modifier keyboard key or digital gamepad button"}};
             }
-            int dwell=attr.value("completiontimes",0).toString().split(',').first().toInt();
+            int dwell=style.value("completiontimes",0).toString().split(',').first().toInt();
             keys<<QVariantMap{{"mode",mode},{"suggestionCount",suggestions},{"row",row},{"col",col},{"width",width},{"height",height},{"kind",tag},{"label",field(n,"Label")},{"shiftLabel",field(n,"ShiftDownLabel")},{"symbol",field(n,"Symbol").trimmed()},{"style",style},{"commands",commands},{"dwell",dwell}};
         }
     }

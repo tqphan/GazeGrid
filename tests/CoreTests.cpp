@@ -25,6 +25,34 @@ class CoreTests:public QObject{
  Q_OBJECT
 static QVariantMap cmd(QString tag,QString text){return {{"tag",tag},{"text",text}};}
 private slots:
+ void keyGroupDwellTimes(){
+  QTemporaryDir dir;QFile file(dir.filePath("dwell.xml"));
+  auto load=[&](const QString &groups,const QString &attributes,const QString &membership){
+   if(!file.open(QIODevice::WriteOnly|QIODevice::Truncate))return QVariantMap{{"error","test file"}};
+   file.write(("<Keyboard><Grid><Rows>1</Rows><Cols>1</Cols></Grid>"+groups+
+    "<Content><DynamicKey "+attributes+"><Label>A</Label><Text>a</Text>"+membership+
+    "</DynamicKey></Content></Keyboard>").toUtf8());file.close();
+   return KeyboardLayout::fromXml(KeyboardPack::load(file.fileName()));
+  };
+  const QString all="<KeyGroup Name=\"All\" CompletionTimes=\"900\"/>";
+  const QString defaults="<KeyGroup Name=\"Default\" CompletionTimes=\"1000\"/>";
+  const QString slow="<KeyGroup Name=\"Slow\" CompletionTimes=\"1200,1500\"/>";
+  const QString member="<KeyGroup>Slow</KeyGroup>";
+  struct Case {QString groups,attributes,membership;int expected;};
+  const QList<Case> cases{
+   {"","","",0},{all,"","",900},{defaults,"","",1000},
+   {slow,"","",0},{slow,"",member,1200},
+   {all+defaults+slow,"",member,1200},{slow+defaults+all,"",member,900},
+   {all+slow,"CompletionTimes=\"600\"",member,600},
+   {all+slow,"CompletionTimes=\"0\"",member,0},
+   {"","CompletionTimes=\"700,800\"","",700}
+  };
+  for(const auto &test:cases){
+   const auto layout=load(test.groups,test.attributes,test.membership);
+   QVERIFY2(!layout.contains("error"),qPrintable(layout["error"].toString()));
+   QCOMPARE(layout["keys"].toList().first().toMap()["dwell"].toInt(),test.expected);
+  }
+ }
  void processPriorityPreferences(){
   auto values=ProfileStore::defaults();
   QCOMPARE(values["processPriority"].toInt(),0);

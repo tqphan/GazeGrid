@@ -264,6 +264,16 @@ momentary button presses and analog axes are released or centered on layout chan
 Pause, tracking loss, mode changes and entering conversation mode still release toggles.
 
 
+## Key group dwell time
+
+Set `CompletionTimes` in milliseconds on a keyboard's `KeyGroup` to share dwell timing:
+
+```xml
+<KeyGroup Name="Slow" CompletionTimes="1200" />
+```
+
+Inside each member key, add `<KeyGroup>Slow</KeyGroup>`. Groups named `All` or `Default` apply to every key automatically. Later matching groups in XML order take priority; a key's own `CompletionTimes` overrides all groups. If the resulting value is missing, zero, or negative, the global dwell setting applies. As with individual keys, only the first comma-separated value is used. Repeat timing continues to use the global repeat interval.
+
 ## Keyboard editor
 
 Open **Keyboard editor…** from the tray menu, or launch it directly:
