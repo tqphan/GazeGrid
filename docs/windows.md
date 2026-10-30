@@ -324,3 +324,14 @@ that tracker support was compiled in, even on CI machines without Tobii hardware
 ### Qt MinGW quick start
 
 With Qt 6 MinGW x64, its matching compiler, CMake and Ninja installed under C:\Qt, run `.\build.ps1 -Run` or double-click `run.cmd`. The script configures an unsigned development build, runs tests, and deploys Qt beside the executable. Use `-QtDirectory` to select a kit, `-QtRoot` for a different Qt installation root, and `-TobiiSdk` for eye-tracker SDK headers. Signed UIAccess releases still require MSVC.
+
+## Start with Windows
+
+Select **Start with Windows** in setup or under **Settings ? Keyboard ? Startup**
+to launch gaze-grid after signing in. Setup leaves it unchecked by default; silent
+installations can opt in with `GAZE_GRID_STARTUP=1`. This registers the app for the
+current user in Windows **Settings ? Apps ? Startup** and Task Manager. Changes
+apply immediately without saving preferences. Windows startup controls can also
+disable it. Startup before sign-in remains a separate option. Uninstall removes
+the startup entry for the user running uninstall; other users can turn theirs off
+in Settings before uninstalling.

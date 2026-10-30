@@ -25,6 +25,7 @@
 #include <QRegion>
 #include "ProfileStore.h"
 #include <QTimer>
+#include <QSettings>
 #include <QDir>
 #include <QFile>
 #include <QSaveFile>
@@ -1079,6 +1080,32 @@ bool Controller::saveCanvasGeometry(){
  const bool saved=KeyboardLayout::saveCanvasGeometry(canvasSourcePath,canvasSource,layout["keys"].toList(),error);
  canvasSaveStatus=saved?"Positions and sizes saved to "+canvasSourcePath:"Could not save: "+error+" Changes remain temporary.";
  emit changed();return saved;
+}
+
+bool Controller::startsWithWindows()const{
+#ifdef _WIN32
+ QSettings run("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",QSettings::Registry64Format);
+ if(run.value("gaze-grid").toString().isEmpty())return false;
+ QSettings approval("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run",QSettings::Registry64Format);
+ const auto state=approval.value("gaze-grid").toByteArray();
+ return state.isEmpty()||(static_cast<unsigned char>(state[0])&1)==0;
+#else
+ return false;
+#endif
+}
+void Controller::configureWindowsStartup(bool enabled){
+ if(signInMode||!desktopActive)return;
+#ifdef _WIN32
+ QSettings run("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",QSettings::Registry64Format);
+ if(enabled)run.setValue("gaze-grid",QString("\"%1\"").arg(QDir::toNativeSeparators(QCoreApplication::applicationFilePath())));
+ else run.remove("gaze-grid");
+ run.sync();
+ // An explicit app setting can re-enable an entry disabled in Windows.
+ QSettings approval("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run",QSettings::Registry64Format);
+ approval.remove("gaze-grid");approval.sync();
+ if(run.status()!=QSettings::NoError||approval.status()!=QSettings::NoError)profileStatus="Could not change Windows startup.";
+ emit changed();
+#endif
 }
 
 bool Controller::isSignInEnabled()const{

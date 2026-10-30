@@ -19,6 +19,7 @@ class Controller:public QObject{
  Q_PROPERTY(int activeSpeechProfile READ activeSpeechProfile WRITE setActiveSpeechProfile NOTIFY speechProfilesChanged)
  Q_PROPERTY(int processPriority READ processPriority WRITE setProcessPriority NOTIFY changed)
  Q_PROPERTY(bool signInMode READ isSignInMode CONSTANT)
+ Q_PROPERTY(bool startWithWindows READ startsWithWindows NOTIFY changed)
  Q_PROPERTY(bool signInEnabled READ isSignInEnabled NOTIFY changed)
  Q_PROPERTY(bool desktopActive READ isDesktopActive NOTIFY changed)
  Q_PROPERTY(bool trackerConnected READ isTrackerConnected NOTIFY trackerConnectionChanged)
@@ -128,6 +129,9 @@ public:
  // An injected tracker must outlive this controller; production uses the owned worker.
  explicit Controller(bool signIn=false,const QJsonObject &signInProfile={},TobiiInput *tracker=nullptr);~Controller()override;
  bool isSignInMode()const{return signInMode;}
+ bool startsWithWindows()const;
+ Q_INVOKABLE void configureWindowsStartup(bool enabled);
+ Q_INVOKABLE void refreshWindowsStartup(){emit changed();}
  bool isSignInEnabled()const;
  bool isTrackerConnected()const{return trackerConnected;}
  bool isDesktopActive()const{return desktopActive;}

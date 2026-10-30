@@ -8,6 +8,7 @@
       <RegistrySearch Id="SavedMode" Root="HKLM" Key="Software\gaze-grid\Installer" Name="TrustCertificate" Type="raw" Win64="yes" />
     </Property>
     <SetProperty Id="GAZE_GRID_TRUST_CERTIFICATE" Value="[GAZE_GRID_SAVED_MODE]" After="AppSearch" Sequence="both">Installed AND GAZE_GRID_SAVED_MODE</SetProperty>
+    <Property Id="GAZE_GRID_STARTUP" Secure="yes" />
     <Property Id="GAZE_GRID_SIGN_IN" Value="1" Secure="yes" />
     <Property Id="GAZE_GRID_SAVED_SIGN_IN" Secure="yes">
       <RegistrySearch Id="SavedSignIn" Root="HKLM" Key="Software\gaze-grid\Installer" Name="SignIn" Type="raw" Win64="yes" />
@@ -27,7 +28,11 @@
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch gaze-grid after setup" />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
     <CustomAction Id="Launchgaze_grid" BinaryKey="WixCA" DllEntry="WixShellExec" Execute="immediate" Impersonate="yes" Return="ignore" />
+    <CustomAction Id="RemoveDesktopStartup" Directory="SystemFolder" ExeCommand='&quot;[SystemFolder]reg.exe&quot; delete &quot;HKCU\Software\Microsoft\Windows\CurrentVersion\Run&quot; /v gaze-grid /f' Execute="deferred" Impersonate="yes" Return="ignore" />
+    <CustomAction Id="RemoveDesktopStartupApproval" Directory="SystemFolder" ExeCommand='&quot;[SystemFolder]reg.exe&quot; delete &quot;HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run&quot; /v gaze-grid /f' Execute="deferred" Impersonate="yes" Return="ignore" />
     <InstallExecuteSequence>
+      <Custom Action="RemoveDesktopStartup" Before="RemoveRegistryValues">REMOVE = "ALL" AND NOT UPGRADINGPRODUCTCODE</Custom>
+      <Custom Action="RemoveDesktopStartupApproval" After="RemoveDesktopStartup">REMOVE = "ALL" AND NOT UPGRADINGPRODUCTCODE</Custom>
       <Custom Action="PrepareSignIn" Before="InstallInitialize">1</Custom>
       <Custom Action="RollbackSignIn" After="WriteRegistryValues">1</Custom>
       <Custom Action="ApplySignIn" After="RollbackSignIn">1</Custom>
@@ -63,6 +68,12 @@
           <Shortcut Id="gaze_gridUnsignedStart" Directory="gaze_gridMenu" Name="gaze-grid" Icon="gaze_grid.exe" IconIndex="0" Advertise="yes" WorkingDirectory="INSTALL_ROOT" />
         </File>
       </Component>
+      <!-- Separate key path preserves app changes during repair. -->
+      <Component Id="gaze_gridStartup" Guid="0C103E18-0AF3-4DCF-B160-E7483BB875CA" Win64="yes" NeverOverwrite="yes">
+        <Condition>GAZE_GRID_STARTUP = "1"</Condition>
+        <RegistryValue Root="HKCU" Key="Software\gaze-grid\Installer" Name="Startup" Value="1" Type="integer" KeyPath="yes" />
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="gaze-grid" Value="&quot;[INSTALL_ROOT]gaze-grid.exe&quot;" Type="string" />
+      </Component>
       <Component Id="gaze_gridSignInSettings" Guid="833B331F-8831-4C30-9B50-3864F5C8CA07" Win64="yes">
         <RegistryKey Root="HKLM" Key="Software\gaze-grid\SignIn" ForceDeleteOnUninstall="yes">
           <RegistryValue Name="Installed" Value="1" Type="integer" KeyPath="yes" />
@@ -82,6 +93,7 @@
       </Component>
     </DirectoryRef>
     <DirectoryRef Id="TARGETDIR">
+      <Directory Id="SystemFolder" />
       <Directory Id="ProgramMenuFolder">
         <Directory Id="gaze_gridMenu" Name="gaze-grid" />
       </Directory>
@@ -90,6 +102,7 @@
       <ComponentRef Id="gaze_gridSigned" />
       <ComponentRef Id="gaze_gridUnsigned" />
       <ComponentRef Id="gaze_gridMode" />
+      <ComponentRef Id="gaze_gridStartup" />
       <ComponentRef Id="gaze_gridSignInSettings" />
       <ComponentRef Id="gaze_gridCertificate" />
 
@@ -126,16 +139,17 @@
           <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
         </Control>
       </Dialog>
-      <Dialog Id="gaze_gridSignInDlg" Width="520" Height="240" Title="gaze-grid Windows sign-in">
-        <Control Id="Title" Type="Text" X="20" Y="15" Width="480" Height="26" Text="{\gaze_grid_Font_Title}Keyboard before Windows sign-in" />
+      <Dialog Id="gaze_gridSignInDlg" Width="520" Height="280" Title="gaze-grid Windows startup">
+        <Control Id="Title" Type="Text" X="20" Y="15" Width="480" Height="26" Text="{\gaze_grid_Font_Title}Windows startup" />
         <Control Id="Explanation" Type="Text" X="20" Y="48" Width="480" Height="48" Text="gaze-grid can start on the Windows sign-in screen before you enter your password. It uses the existing keyboard interface with prediction disabled." />
         <Control Id="Enable" Type="CheckBox" X="20" Y="106" Width="480" Height="24" Property="GAZE_GRID_SIGN_IN" CheckBoxValue="1" Text="Start gaze-grid before Windows sign-in">
           <Condition Action="disable">GAZE_GRID_TRUST_CERTIFICATE &lt;&gt; "1"</Condition>
           <Condition Action="enable">GAZE_GRID_TRUST_CERTIFICATE = "1"</Condition>
         </Control>
         <Control Id="Details" Type="Text" X="20" Y="140" Width="480" Height="48" Text="Requires certificate trust. To use your current keyboard and gaze preferences, open Settings > Keyboard > Windows sign-in after installation. Eye tracking also depends on Tobii availability before sign-in." />
-        <Control Id="Next" Type="PushButton" X="310" Y="204" Width="90" Height="24" Default="yes" Text="Next"><Publish Event="EndDialog" Value="Return">1</Publish></Control>
-        <Control Id="Cancel" Type="PushButton" X="410" Y="204" Width="90" Height="24" Cancel="yes" Text="Cancel"><Publish Event="SpawnDialog" Value="CancelDlg">1</Publish></Control>
+        <Control Id="Startup" Type="CheckBox" X="20" Y="196" Width="480" Height="24" Property="GAZE_GRID_STARTUP" CheckBoxValue="1" Text="Start with Windows" />
+        <Control Id="Next" Type="PushButton" X="310" Y="244" Width="90" Height="24" Default="yes" Text="Next"><Publish Event="EndDialog" Value="Return">1</Publish></Control>
+        <Control Id="Cancel" Type="PushButton" X="410" Y="244" Width="90" Height="24" Cancel="yes" Text="Cancel"><Publish Event="SpawnDialog" Value="CancelDlg">1</Publish></Control>
       </Dialog>
       <Dialog Id="gaze_gridTobiiDlg" Width="520" Height="280" Title="gaze-grid eye tracking setup">
         <Control Id="Title" Type="Text" X="20" Y="15" Width="480" Height="26" Text="{\gaze_grid_Font_Title}Tobii eye tracking prerequisites" />

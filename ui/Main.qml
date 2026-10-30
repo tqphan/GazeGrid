@@ -516,7 +516,7 @@ Window {
   }
  }
  Window {
-  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1100,root.screenWidth);height:Math.min(800,root.screenHeight-60);title:"gaze-grid Settings";color:Kirigami.Theme.backgroundColor
+  id:settings;onActiveChanged:if(active)controller.refreshWindowsStartup();objectName:"settingsWindow";visible:false;width:Math.min(1100,root.screenWidth);height:Math.min(800,root.screenHeight-60);title:"gaze-grid Settings";color:Kirigami.Theme.backgroundColor
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
   ColorDialog {
    id:gazeColorDialog
@@ -738,6 +738,13 @@ Window {
        SettingSlider {label:"Short key labels";displayValue:controller.shortLabelScale+"%";from:50;to:200;stepSize:5;value:controller.shortLabelScale;onMoved:controller.shortLabelScale=value}
        SettingSlider {label:"Long key labels";displayValue:controller.longLabelScale+"%";from:50;to:200;stepSize:5;value:controller.longLabelScale;onMoved:controller.longLabelScale=value}
        SettingsCheckBox {text:"Temporarily hide keyboard during mouse actions";checked:controller.hideKeyboardDuringMouseActions;onToggled:controller.hideKeyboardDuringMouseActions=checked}
+      }
+     }
+     SettingsCard {
+      title:"Startup";visible:Qt.platform.os==="windows"&&settingsCategory.currentIndex==1;Layout.fillWidth:true
+      SettingsCheckBox {
+       anchors.fill:parent;objectName:"windowsStartupToggle";text:"Start with Windows";checked:controller.startWithWindows
+       onToggled:{controller.configureWindowsStartup(checked);checked=Qt.binding(function(){return controller.startWithWindows})}
       }
      }
      SettingsCard {
