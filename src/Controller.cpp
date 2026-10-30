@@ -700,7 +700,7 @@ void Controller::activate(QString key){
  auto commands=keys[i].toMap()["commands"].toList();bool ok=false;commands=mapped(commands,ok);
  if(!ok){emit changed();return;}
  // Navigation, sleep, and scratchpad clearing work without a portal session.
- bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="MoveModeToggle"||value=="SizeModeToggle"||value=="CycleButtonMode"||value=="CycleKeyMode"||value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="SpeakLabel"||value=="NextSuggestions"||value=="PreviousSuggestions"||GameController::supports(value))))needsOutput=true;}
+ bool needsOutput=false;for(auto v:commands){auto c=v.toMap();auto tag=c["tag"].toString(),value=c["text"].toString().trimmed();if(tag!="ChangeKeyboard"&&tag!="Wait"&&!(tag=="Action"&&(value=="MoveModeToggle"||value=="SizeModeToggle"||value=="CycleButtonMode"||value=="CycleKeyMode"||value=="BackFromKeyboard"||value=="MenuKeyboard"||value=="Sleep"||value=="ClearScratchpad"||value=="Speak"||value=="SpeakLabel"||value=="NextSpeechProfile"||value=="PreviousSpeechProfile"||value=="NextSuggestions"||value=="PreviousSuggestions"||GameController::supports(value))))needsOutput=true;}
  if(needsOutput&&!runner.textOnly&&!ready()){actionStatus="Authorize desktop control before sending input";emit changed();return;}
  if(!runner.textOnly&&commands.size()==1){
   auto cmd=commands.front().toMap();
@@ -799,6 +799,11 @@ bool Controller::performAction(QString action){
   setMagnifierEnabled(!magnifierEnabled);actionStatus=magnifierEnabled?"Magnifier enabled: target selection will request desktop capture":"Magnifier disabled";emit changed();return true;
  }
  if(action=="Speak"){speak();return true;}
+ if(action=="NextSpeechProfile"||action=="PreviousSpeechProfile"){
+  const int count=speechProfiles.size();
+  if(count>0)setActiveSpeechProfile((speechProfileIndex+(action=="NextSpeechProfile"?1:count-1))%count);
+  return true;
+ }
  if(action=="BackMany"){
   if(!runner.textOnly)return false;
   auto &text=typingContext();

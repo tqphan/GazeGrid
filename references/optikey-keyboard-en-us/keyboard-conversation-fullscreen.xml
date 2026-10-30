@@ -62,8 +62,9 @@
     </DynamicKey>
     <!-- Row 0 -->
     <DynamicKey>
-      <Symbol>MoonZzzIcon</Symbol>
-      <Action>Sleep</Action>
+      <Label>Previous
+profile</Label>
+      <Action>PreviousSpeechProfile</Action>
     </DynamicKey>
     <DynamicKey Width="2">
       <Label>headrest</Label>
@@ -90,8 +91,9 @@
       <Action>SpeakLabel</Action>
     </DynamicKey>
     <DynamicKey>
-      <Symbol>NoIcon</Symbol>
-      <Action>BackFromKeyboard</Action>
+      <Label>Next
+profile</Label>
+      <Action>NextSpeechProfile</Action>
       <KeyGroup>Exit</KeyGroup>
     </DynamicKey>
     <!-- Row 0 -->

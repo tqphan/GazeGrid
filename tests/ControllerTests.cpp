@@ -84,6 +84,28 @@ private slots:
    c.deleteSpeechProfile();QCOMPARE(c.getSpeechProfiles().size(),1);c.resetPreferences();
   }
  }
+ void speechProfileActionsCycle(){
+  ProfileStore store(appConfigDirectory()+"/profile.json");QString error;
+  QVERIFY(store.save(ProfileStore::defaults(),error,true));
+  Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+  auto activate=[&](QString action){
+   QString key;const auto keys=c.property("layout").toMap()["keys"].toList();
+   for(int i=0;i<keys.size();++i)
+    for(const auto &command:keys[i].toMap()["commands"].toList())
+     if(command.toMap()["text"]==action)key=QString("key:%1").arg(i);
+   QVERIFY(!key.isEmpty());c.clickCommand(key);
+   QTRY_VERIFY(!c.executingCommands());
+  };
+  activate("NextSpeechProfile");QCOMPARE(c.activeSpeechProfile(),0);
+  activate("PreviousSpeechProfile");QCOMPARE(c.activeSpeechProfile(),0);
+  QVERIFY(c.createSpeechProfile("Care"));
+  QVERIFY(c.createSpeechProfile("Daily"));
+  activate("NextSpeechProfile");QCOMPARE(c.activeSpeechProfile(),0);
+  activate("PreviousSpeechProfile");QCOMPARE(c.activeSpeechProfile(),2);
+  activate("PreviousSpeechProfile");QCOMPARE(c.activeSpeechProfile(),1);
+  activate("NextSpeechProfile");QCOMPARE(c.activeSpeechProfile(),2);
+  c.resetPreferences();
+ }
  void hiddenLayoutsDoNotReplaceStartupKeyboard(){
   ProfileStore store(appConfigDirectory()+"/profile.json");QString error;
   QVERIFY(store.save(ProfileStore::defaults(),error));
