@@ -48,7 +48,7 @@ private slots:
         QVERIFY(editor.apply());QVERIFY(editor.view->isInteractive());
         QCOMPARE(editor.items()[0].firstChildElement("Label").text(),QString("Edited"));
         QVERIFY(!editor.grab().isNull());
-        editor.grab().save("/tmp/gazegrid-editor-redesign.png");
+        editor.grab().save("/tmp/gaze-grid-editor-redesign.png");
     }
     void editBehaviorWithoutMarkup() {
         KeyboardEditor editor;

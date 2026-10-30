@@ -1,0 +1,7 @@
+1 ICON "gaze-grid.ico"
+
+STRINGTABLE
+BEGIN
+  101 "gaze-grid"
+  102 "gaze-grid keyboard at Windows sign-in. Prediction and learning are disabled."
+END

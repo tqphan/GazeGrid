@@ -66,6 +66,8 @@ Controller::Controller(bool signIn,const QJsonObject &signInProfile,TobiiInput *
  completionSpaceEnabled=profile.values["addSpaceAfterCompletion"].toBool(true);
  removeCompletionSpaceEnabled=profile.values["removeCompletionSpaceBeforePunctuation"].toBool(true);
  sentenceStartersEnabled=profile.values["suggestSentenceStarters"].toBool(true);
+ latchStyle=profile.values.value("latchStyle").toString("outline");
+ lockStyle=profile.values.value("lockStyle").toString("fill");
  dwellIndicatorStyle=profile.values.value("dwellIndicatorStyle").toString("bar");
  dwellMs=profile.values["dwellMs"].toInt();literal=profile.values["literal"].toBool();learning=profile.values["learning"].toBool();profileStatus=profile.message;
  scalePercent=profile.values["keyboardScale"].toInt(100);keyboardTheme=profile.values["highContrast"].toBool()?QStringLiteral("high-contrast"):profile.values["keyboardTheme"].toString("system");
@@ -294,7 +296,7 @@ void Controller::setKeyCycleModes(const QStringList &modes){
 
 bool Controller::savePreferences(){
  if(signInMode)return false;
- QJsonObject values{{"showScrollZones",showScrollZones},{"scrollZoneOpacity",scrollZoneOpacity},{"scrollZoneColor",scrollZoneColor},{"keyCycleModes",QJsonArray::fromStringList(keyCycleModesValue)},{"magneticMouseRelative",magneticMouseRelative},{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",startupLayout},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierRefreshHz",magnifierRefreshHz},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
+ QJsonObject values{{"showScrollZones",showScrollZones},{"scrollZoneOpacity",scrollZoneOpacity},{"scrollZoneColor",scrollZoneColor},{"keyCycleModes",QJsonArray::fromStringList(keyCycleModesValue)},{"magneticMouseRelative",magneticMouseRelative},{"scrollSpeed",scrollSpeed},{"scrollDeadzone",scrollDeadzone},{"scrollAxis",scrollAxis},{"gazeEnabled",gazeEnabled},{"repeatIntervalMs",repeatIntervalMs},{"preserveTogglesBetweenLayouts",preserveTogglesBetweenLayouts},{"cycleModifiersOnHover",cycleModifiersOnHover},{"hideKeyboardDuringMouseActions",hideKeyboardDuringMouseActions},{"gazeIndicatorSize",gazeIndicatorSize},{"gazeIndicatorOpacity",gazeIndicatorOpacity},{"gazeIndicatorColor",gazeIndicatorColor},{"gazeIndicatorMorph",gazeIndicatorMorph},{"version",1},{"dwellMs",dwellMs},{"latchStyle",latchStyle},{"lockStyle",lockStyle},{"dwellIndicatorStyle",dwellIndicatorStyle},{"literal",literal},{"learning",learning},{"typedWordSuggestionMode",typedWordMode},{"predictionMode",predictionModeValue},{"predictNextWord",nextWordEnabled},{"addSpaceAfterCompletion",completionSpaceEnabled},{"suggestSentenceStarters",sentenceStartersEnabled},{"startLayout",startupLayout},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale},{"magnifierRefreshHz",magnifierRefreshHz},{"magnifierZoom",magnifierZoom},{"magnifierEnabled",magnifierEnabled},{"progressiveZoom",progressiveZoom},{"zoomDurationMs",zoomDurationMs},{"targetDwellEnabled",targetDwellEnabled},{"targetStartDwellMs",targetStartDwellMs},{"targetConfirmDwellMs",targetConfirmDwellMs},{"targetDwellRadius",targetDwellRadius},{"rememberDesktop",rememberDesktop},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"restoreCorner",recoveryCorner},{"restoreWidth",recoveryWidth},{"restoreHeight",recoveryHeight},{"restoreOpacity",restoreOpacity}};
  values["speechProfiles"]=QJsonArray::fromVariantList(speechProfiles);
  values["activeSpeechProfile"]=speechProfileIndex;
  values["processPriority"]=processPriorityValue;
@@ -322,6 +324,7 @@ void Controller::resetPreferences(){
  predictionTextScale=values["predictionTextScale"].toInt();
  scratchpadTextScale=values["scratchpadTextScale"].toInt();
  clampGazeForKeyboard=false;clampGazeForPointSelection=true;
+ latchStyle="outline";lockStyle="fill";
  dwellIndicatorStyle="bar";
  dwellMs=values["dwellMs"].toInt();literal=false;learning=false;predictionModeValue="context";typedWordMode="fallback";nextWordEnabled=true;completionSpaceEnabled=true;sentenceStartersEnabled=true;backStack.clear();
  repeatIntervalMs=750;
@@ -1074,7 +1077,7 @@ bool Controller::isSignInEnabled()const{
 #endif
 }
 QJsonObject Controller::signInPreferences() const{
- QJsonObject values{{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
+ QJsonObject values{{"startLayout",layoutName},{"keyboardScale",scalePercent},{"keyboardTheme",keyboardTheme},{"dwellMs",dwellMs},{"latchStyle",latchStyle},{"lockStyle",lockStyle},{"dwellIndicatorStyle",dwellIndicatorStyle},{"gazeEnabled",gazeEnabled},{"gazeFilterType",filterType},{"gazeFilterGain",filterGain},{"gazeSaccadeDistance",saccadeDistance},{"gazeSmoothingLevel",smoothingLevel},{"smoothWhenChangingGazeTarget",smoothTargetChanges},{"shortLabelScale",shortLabelScale},{"longLabelScale",longLabelScale}};
  values["invalidGazeToleranceMs"]=gazeToleranceMs;
  values["predictionTextScale"]=predictionTextScale;
  values["scratchpadTextScale"]=scratchpadTextScale;
@@ -1094,7 +1097,7 @@ QJsonObject Controller::signInPreferences() const{
 void Controller::syncSignInPreferences(){
  if(signInMode||!desktopActive)return;
 #ifdef _WIN32
- profileStatus=WindowsSignIn::configure(true,signInPreferences(),true)?"Current preferences copied to login and secure desktop. Prediction is disabled there.":"Could not sync preferences. Install the trusted version of GazeGrid and accept the administrator prompt.";
+ profileStatus=WindowsSignIn::configure(true,signInPreferences(),true)?"Current preferences copied to login and secure desktop. Prediction is disabled there.":"Could not sync preferences. Install the trusted version of gaze-grid and accept the administrator prompt.";
  emit changed();
 #endif
 }
@@ -1102,7 +1105,7 @@ void Controller::configureSignIn(bool enabled){
  if(signInMode||!desktopActive)return;
 #ifdef _WIN32
  const auto values=signInPreferences();
- profileStatus=WindowsSignIn::configure(enabled,values)?(enabled?"This keyboard will start before Windows sign-in. Prediction is disabled there.":"Windows sign-in startup is disabled."):"Could not change sign-in startup. Install the trusted version of GazeGrid and accept the administrator prompt.";
+ profileStatus=WindowsSignIn::configure(enabled,values)?(enabled?"This keyboard will start before Windows sign-in. Prediction is disabled there.":"Windows sign-in startup is disabled."):"Could not change sign-in startup. Install the trusted version of gaze-grid and accept the administrator prompt.";
  emit changed();
 #endif
 }

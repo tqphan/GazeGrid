@@ -72,7 +72,7 @@ void PointerCheck::tick(){
     const auto colour=image.pixelColor(image.width()/2+x*image.width()/8,image.height()/2+y*image.height()/8);
     if(colour.green()-colour.red()>=15&&colour.blue()>=150)++matching;
    }
-   if(matching<5){const auto path=qEnvironmentVariable("GAZEGRID_SCREENSHOT");if(!path.isEmpty())image.save(path);fail(QString("Magnifier image does not match the disposable receiver target (%1/%2 samples)").arg(matching).arg(9));return;}
+   if(matching<5){const auto path=qEnvironmentVariable("GAZE_GRID_SCREENSHOT");if(!path.isEmpty())image.save(path);fail(QString("Magnifier image does not match the disposable receiver target (%1/%2 samples)").arg(matching).arg(9));return;}
    captureSeen=true;
   }
   const QPointF point=magnified?QPointF(.5,.5):phase==2?(targets==0?QPointF(.3,.25):QPointF(.65,.4)):QPointF(.4,.25);

@@ -16,7 +16,7 @@ namespace WindowsDesktop {
 // the final accessibility notification. Other desktops retain independent locks.
 class Instance {
 public:
- explicit Instance(std::wstring prefix=L"GazeGrid.Keyboard");
+ explicit Instance(std::wstring prefix=L"gaze-grid.Keyboard");
  ~Instance();
  Instance(const Instance &)=delete;
  Instance &operator=(const Instance &)=delete;

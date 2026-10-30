@@ -23,7 +23,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QPainter>
-#ifdef GAZEGRID_LINUX
+#ifdef GAZE_GRID_LINUX
 #include <QDBusConnection>
 #include <QDBusMessage>
 #endif
@@ -47,7 +47,7 @@
 #include <windows.h>
 #include <dwmapi.h>
 #endif
-#ifdef GAZEGRID_LINUX
+#ifdef GAZE_GRID_LINUX
 #include <LayerShellQt/Window>
 #include "PlasmaInputMethod.h"
 #endif
@@ -106,7 +106,7 @@ int main(int argc,char **argv){
   wchar_t executable[32768]{};if(!GetModuleFileNameW(nullptr,executable,32768))return 2;
   const auto directory=QFileInfo(QString::fromWCharArray(executable)).absolutePath();
   QCoreApplication::setLibraryPaths({directory});
-  for(const auto *name:{"QT_PLUGIN_PATH","QT_QPA_PLATFORM_PLUGIN_PATH","QML_IMPORT_PATH","QML2_IMPORT_PATH","QT_QUICK_CONTROLS_CONF","GAZEGRID_CONFIG_DIR"})qunsetenv(name);
+  for(const auto *name:{"QT_PLUGIN_PATH","QT_QPA_PLATFORM_PLUGIN_PATH","QML_IMPORT_PATH","QML2_IMPORT_PATH","QT_QUICK_CONTROLS_CONF","GAZE_GRID_CONFIG_DIR"})qunsetenv(name);
   qputenv("QT_QPA_PLATFORM","windows");qputenv("QT_QUICK_BACKEND","software");
  }
  // A preview check exercises the same controller and QML without sending input.
@@ -139,12 +139,12 @@ int main(int argc,char **argv){
  for(int i=1;i<argc;++i){QString arg=argv[i];diagnose|=arg=="--diagnose";audit|=arg=="--validate-keyboards";smoke|=arg=="--smoke";portalCheck|=arg=="--portal-check";inputCheck|=arg=="--input-check";inputTarget|=arg=="--input-target";pointerCheck|=arg=="--pointer-check";pointerTarget|=arg=="--pointer-target";}
  if(diagnose||audit)qputenv("QT_QPA_PLATFORM","offscreen");
  QQuickWindow::setDefaultAlphaBuffer(true);
- QApplication app(argc,argv);app.setOrganizationName("GazeGrid");app.setApplicationName("GazeGrid");app.setApplicationDisplayName("GazeGrid");app.setDesktopFileName("org.gazegrid.GazeGrid");
+ QApplication app(argc,argv);app.setOrganizationName("gaze-grid");app.setApplicationName("gaze-grid");app.setApplicationDisplayName("gaze-grid");app.setDesktopFileName("org.gaze_grid.gaze_grid");
 #ifdef _WIN32
  app.setStyle("Fusion"); // QWidget menus/editor must honor the same system palette as QML.
  WindowsTheme windowsTheme;
 #endif
- app.setWindowIcon(QIcon(":/resources/gazegrid.svg"));
+ app.setWindowIcon(QIcon(":/resources/gaze-grid.svg"));
  if(app.arguments().contains("--editor")){
   KeyboardEditor editor;
   int index=app.arguments().indexOf("--editor");
@@ -152,7 +152,7 @@ int main(int argc,char **argv){
   editor.show();return app.exec();
  }
  const bool magnifierCheck=app.arguments().contains("--magnifier-check");pointerCheck|=magnifierCheck;
- if(app.arguments().contains("--input-method-check")&&qgetenv("GAZEGRID_ISOLATED_IM_TEST")!="1"){
+ if(app.arguments().contains("--input-method-check")&&qgetenv("GAZE_GRID_ISOLATED_IM_TEST")!="1"){
   QTextStream(stderr)<<"Run tests/native_input_method.py to isolate the native input check\n";return 2;
  }
  if(app.arguments().contains("--input-method-target")){
@@ -161,7 +161,7 @@ int main(int argc,char **argv){
   auto target=targetEngine.rootObjects().front();QTimer poll;
   QObject::connect(&poll,&QTimer::timeout,&app,[&]{
    if(target->property("focusLost").toBool()){QTextStream(stderr)<<"Native receiver lost focus\n";app.exit(2);return;}
-   if(target->property("privateComplete").toBool()&&target->property("receivedText").toString()==QString::fromUtf8("GazeGrid é€😀\n")){
+   if(target->property("privateComplete").toBool()&&target->property("receivedText").toString()==QString::fromUtf8("gaze-grid é€😀\n")){
    QTextStream(stdout)<<"PASS: native Unicode commit, Backspace, Return and private field reached the Qt receiver"<<Qt::endl;app.quit();
   }});poll.start(100);QTimer::singleShot(20000,&app,[&]{QTextStream(stderr)<<"Native input-method receiver timed out\n";app.exit(2);});return app.exec();
  }
@@ -198,7 +198,7 @@ int main(int argc,char **argv){
   QTimer::singleShot(60000,&app,[&]{QTextStream(stdout)<<"Portal check timed out"<<Qt::endl;app.exit(2);});
   return app.exec();
  }
-#ifdef GAZEGRID_LINUX
+#ifdef GAZE_GRID_LINUX
  std::unique_ptr<PlasmaInputMethod> inputMethod;
  if(inputMethodMode){
   inputMethod=std::make_unique<PlasmaInputMethod>();
@@ -206,13 +206,13 @@ int main(int argc,char **argv){
   if(app.arguments().contains("--input-method-check"))QTextStream(stderr)<<"Native input-method interfaces bound"<<Qt::endl;
  }
  // Register before any portal request so remembered screenshot approval belongs
- // to GazeGrid rather than an unidentified host application. Older portals may
+ // to gaze-grid rather than an unidentified host application. Older portals may
  // not implement Registry; their normal permission dialogs remain available.
  bool registerIdentity=!smoke;
  for(const auto &arg:app.arguments())if(arg.endsWith("-check"))registerIdentity=false;
  if(registerIdentity){
   auto registration=QDBusMessage::createMethodCall("org.freedesktop.portal.Desktop","/org/freedesktop/portal/desktop","org.freedesktop.host.portal.Registry","Register");
-  registration.setArguments({QString("org.gazegrid.GazeGrid"),QVariantMap{}});
+  registration.setArguments({QString("org.gaze_grid.gaze_grid"),QVariantMap{}});
   QDBusConnection::sessionBus().call(registration,QDBus::Block,2000);
  }
 #endif
@@ -233,7 +233,7 @@ int main(int argc,char **argv){
 #else
  Controller controller;
 #endif
-#ifdef GAZEGRID_LINUX
+#ifdef GAZE_GRID_LINUX
  if(inputMethod){
   controller.configureInputMethod([&](QString text){return inputMethod->commitText(text);},[&](QString name,bool down){return inputMethod->sendKey(name,down);});
   QObject::connect(inputMethod.get(),&PlasmaInputMethod::contextInvalidated,&controller,&Controller::invalidateInputContext);
@@ -267,7 +267,7 @@ int main(int argc,char **argv){
        QTextStream(stderr)<<"Native placement check: "<<(sensitive?"bottom":"top")<<" (11 UI clicks)"<<Qt::endl;
        QVariantList commands;
        if(sensitive)commands={QVariantMap{{"tag","Text"},{"text","secret42"}}};
-       else commands={QVariantMap{{"tag","Text"},{"text",QString::fromUtf8("GazeGrid é€😀X")}},QVariantMap{{"tag","Action"},{"text","Backspace"}},QVariantMap{{"tag","Text"},{"text","\n"}}};
+       else commands={QVariantMap{{"tag","Text"},{"text",QString::fromUtf8("gaze-grid é€😀X")}},QVariantMap{{"tag","Action"},{"text","Backspace"}},QVariantMap{{"tag","Text"},{"text","\n"}}};
        if(!controller.executeCommands(commands)){QTextStream(stderr)<<"Native check could not start\n";app.exit(2);}
        return;
       }
@@ -299,7 +299,7 @@ int main(int argc,char **argv){
  engine.rootContext()->setContextProperty("controller",&controller);
  engine.load(QUrl("qrc:/ui/Main.qml"));if(engine.rootObjects().isEmpty())return 1;
  auto window=qobject_cast<QQuickWindow*>(engine.rootObjects().front());if(!window)return 1;
-#ifdef GAZEGRID_LINUX
+#ifdef GAZE_GRID_LINUX
  nativeCheckWindow=window;
 #endif
  if(app.arguments().contains("--gaze-indicator-ui-check")){
@@ -340,14 +340,14 @@ int main(int argc,char **argv){
 #endif
  app.setQuitOnLastWindowClosed(false);
  QSystemTrayIcon tray(app.windowIcon());
- tray.setToolTip("GazeGrid");
+ tray.setToolTip("gaze-grid");
  QMenu trayMenu;
  auto openSettings=trayMenu.addAction(QIcon::fromTheme("configure"),"Settings…");
  QObject::connect(openSettings,&QAction::triggered,&controller,[&]{controller.activate("Settings");});
  auto openEditor=trayMenu.addAction("Keyboard editor…");
  QObject::connect(openEditor,&QAction::triggered,&app,[]{QProcess::startDetached(QCoreApplication::applicationFilePath(),{"--editor"});});
  trayMenu.addSeparator();
- auto quitAction=trayMenu.addAction(QIcon::fromTheme("application-exit"),"Quit GazeGrid");
+ auto quitAction=trayMenu.addAction(QIcon::fromTheme("application-exit"),"Quit gaze-grid");
  QObject::connect(quitAction,&QAction::triggered,&app,&QApplication::quit);
  tray.setContextMenu(&trayMenu);
  QObject::connect(&tray,&QSystemTrayIcon::activated,&controller,[&](QSystemTrayIcon::ActivationReason reason){
@@ -425,7 +425,7 @@ int main(int argc,char **argv){
   int y=(top?0:size.height()-height)+offset;
   if(fullScreen){width=size.width();height=size.height();x=0;y=0;offset=0;}
   // Linux needs an on-screen recovery surface; Windows uses the XML offsets.
-#ifdef GAZEGRID_LINUX
+#ifdef GAZE_GRID_LINUX
   if(minimized){
    width=qMin(controller.restoreWidth(),size.width());
    height=qMin(controller.restoreHeight(),size.height());
@@ -440,17 +440,17 @@ int main(int argc,char **argv){
 #endif
   window->setScreen(screen);window->resize(width,height);
   window->setProperty("screenWidth",size.width());window->setProperty("screenHeight",size.height());window->setProperty("logicalX",x);window->setProperty("logicalY",y);
-#ifdef GAZEGRID_LINUX
+#ifdef GAZE_GRID_LINUX
   if(QGuiApplication::platformName().startsWith("wayland")){
    if(inputMethod&&!inputMethod->attachPanel(window,top||fullScreen)){QTextStream(stderr)<<"Unable to assign keyboard surface role\n";app.exit(2);return;}
    // Keep every keyboard layout above fullscreen clients without taking focus.
-   if(!inputMethod||top||fullScreen){auto layer=LayerShellQt::Window::get(window);layer->setScope("gazegrid-keyboard");layer->setScreen(screen);layer->setLayer(LayerShellQt::Window::LayerOverlay);
+   if(!inputMethod||top||fullScreen){auto layer=LayerShellQt::Window::get(window);layer->setScope("gaze-grid-keyboard");layer->setScreen(screen);layer->setLayer(LayerShellQt::Window::LayerOverlay);
    layer->setAnchors(minimized?LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft:LayerShellQt::Window::Anchors(top?LayerShellQt::Window::AnchorTop:LayerShellQt::Window::AnchorBottom));
    layer->setMargins(minimized?QMargins(x,y,0,0):top?QMargins(0,offset,0,0):QMargins(0,0,0,-offset));layer->setDesiredSize(QSize(width,height));
    layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);layer->setActivateOnShow(false);layer->setExclusiveZone(inputMethod||minimized||fullScreen?-1:0);
    }
-   if(target){target->setScreen(screen);target->resize(size);auto overlay=LayerShellQt::Window::get(target);overlay->setScope("gazegrid-target");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setExclusiveZone(-1);}
-   if(scrollZones){auto overlay=LayerShellQt::Window::get(scrollZones);overlay->setScope("gazegrid-scroll-zones");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setActivateOnShow(false);overlay->setExclusiveZone(-1);}
+   if(target){target->setScreen(screen);target->resize(size);auto overlay=LayerShellQt::Window::get(target);overlay->setScope("gaze-grid-target");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setExclusiveZone(-1);}
+   if(scrollZones){auto overlay=LayerShellQt::Window::get(scrollZones);overlay->setScope("gaze-grid-scroll-zones");overlay->setScreen(screen);overlay->setLayer(LayerShellQt::Window::LayerOverlay);overlay->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop)|LayerShellQt::Window::AnchorLeft);overlay->setDesiredSize(size);overlay->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);overlay->setActivateOnShow(false);overlay->setExclusiveZone(-1);}
   }else
 #endif
   {window->setPosition(screen->geometry().topLeft()+QPoint(x,y));}
@@ -533,7 +533,7 @@ int main(int argc,char **argv){
   QTimer::singleShot(250,&app,[&]{
    const auto image=window->grabWindow();
    bool transparent=!image.isNull();
-#ifdef GAZEGRID_WINDOWS
+#ifdef GAZE_GRID_WINDOWS
    // The Windows offscreen backing store returns RGB pixels. Check the actual
    // backdrop item and transparent window color there; Linux retains pixel coverage.
    if(QGuiApplication::platformName()=="offscreen"){
@@ -1002,7 +1002,7 @@ int main(int argc,char **argv){
   QObject::connect(poll,&QTimer::timeout,&app,[&,stage=0,corner=0]()mutable{
    const QStringList expected{"minimized-off-screen-bottom","main-14x1-bottom","minimized-off-screen-top","main-14x1-top"};
    if(controller.property("layoutName").toString().startsWith("minimized-off-screen-")){
-#ifdef GAZEGRID_LINUX
+#ifdef GAZE_GRID_LINUX
     const int expectedX=corner%2?window->property("screenWidth").toInt()-window->width():0;
     const int expectedY=corner>=2?window->property("screenHeight").toInt()-window->height():0;
     if(window->property("logicalX").toInt()!=expectedX||window->property("logicalY").toInt()!=expectedY){
@@ -1092,7 +1092,8 @@ int main(int argc,char **argv){
       // Send only after the disposable receiver reports keyboard focus.
       auto layout=KeyboardLayout::fromXml(KeyboardPack::load(keyboardPackDirectory()+"/keyboard-alphabet-14x4-bottom.xml"));
       QVariantList sequence;
-      for(auto letter:QString("gazegrid")){
+      for(auto letter:QString("gaze-grid")){
+       if(letter==QLatin1Char('-')){sequence<<QVariantMap{{"tag","Text"},{"text","-"}};continue;}
        bool found=false;
        for(auto v:layout["keys"].toList()){auto key=v.toMap();if(key["label"].toString()==QString(letter)){sequence+=key["commands"].toList();found=true;break;}}
        if(!found){app.exit(4);return;}
@@ -1104,8 +1105,8 @@ int main(int argc,char **argv){
     if(obj.contains("text")){
      received+=obj["text"].toString();
      if(obj["key"].toInt()==Qt::Key_Return){
-      bool passed=received=="gazegrid\r";
-      QTextStream(stdout)<<(passed?"PASS: imported XML actions delivered gazegrid + Enter to separate Wayland receiver":"FAIL: unexpected input sequence")<<Qt::endl;
+      bool passed=received=="gaze-grid\r";
+      QTextStream(stdout)<<(passed?"PASS: imported XML actions delivered gaze-grid + Enter to separate Wayland receiver":"FAIL: unexpected input sequence")<<Qt::endl;
       if(!passed){app.exit(5);return;}
       if(!controller.output()->absoluteAvailable()){QTextStream(stdout)<<"Click/focus check unavailable: no unique absolute EIS region"<<Qt::endl;app.exit(6);return;}
       clickStage=true;
@@ -1160,7 +1161,7 @@ int main(int argc,char **argv){
  )
   QTimer::singleShot(0,&controller,&Controller::connectDesktop);
  if(smoke)QTimer::singleShot(1500,&app,[&]{
-  auto output=qEnvironmentVariable("GAZEGRID_SCREENSHOT");
+  auto output=qEnvironmentVariable("GAZE_GRID_SCREENSHOT");
   auto captureWindow=args.contains("--settings")?window->findChild<QQuickWindow*>("settingsWindow"):window;
   if(!output.isEmpty()&&(!captureWindow||!captureWindow->grabWindow().save(output))){QTextStream(stderr)<<"Screenshot failed"<<Qt::endl;app.exit(3);return;}
   app.quit();

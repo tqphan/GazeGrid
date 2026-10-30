@@ -21,7 +21,7 @@ private slots:
   QVERIFY(enabled["gazeEnabled"].toBool());QCOMPARE(enabled["keyboardScale"].toInt(),120);
  }
  void accessibilityNotificationWritesSignalBeforeSendingShortcut(){
-  const auto path=(QStringLiteral("SOFTWARE\\GazeGrid\\Tests\\")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();
+  const auto path=(QStringLiteral("SOFTWARE\\gaze-grid\\Tests\\")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();
   struct Cleanup {const std::wstring &path;~Cleanup(){RegDeleteKeyW(HKEY_CURRENT_USER,path.c_str());}} cleanup{path};
   for(bool running:{true,false}){
    DWORD observed=0;UINT count=0;bool shortcut=false;
@@ -39,14 +39,14 @@ private slots:
   }
  }
  void rejectedAccessibilityShortcutDoesNotLeavePendingSignal(){
-  const auto path=(QStringLiteral("SOFTWARE\\GazeGrid\\Tests\\")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();
+  const auto path=(QStringLiteral("SOFTWARE\\gaze-grid\\Tests\\")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();
   struct Cleanup {const std::wstring &path;~Cleanup(){RegDeleteKeyW(HKEY_CURRENT_USER,path.c_str());}} cleanup{path};
   QVERIFY(!SignInRegistry::notify(HKEY_CURRENT_USER,path.c_str(),true,[](INPUT *,UINT){return UINT(0);}));
   DWORD value=0,bytes=sizeof(value);
   QCOMPARE(RegGetValueW(HKEY_CURRENT_USER,path.c_str(),SignInRegistry::id,RRF_RT_REG_DWORD,nullptr,&value,&bytes),LONG(ERROR_FILE_NOT_FOUND));
  }
  void partialAccessibilityShortcutReleasesKeysAndClearsSignal(){
-  const auto path=(QStringLiteral("SOFTWARE\\GazeGrid\\Tests\\")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();
+  const auto path=(QStringLiteral("SOFTWARE\\gaze-grid\\Tests\\")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();
   struct Cleanup {const std::wstring &path;~Cleanup(){RegDeleteKeyW(HKEY_CURRENT_USER,path.c_str());}} cleanup{path};
   int calls=0;bool released=false,pending=true;
   QVERIFY(!SignInRegistry::notify(HKEY_CURRENT_USER,path.c_str(),true,[&](INPUT *inputs,UINT count){
@@ -64,9 +64,9 @@ private slots:
   const std::wstring before=L"osk,narrator";
   auto enabled=updated(before,true);QVERIFY(contains(enabled));
   QVERIFY(updated(enabled,true)==enabled);QVERIFY(updated(enabled,false)==before);
-  QVERIFY(updated(L"osk,GazeGrid_GazeGrid_v1,narrator,GAZEGRID_GAZEGRID_V1",false)==before);
-  QVERIFY(!contains(L"osk,,narrator"));QVERIFY(!contains(L"other_GazeGrid_GazeGrid_v1"));
-  QVERIFY(contains(L"osk, GazeGrid_GazeGrid_v1 ,narrator"));
+  QVERIFY(updated(L"osk,gaze-grid_gaze-grid_v1,narrator,GAZE-GRID_GAZE-GRID_V1",false)==before);
+  QVERIFY(!contains(L"osk,,narrator"));QVERIFY(!contains(L"other_gaze-grid_gaze-grid_v1"));
+  QVERIFY(contains(L"osk, gaze-grid_gaze-grid_v1 ,narrator"));
  }
  void sharedProfileOnlyContainsValidatedKeyboardPreferences(){
   auto values=ProfileStore::defaults();values["learning"]=true;values["predictionMode"]="context";values["magnifierEnabled"]=true;

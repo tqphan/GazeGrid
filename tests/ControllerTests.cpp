@@ -114,8 +114,8 @@ private slots:
   {Controller c;QCOMPARE(c.property("layoutName").toString(),ProfileStore::defaults()["startLayout"].toString());c.resetPreferences();}
  }
  void signInUsesTheSelectedKeyboardWithoutRetainingText(){
-  QTemporaryDir directory;const auto previous=qgetenv("GAZEGRID_CONFIG_DIR");
-  qputenv("GAZEGRID_CONFIG_DIR",directory.path().toUtf8());
+  QTemporaryDir directory;const auto previous=qgetenv("GAZE_GRID_CONFIG_DIR");
+  qputenv("GAZE_GRID_CONFIG_DIR",directory.path().toUtf8());
   auto values=ProfileStore::defaults();values["startLayout"]="keyboard-conversation-fullscreen";
   values["predictionMode"]="context";values["learning"]=true;
   {
@@ -136,7 +136,7 @@ private slots:
    controller.setMagnifierEnabled(false);QVERIFY(!controller.isMagnifierEnabled());
   }
   const bool noFiles=QDir(directory.path()).entryList(QDir::Files).isEmpty();
-  if(previous.isNull())qunsetenv("GAZEGRID_CONFIG_DIR");else qputenv("GAZEGRID_CONFIG_DIR",previous);
+  if(previous.isNull())qunsetenv("GAZE_GRID_CONFIG_DIR");else qputenv("GAZE_GRID_CONFIG_DIR",previous);
   QVERIFY(noFiles);
  }
  void overlapDwellOrdersModifiersAndDoesNotRetrigger(){
@@ -682,8 +682,21 @@ private slots:
   c.resetPreferences();QVERIFY(!c.property("hideKeyboardDuringMouseActions").toBool());
  }
 
+ void latchLockStylePreferences(){
+  for(const auto &style:QStringList{"outline","fill","underline","pulse","ripple","sweep","animated-outline"}){
+   {Controller c;c.setProperty("latchStyle",style);c.setProperty("lockStyle",style);QVERIFY(c.savePreferences());}
+   {Controller c;QCOMPARE(c.property("latchStyle").toString(),style);QCOMPARE(c.property("lockStyle").toString(),style);}
+  }
+  {Controller c;c.resetPreferences();QCOMPARE(c.property("latchStyle").toString(),QString("outline"));QCOMPARE(c.property("lockStyle").toString(),QString("fill"));}
+  auto values=ProfileStore::defaults();values.remove("latchStyle");values.remove("lockStyle");
+  QString error;ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QVERIFY(store.save(values,error));
+  {Controller c;QCOMPARE(c.property("latchStyle").toString(),QString("outline"));QCOMPARE(c.property("lockStyle").toString(),QString("fill"));}
+  values["latchStyle"]="unknown";QVERIFY(!store.save(values,error));values.remove("latchStyle");
+  values["lockStyle"]="unknown";QVERIFY(!store.save(values,error));
+ }
+
  void dwellIndicatorPreferences(){
-  const QStringList styles{"bar","top-bar","fill","fill-down","fill-left","fill-right","outline","ring","pie","collapse"};
+  const QStringList styles{"bar","top-bar","fill","fill-down","fill-left","fill-right","outline","ring","pie","collapse","expand"};
   for(const auto &style:styles){
    {Controller c;c.setProperty("dwellIndicatorStyle",style);QVERIFY(c.savePreferences());}
    {Controller c;QCOMPARE(c.property("dwellIndicatorStyle").toString(),style);}
@@ -1238,7 +1251,7 @@ private slots:
   controller.setDesktopActive(true);QTRY_VERIFY(controller.isTrackerConnected());QCOMPARE(tracker.starts.load(),2);
   controller.setGazeEnabled(false);
  }
-#ifdef GAZEGRID_WINDOWS
+#ifdef GAZE_GRID_WINDOWS
  void desktopConnectionRequestedWhileInactiveStartsOnResume(){
   Controller controller;controller.setDesktopActive(false);controller.connectDesktop();
   QVERIFY(!controller.ready());QVERIFY(!controller.output()->ready());
@@ -1258,9 +1271,9 @@ private slots:
 int main(int argc,char **argv){
  QTemporaryDir dir;if(!dir.isValid())return 1;
  qputenv("XDG_CONFIG_HOME",dir.path().toUtf8());
- qputenv("GAZEGRID_CONFIG_DIR",dir.path().toUtf8());
+ qputenv("GAZE_GRID_CONFIG_DIR",dir.path().toUtf8());
  qputenv("QT_QPA_PLATFORM","offscreen");
- QGuiApplication app(argc,argv);app.setOrganizationName("GazeGridTests");app.setApplicationName("Controller");
+ QGuiApplication app(argc,argv);app.setOrganizationName("gaze-gridTests");app.setApplicationName("Controller");
  ControllerTests tests;return QTest::qExec(&tests,argc,argv);
 }
 #include "ControllerTests.moc"

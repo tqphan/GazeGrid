@@ -12,7 +12,7 @@ Reviewed against source and existing documentation on 2026-10-24. Completed impl
 | Look to scroll | Advanced bounds and deadzone overlay; physical-pixel/DPI and real desktop acceptance |
 | Magnifier | Live gaze selection and multi-display support |
 | Scratchpad | Full composition model and synchronization limitations after destination edits/shortcuts |
-| Prediction | Multilingual tokenization, full composition fixtures and live usability acceptance; context is limited to GazeGrid-entered text |
+| Prediction | Multilingual tokenization, full composition fixtures and live usability acceptance; context is limited to gaze-grid-entered text |
 | Speech | Voice settings, live speech/cancellation acceptance and stalled-daemon shutdown behavior |
 | Profiles/settings | Profile selection and full assistive settings operation |
 | Tobii | Calibration availability/accuracy, live dwell typing, unplug/replug and suspend/resume; streaming through the UI already has recorded evidence |

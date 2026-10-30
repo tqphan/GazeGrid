@@ -13,7 +13,7 @@ jobs:
       - name: Install build and desktop dependencies
         run: pacman -Syu --noconfirm --needed git cmake ninja gcc pkgconf qt6-base qt6-declarative qt6-svg qt6-wayland layer-shell-qt libei speech-dispatcher kirigami qqc2-desktop-style dbus
       - uses: actions/checkout@v4
-      - run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGAZEGRID_WITH_TOBII=OFF
+      - run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGAZE_GRID_WITH_TOBII=OFF
       - run: cmake --build build --parallel 2
       - run: dbus-run-session -- ctest --test-dir build --output-on-failure
         env:
@@ -33,9 +33,9 @@ jobs:
         run: |
           (Join-Path $env:WIX 'bin') | Out-File -FilePath $env:GITHUB_PATH -Append
           $password = ConvertTo-SecureString ([guid]::NewGuid().ToString()) -AsPlainText -Force
-          ./platform/windows/New-GazeGridCertificate.ps1 -OutputDirectory "$env:RUNNER_TEMP/signing" -Password $password
-          $cert = Get-PfxCertificate "$env:RUNNER_TEMP/signing/GazeGrid.cer"
-          Import-Certificate -FilePath "$env:RUNNER_TEMP/signing/GazeGrid.cer" -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+          ./platform/windows/New-gaze-gridCertificate.ps1 -OutputDirectory "$env:RUNNER_TEMP/signing" -Password $password
+          $cert = Get-PfxCertificate "$env:RUNNER_TEMP/signing/gaze-grid.cer"
+          Import-Certificate -FilePath "$env:RUNNER_TEMP/signing/gaze-grid.cer" -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
           "SIGNING_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Build, test, sign and package (ephemeral CI identity)
         shell: pwsh
@@ -53,10 +53,10 @@ jobs:
           QT_QUICK_BACKEND: software
       - uses: actions/upload-artifact@v4
         with:
-          name: GazeGrid-Windows-x64-test-MSI
+          name: gaze-grid-Windows-x64-test-MSI
           path: |
             build/windows/*.msi
-            build/windows/GazeGrid.cer
+            build/windows/gaze-grid.cer
           if-no-files-found: error
       - name: Upload Windows diagnostics
         if: always()
@@ -67,6 +67,6 @@ jobs:
             build/windows/*-qt-test.txt
             build/windows/Testing/Temporary/LastTest.log
             build/windows/_CPack_Packages/win64/WIX/wix.log
-            ${{ runner.temp }}/gazegrid-msi-*.log
-            ${{ runner.temp }}/gazegrid-app-*
+            ${{ runner.temp }}/gaze-grid-msi-*.log
+            ${{ runner.temp }}/gaze-grid-app-*
           if-no-files-found: ignore

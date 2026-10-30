@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
     if (argc != 2) return 1;
     QDir resources(QString::fromLocal8Bit(argv[1]));
-    QSvgRenderer svg(resources.filePath("gazegrid.svg"));
+    QSvgRenderer svg(resources.filePath("gaze-grid.svg"));
     if (!svg.isValid()) return 2;
     const QList<int> sizes{16, 20, 24, 32, 40, 48, 64, 128, 256};
     QList<QByteArray> images;
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
         if (!buffer.open(QIODevice::WriteOnly) || !image.save(&buffer, "PNG")) return 3;
         images.append(png);
     }
-    QFile icon(resources.filePath("gazegrid.ico"));
+    QFile icon(resources.filePath("gaze-grid.ico"));
     if (!icon.open(QIODevice::WriteOnly)) return 4;
     QDataStream output(&icon);
     output.setByteOrder(QDataStream::LittleEndian);
@@ -49,6 +49,6 @@ int main(int argc, char **argv) {
     QPainter painter(&preview);
     svg.render(&painter);
     painter.end();
-    if (!preview.save(resources.filePath("gazegrid.png"))) return 6;
-    QTextStream(stdout) << "Generated PNG and nine-size ICO from gazegrid.svg\n";
+    if (!preview.save(resources.filePath("gaze-grid.png"))) return 6;
+    QTextStream(stdout) << "Generated PNG and nine-size ICO from gaze-grid.svg\n";
 }

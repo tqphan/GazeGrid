@@ -43,8 +43,8 @@ The normal system text-input path does not need a RemoteDesktop portal session. 
 
 The backend, native commits, sensitive-field handling, input-panel integration, desktop-entry generation, startup recovery and top/bottom transitions are implemented. Usage and isolated test commands are in [README](../README.md#experimental-plasma-input-method); recorded results are in [host acceptance](host-acceptance.md).
 
-- Validate real-session discovery, startup, focus transitions, visibility and recovery with the current GazeGrid desktop entry.
+- Validate real-session discovery, startup, focus transitions, visibility and recovery with the current gaze-grid desktop entry.
 - Exercise native Qt/GTK, browsers, terminals and XWayland, including physical shortcuts and pointer control alongside native text entry.
 - Resolve native offset/minimized layouts and confirm live gaze and mixed-DPI behavior.
-- After validation, select GazeGrid in Plasma's Virtual Keyboard settings and retain the previous selection for rollback. Historical registration does not establish that the current renamed entry is installed or selected.
+- After validation, select gaze-grid in Plasma's Virtual Keyboard settings and retain the previous selection for rollback. Historical registration does not establish that the current renamed entry is installed or selected.
 - Investigate Plasma Login and screen-locker integration separately, including tracker availability and settings ownership. A user-session default does not establish lock/login-screen support.

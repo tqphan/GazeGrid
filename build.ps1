@@ -36,13 +36,13 @@ try {
     $build = Join-Path $PSScriptRoot 'build/windows-mingw'
     $configure = @('-S', $PSScriptRoot, '-B', $build, '-G', 'Ninja', "-DCMAKE_MAKE_PROGRAM=$ninja",
         "-DCMAKE_C_COMPILER=$compilerBin/gcc.exe", "-DCMAKE_CXX_COMPILER=$compilerBin/g++.exe",
-        "-DCMAKE_PREFIX_PATH=$QtDirectory", '-DGAZEGRID_UIACCESS=OFF', '-DCMAKE_BUILD_TYPE=Release')
+        "-DCMAKE_PREFIX_PATH=$QtDirectory", '-DGAZE_GRID_UIACCESS=OFF', '-DCMAKE_BUILD_TYPE=Release')
     if (!$TobiiSdk) {
         $sdkHeaders = @(Get-ChildItem "$PSScriptRoot/../stream_engine_windows_x64_*/include/tobii/tobii.h" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending)
         if ($sdkHeaders.Count) { $TobiiSdk = (Resolve-Path (Join-Path $sdkHeaders[0].DirectoryName '../..')).Path }
     }
-    if ($TobiiSdk) { $configure += @('-DGAZEGRID_WITH_TOBII=ON', "-DTOBII_SDK=$TobiiSdk") }
-    else { $configure += '-DGAZEGRID_WITH_TOBII=OFF' }
+    if ($TobiiSdk) { $configure += @('-DGAZE_GRID_WITH_TOBII=ON', "-DTOBII_SDK=$TobiiSdk") }
+    else { $configure += '-DGAZE_GRID_WITH_TOBII=OFF' }
     Invoke-Checked $cmake $configure
     Invoke-Checked $cmake @('--build', $build, '--parallel', '6')
     New-Item -ItemType Directory -Force "$build/platforms" | Out-Null
@@ -50,7 +50,7 @@ try {
     Set-Content "$build/qt.conf" "[Paths]`nPrefix=.`nPlugins=.`nQmlImports=qml"
     if (!$SkipTests) { Invoke-Checked $ctest @('--test-dir', $build, '--output-on-failure') }
     # Deploy runtime DLLs and QML modules so Explorer can launch the executable.
-    Invoke-Checked "$QtDirectory/bin/windeployqt.exe" @('--release', '--qmldir', "$build/windows-ui", "$build/gazegrid.exe")
+    Invoke-Checked "$QtDirectory/bin/windeployqt.exe" @('--release', '--qmldir', "$build/windows-ui", "$build/gaze-grid.exe")
     # Repair incomplete copies left by an interrupted Qt deployment.
     Get-ChildItem "$build/*.dll" | Where-Object Length -eq 0 | ForEach-Object {
         $source = Join-Path "$QtDirectory/bin" $_.Name
@@ -61,7 +61,7 @@ try {
     Copy-Item "$PSScriptRoot/references/optikey-keyboard-en-us/*" "$build/keyboards" -Recurse -Force
     # Exercise the actual Windows platform, beyond the offscreen test suite.
     $startup = New-Object System.Diagnostics.ProcessStartInfo
-    $startup.FileName = "$build/gazegrid.exe"
+    $startup.FileName = "$build/gaze-grid.exe"
     $startup.Arguments = '--smoke'
     $startup.WorkingDirectory = $env:TEMP
     $startup.UseShellExecute = $false
@@ -70,6 +70,6 @@ try {
     $check = [System.Diagnostics.Process]::Start($startup)
     if (!$check.WaitForExit(15000)) { $check.Kill(); throw 'Windows startup check timed out.' }
     if ($check.ExitCode -ne 0) { throw "Windows startup check failed: $($check.ExitCode)" }
-    Write-Host "Built: $build/gazegrid.exe"
-    if ($Run) { Start-Process -FilePath "$build/gazegrid.exe" -WorkingDirectory $PSScriptRoot }
+    Write-Host "Built: $build/gaze-grid.exe"
+    if ($Run) { Start-Process -FilePath "$build/gaze-grid.exe" -WorkingDirectory $PSScriptRoot }
 } finally { Pop-Location }

@@ -20,12 +20,12 @@ in Settings → Gaze & dwell. Button mode starts at Tap each launch.
 Explicit Release actions and multi-command macros retain their original behavior.
 
 On Linux, output uses the [standard Linux gamepad mapping](https://kernel.org/doc/html/latest/input/gamepad.html)
-and appears as `GazeGrid Virtual Controller`. Games must support Linux controllers
+and appears as `gaze-grid Virtual Controller`. Games must support Linux controllers
 (or use Steam Input).
 
 On Windows, output uses [ViGEmBus](https://github.com/nefarius/ViGEmBus) and appears
 as an Xbox 360 controller. Install the upstream bus driver separately. The client
-library is built into GazeGrid; no separate ViGEmClient DLL is needed. Missing-driver
+library is built into gaze-grid; no separate ViGEmClient DLL is needed. Missing-driver
 and connection errors appear in action status, and subsequent actions retry.
 Xbox buttons, D-pad, sticks and triggers are supported. Digital trigger buttons
 hold the corresponding trigger at full pressure; releasing them restores any

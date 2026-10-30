@@ -2,7 +2,7 @@
 #include <QTemporaryDir>
 #include "TobiiRuntimePaths.h"
 #include "TobiiTimeSync.h"
-#ifdef GAZEGRID_WINDOWS
+#ifdef GAZE_GRID_WINDOWS
 #include "WindowsTobiiLibrary.h"
 #endif
 class TobiiRuntimeTests:public QObject {
@@ -53,12 +53,12 @@ private slots:
   QFile outside(dir.path()+"/tobii_stream_engine.dll");QVERIFY(outside.open(QIODevice::WriteOnly));outside.close();
   QCOMPARE(tobiiRuntimePaths({vendor,vendor}),QStringList{QFileInfo(inside).canonicalFilePath()});
   QVERIFY(tobiiRuntimePaths({dir.path()+"/absent"}).isEmpty());
-#ifndef GAZEGRID_WINDOWS
+#ifndef GAZE_GRID_WINDOWS
   QVERIFY(QFile::link(dir.path(),vendor+"/outside"));
   QCOMPARE(tobiiRuntimePaths({vendor}),QStringList{QFileInfo(inside).canonicalFilePath()});
 #endif
  }
-#ifdef GAZEGRID_WINDOWS
+#ifdef GAZE_GRID_WINDOWS
  void missingRuntimeHasSetupGuidance(){
   QTemporaryDir dir;QVERIFY(dir.isValid());WindowsTobiiLibrary library;
   QVERIFY(!library.loadFromRoots({dir.path()}));

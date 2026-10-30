@@ -10,10 +10,11 @@ Item {
  visible: amount > 0
  clip: true
  Rectangle {
-  visible: indicator.style === "collapse" && indicator.amount < 1
+  visible: indicator.style === "expand" || (indicator.style === "collapse" && indicator.amount < 1)
+  readonly property real scaleAmount: indicator.style === "expand" ? indicator.amount : 1-indicator.amount
   anchors.centerIn: parent
-  width: Math.max(0,parent.width-2)*(1-indicator.amount)
-  height: Math.max(0,parent.height-2)*(1-indicator.amount)
+  width: Math.max(0,parent.width-2)*scaleAmount
+  height: Math.max(0,parent.height-2)*scaleAmount
   color: "transparent"
   border.color: indicator.color
   border.width: Math.min(4,width/2,height/2)

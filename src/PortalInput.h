@@ -1,4 +1,4 @@
-#ifdef GAZEGRID_WINDOWS
+#ifdef GAZE_GRID_WINDOWS
 #include "WindowsDesktopInput.h"
 #else
 #pragma once

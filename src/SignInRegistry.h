@@ -11,7 +11,7 @@
 #include <cwchar>
 namespace SignInRegistry {
 inline constexpr wchar_t key[]=L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Accessibility";
-inline constexpr wchar_t id[]=L"GazeGrid_GazeGrid_v1";
+inline constexpr wchar_t id[]=L"gaze-grid_gaze-grid_v1";
 inline constexpr wchar_t temporaryKey[]=L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AccessibilityTemp";
 // Windows consumes the signal when it receives Win+U. Keeping the sender
 // injectable lets tests exercise registry ordering without sending real keys.

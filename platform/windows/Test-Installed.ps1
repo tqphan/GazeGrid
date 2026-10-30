@@ -4,15 +4,15 @@ param([Parameter(Mandatory)][string]$Msi, [Parameter(Mandatory)][string]$Certifi
 $ErrorActionPreference = 'Stop'
 $path = (Resolve-Path $Msi).Path
 & "$PSScriptRoot/Assert-NoTobiiRuntime.ps1" -Msi $path
-$installed = [IO.Path]::GetFullPath("$env:ProgramFiles/GazeGrid/gazegrid.exe")
+$installed = [IO.Path]::GetFullPath("$env:ProgramFiles/gaze-grid/gaze-grid.exe")
 function Run-Msi([string]$Operation, [string[]]$Properties = @()) {
-    $process = Start-Process msiexec.exe -ArgumentList (@($Operation, "`"$path`"", '/qn', '/norestart', '/l*v', "`"$env:RUNNER_TEMP/gazegrid-msi-$mode-$($Operation.TrimStart('/')).log`"") + $Properties) -Wait -PassThru
+    $process = Start-Process msiexec.exe -ArgumentList (@($Operation, "`"$path`"", '/qn', '/norestart', '/l*v', "`"$env:RUNNER_TEMP/gaze-grid-msi-$mode-$($Operation.TrimStart('/')).log`"") + $Properties) -Wait -PassThru
     if ($process.ExitCode -notin @(0, 3010)) { throw "MSI failed: $($process.ExitCode)" }
 }
 function Test-KeyboardInstanceLifecycle {
     $sessionId = (Get-Process -Id $PID).SessionId
     function Get-TestKeyboards {
-        @(Get-CimInstance Win32_Process -Filter "Name='gazegrid.exe'" | Where-Object {
+        @(Get-CimInstance Win32_Process -Filter "Name='gaze-grid.exe'" | Where-Object {
             $_.SessionId -eq $sessionId -and $_.ExecutablePath -eq $installed
         })
     }
@@ -37,22 +37,22 @@ function Test-KeyboardInstanceLifecycle {
         if (!$passed) {
             # This fixture runs on an isolated machine. Break a regressed broker
             # loop before cleanup so a failed test cannot exhaust the runner.
-            Remove-Item -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\GazeGrid_GazeGrid_v1' -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\gaze-grid_gaze-grid_v1' -Recurse -Force -ErrorAction SilentlyContinue
         }
         Get-TestKeyboards | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     }
 }
 Remove-Item "Cert:\LocalMachine\Root\$CertificateThumbprint" -Force
 $accessibility = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility'
-$atName = 'GazeGrid_GazeGrid_v1'
+$atName = 'gaze-grid_gaze-grid_v1'
 $originalStartup = @(((Get-ItemProperty $accessibility -Name Configuration -ErrorAction SilentlyContinue).Configuration -split ',') | Where-Object { $_ -and $_.Trim() -ne $atName })
 foreach ($mode in @('decline', 'default', 'accept', 'sign-in', 'sign-in-off', 'decline-trusted')) {
 Write-Host "Checking installation mode: $mode"
 $expectedUIAccess = $mode -in @('default', 'accept', 'sign-in', 'sign-in-off')
 $expectedSignIn = $expectedUIAccess -and $mode -ne 'sign-in-off'
-[string[]]$properties = if ($mode -eq 'default') { @() } elseif ($expectedUIAccess) { @('GAZEGRID_TRUST_CERTIFICATE=1') } else { @('GAZEGRID_TRUST_CERTIFICATE=0') }
-if ($mode -eq 'sign-in') { $properties += 'GAZEGRID_SIGN_IN=1' }
-if ($mode -eq 'sign-in-off') { $properties += 'GAZEGRID_SIGN_IN=0' }
+[string[]]$properties = if ($mode -eq 'default') { @() } elseif ($expectedUIAccess) { @('GAZE_GRID_TRUST_CERTIFICATE=1') } else { @('GAZE_GRID_TRUST_CERTIFICATE=0') }
+if ($mode -eq 'sign-in') { $properties += 'GAZE_GRID_SIGN_IN=1' }
+if ($mode -eq 'sign-in-off') { $properties += 'GAZE_GRID_SIGN_IN=0' }
 Run-Msi '/i' $properties
 try {
     $rootTrusted = Test-Path "Cert:\LocalMachine\Root\$CertificateThumbprint"
@@ -75,7 +75,7 @@ try {
     if ($mode -eq 'sign-in-off') {
         # The UI checkbox saves an empty string when unchecked; older installs
         # also used that value. It must not inherit the new enabled default.
-        Set-ItemProperty 'HKLM:\SOFTWARE\GazeGrid\Installer' -Name SignIn -Value ''
+        Set-ItemProperty 'HKLM:\SOFTWARE\gaze-grid\Installer' -Name SignIn -Value ''
         Run-Msi '/fomus'
         $startup = @(((Get-ItemProperty $accessibility -Name Configuration -ErrorAction SilentlyContinue).Configuration -split ',') | Where-Object { $_ })
         if ($atName -in $startup) { throw 'Repair enabled startup after an unchecked sign-in choice.' }
@@ -90,7 +90,7 @@ try {
 
     $signature = Get-AuthenticodeSignature $installed
     if ($expectedUIAccess -and ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $CertificateThumbprint)) {
-        throw 'Installed application signature did not match GazeGrid.'
+        throw 'Installed application signature did not match gaze-grid.'
     }
     if (!$expectedUIAccess -and $signature.Status -ne 'NotSigned') { throw 'Declining must install the unsigned executable.' }
     if ($mode -eq 'sign-in') {
@@ -101,7 +101,7 @@ try {
         $null = $helper.Handle
         if (!$helper.WaitForExit(30000)) { $helper.Kill(); throw 'Sign-in configuration helper timed out.' }
         if ($helper.ExitCode -ne 0) { throw 'Could not copy the selected keyboard to sign-in preferences.' }
-        $shared = Get-ItemProperty 'HKLM:\SOFTWARE\GazeGrid\SignIn' -Name Profile
+        $shared = Get-ItemProperty 'HKLM:\SOFTWARE\gaze-grid\SignIn' -Name Profile
         $profile = [string]$shared.Profile | ConvertFrom-Json
         if ($profile.startLayout -ne 'main-14x1-top' -or $profile.keyboardScale -ne 120 -or $profile.predictionMode -ne 'off' -or $profile.learning) { throw 'Unexpected sign-in keyboard preferences.' }
     }
@@ -111,9 +111,9 @@ try {
     Remove-Item Env:QML_IMPORT_PATH -ErrorAction SilentlyContinue
     $env:QT_LOGGING_TO_CONSOLE = '1'
     $env:PATH = "$env:SystemRoot/System32;$env:SystemRoot"
-    $env:GAZEGRID_CONFIG_DIR = "$env:RUNNER_TEMP/gazegrid-installed-test"
-    if (!(Test-Path "$env:ProgramFiles/GazeGrid/keyboards/main-14x1-bottom.xml")) { throw 'Installed keyboard pack is missing.' }
-    $report = "$env:RUNNER_TEMP/gazegrid-app-$mode-diagnose.json"
+    $env:GAZE_GRID_CONFIG_DIR = "$env:RUNNER_TEMP/gaze-grid-installed-test"
+    if (!(Test-Path "$env:ProgramFiles/gaze-grid/keyboards/main-14x1-bottom.xml")) { throw 'Installed keyboard pack is missing.' }
+    $report = "$env:RUNNER_TEMP/gaze-grid-app-$mode-diagnose.json"
     # UIAccess must launch through ShellExecute, as it would from the Start menu.
     # Redirecting stdout switches Start-Process to CreateProcess (error 740).
     Remove-Item $report -ErrorAction SilentlyContinue
@@ -123,7 +123,7 @@ try {
     if ($diagnose.ExitCode -ne 0) { throw 'Installed diagnostics failed.' }
     $diagnostics = Get-Content $report -Raw | ConvertFrom-Json
     if ($ExpectTobii -and !$diagnostics.tobii.compiled) { throw 'Installed application was built without Tobii support.' }
-    if (@(Get-ChildItem "$env:ProgramFiles/GazeGrid" -Recurse -File -Filter '*tobii*.dll').Count) { throw 'Installed package includes a forbidden Tobii runtime DLL.' }
+    if (@(Get-ChildItem "$env:ProgramFiles/gaze-grid" -Recurse -File -Filter '*tobii*.dll').Count) { throw 'Installed package includes a forbidden Tobii runtime DLL.' }
     if (!$diagnostics.portal.tokenQuerySucceeded -or [bool]$diagnostics.portal.uiAccess -ne $expectedUIAccess) { throw "Unexpected UIAccess token in $mode installation." }
     $process = Start-Process $installed -Verb Open -ArgumentList '--smoke' -WorkingDirectory $env:TEMP -PassThru
     $null = $process.Handle

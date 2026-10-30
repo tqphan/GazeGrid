@@ -126,13 +126,13 @@
       <KeyUp>END</KeyUp>
     </DynamicKey>
     <DynamicKey>
-      <Label>➕</Label>
+      <Symbol>ZoomInIcon</Symbol>
       <KeyDown>LCONTROL</KeyDown>
       <Text>=</Text>
       <KeyUp>LCONTROL</KeyUp>
     </DynamicKey>
     <DynamicKey>
-      <Label>➖</Label>
+      <Symbol>ZoomOutIcon</Symbol>
       <KeyDown>LCONTROL</KeyDown>
       <Text>-</Text>
       <KeyUp>LCONTROL</KeyUp>

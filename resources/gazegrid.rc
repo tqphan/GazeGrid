@@ -1,7 +1,0 @@
-1 ICON "gazegrid.ico"
-
-STRINGTABLE
-BEGIN
-  101 "GazeGrid"
-  102 "GazeGrid keyboard at Windows sign-in. Prediction and learning are disabled."
-END

@@ -28,7 +28,7 @@ jobs:
         shell: pwsh
         run: |
           $project = Get-Content CMakeLists.txt -Raw
-          if ($project -notmatch 'project\(GazeGrid\s+VERSION\s+(\d+\.\d+\.\d+)') { throw 'Missing project version' }
+          if ($project -notmatch 'project\(gaze-grid\s+VERSION\s+(\d+\.\d+\.\d+)') { throw 'Missing project version' }
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$($Matches[1])") {
             throw 'The release tag must match the version in CMakeLists.txt.'
           }
@@ -40,23 +40,23 @@ jobs:
       - name: Restore pinned Tobii SDK headers (no runtime binaries)
         shell: pwsh
         env:
-          GAZEGRID_TOBII_HEADERS_BASE64: ${{ secrets.GAZEGRID_TOBII_HEADERS_BASE64 }}
+          GAZE_GRID_TOBII_HEADERS_BASE64: ${{ secrets.GAZE_GRID_TOBII_HEADERS_BASE64 }}
         run: ./platform/windows/Restore-TobiiSdk.ps1 -Destination "$env:RUNNER_TEMP/tobii-sdk"
-      - name: Import persistent GazeGrid signing identity
+      - name: Import persistent gaze-grid signing identity
         shell: pwsh
         env:
-          PFX_BASE64: ${{ secrets.GAZEGRID_SIGNING_PFX_BASE64 }}
-          PFX_PASSWORD: ${{ secrets.GAZEGRID_SIGNING_PFX_PASSWORD }}
+          PFX_BASE64: ${{ secrets.GAZE_GRID_SIGNING_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.GAZE_GRID_SIGNING_PFX_PASSWORD }}
         run: |
-          if (!$env:PFX_BASE64 -or !$env:PFX_PASSWORD) { throw 'Configure the GazeGrid signing secrets first.' }
-          $path = "$env:RUNNER_TEMP/GazeGrid.pfx"
+          if (!$env:PFX_BASE64 -or !$env:PFX_PASSWORD) { throw 'Configure the gaze-grid signing secrets first.' }
+          $path = "$env:RUNNER_TEMP/gaze-grid.pfx"
           try {
             [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:PFX_BASE64))
             $password = ConvertTo-SecureString $env:PFX_PASSWORD -AsPlainText -Force
             $cert = Import-PfxCertificate -FilePath $path -Password $password -CertStoreLocation Cert:\CurrentUser\My
-            if ($cert.Subject -ne 'CN=GazeGrid' -or $cert.Issuer -ne $cert.Subject) { throw 'Expected self-signed CN=GazeGrid' }
-            Export-Certificate -Cert $cert -FilePath "$env:RUNNER_TEMP/GazeGrid.cer" | Out-Null
-            Import-Certificate -FilePath "$env:RUNNER_TEMP/GazeGrid.cer" -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+            if ($cert.Subject -ne 'CN=gaze-grid' -or $cert.Issuer -ne $cert.Subject) { throw 'Expected self-signed CN=gaze-grid' }
+            Export-Certificate -Cert $cert -FilePath "$env:RUNNER_TEMP/gaze-grid.cer" | Out-Null
+            Import-Certificate -FilePath "$env:RUNNER_TEMP/gaze-grid.cer" -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
             "SIGNING_THUMBPRINT=$($cert.Thumbprint)" | Out-File $env:GITHUB_ENV -Append
           } finally { Remove-Item $path -Force -ErrorAction SilentlyContinue }
           (Join-Path $env:WIX 'bin') | Out-File $env:GITHUB_PATH -Append
@@ -80,7 +80,7 @@ jobs:
         run: ./platform/windows/Prepare-Release.ps1
       - uses: actions/upload-artifact@v4
         with:
-          name: GazeGrid-Windows-x64-signed
+          name: gaze-grid-Windows-x64-signed
           path: build/windows/release/*
           if-no-files-found: error
           retention-days: 30
@@ -93,8 +93,8 @@ jobs:
             build/windows/*-qt-test.txt
             build/windows/Testing/Temporary/LastTest.log
             build/windows/_CPack_Packages/win64/WIX/wix.log
-            ${{ runner.temp }}/gazegrid-msi-*.log
-            ${{ runner.temp }}/gazegrid-app-*
+            ${{ runner.temp }}/gaze-grid-msi-*.log
+            ${{ runner.temp }}/gaze-grid-app-*
           if-no-files-found: ignore
       - name: Remove signing identity
         if: always()
@@ -118,7 +118,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
-          name: GazeGrid-Windows-x64-signed
+          name: gaze-grid-Windows-x64-signed
           path: release
       - name: Attach verified assets to a draft release
         env:
@@ -138,10 +138,10 @@ jobs:
           if gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft > draft-status.txt; then
             test "$(cat draft-status.txt)" = true || { echo 'Refusing to replace a published release.'; exit 1; }
             gh release edit "$RELEASE_TAG" --target "$GITHUB_SHA" --notes-file release/RELEASE-NOTES.md
-            gh release upload "$RELEASE_TAG" release/*.msi release/GazeGrid.cer release/SHA256SUMS.txt --clobber
+            gh release upload "$RELEASE_TAG" release/*.msi release/gaze-grid.cer release/SHA256SUMS.txt --clobber
           else
-            gh release create "$RELEASE_TAG" release/*.msi release/GazeGrid.cer release/SHA256SUMS.txt \
-              --target "$GITHUB_SHA" --title "GazeGrid $RELEASE_VERSION" --draft \
+            gh release create "$RELEASE_TAG" release/*.msi release/gaze-grid.cer release/SHA256SUMS.txt \
+              --target "$GITHUB_SHA" --title "gaze-grid $RELEASE_VERSION" --draft \
               --notes-file release/RELEASE-NOTES.md
           fi
           gh release view "$RELEASE_TAG" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"

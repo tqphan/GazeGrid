@@ -48,6 +48,8 @@ class Controller:public QObject{
  Q_PROPERTY(int repeatIntervalMs MEMBER repeatIntervalMs NOTIFY changed)
  Q_PROPERTY(bool preserveTogglesBetweenLayouts MEMBER preserveTogglesBetweenLayouts NOTIFY changed)
  Q_PROPERTY(bool cycleModifiersOnHover MEMBER cycleModifiersOnHover NOTIFY changed)
+ Q_PROPERTY(QString latchStyle MEMBER latchStyle NOTIFY changed)
+ Q_PROPERTY(QString lockStyle MEMBER lockStyle NOTIFY changed)
  Q_PROPERTY(QString dwellIndicatorStyle MEMBER dwellIndicatorStyle NOTIFY changed)
  Q_PROPERTY(int dwellMs MEMBER dwellMs NOTIFY changed)
  Q_PROPERTY(int restoreCorner READ restoreCorner WRITE setRestoreCorner NOTIFY geometryPreferencesChanged)
@@ -320,6 +322,7 @@ private:
  QString portalStatus="Desktop control disconnected",tobiiStatus="Tobii ready to connect",actionStatus="Choose Authorize to enable desktop output";
  QString profileStatus;
  bool paused=false,literal=false,learning=false,targeting=false,gazeEnabled=false;
+ QString latchStyle="outline",lockStyle="fill";
  QString dwellIndicatorStyle="bar";
  int dwellMs=750;
  int processPriorityValue=0;

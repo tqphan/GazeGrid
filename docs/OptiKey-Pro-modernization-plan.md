@@ -1,4 +1,4 @@
-# GazeGrid modernization — remaining work
+# gaze-grid modernization — remaining work
 
 Reviewed against the local implementation on 2026-10-24. Completed implementation tasks have been removed. Usage is documented in [README](../README.md); recorded validation is in [host acceptance](host-acceptance.md). Implementation alone does not close a live acceptance gate.
 

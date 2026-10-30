@@ -63,19 +63,19 @@ private slots:
   QVERIFY(ProfileStore(QDir(config).filePath("profile.json")).save(preferences,error,true));
   QVERIFY(store().save("startup-token",error));
   QProcess app;auto environment=QProcessEnvironment::systemEnvironment();
-  environment.insert("GAZEGRID_CONFIG_DIR",config);
+  environment.insert("GAZE_GRID_CONFIG_DIR",config);
   environment.insert("QT_QPA_PLATFORM","offscreen");environment.insert("QT_QUICK_BACKEND","software");
   environment.insert("XDG_CACHE_HOME",QDir(config).filePath("cache"));
   app.setProcessEnvironment(environment);
-  app.start(QDir(QCoreApplication::applicationDirPath()).filePath("gazegrid"),QStringList{});
+  app.start(QDir(QCoreApplication::applicationDirPath()).filePath("gaze-grid"),QStringList{});
   QVERIFY(app.waitForStarted());
   QTRY_COMPARE(fake.selected.value("restore_token").toString(),QString("startup-token"));
-  QCOMPARE(registry.appId,QString("org.gazegrid.GazeGrid"));
+  QCOMPARE(registry.appId,QString("org.gaze_grid.gaze_grid"));
   QCOMPARE(fake.selected.value("persist_mode").toUInt(),2u);
   QTRY_VERIFY(QFile::exists(QDir(config).filePath("desktop-permission.json")));
   app.terminate();QVERIFY(app.waitForFinished());
   QCOMPARE(store().take(error),QString("replacement"));
  }
 };
-int main(int argc,char **argv){QTemporaryDir dir;if(!dir.isValid())return 1;qputenv("XDG_CONFIG_HOME",dir.path().toUtf8());QCoreApplication app(argc,argv);app.setOrganizationName("GazeGridTests");app.setApplicationName("Portal");PortalTests tests;return QTest::qExec(&tests,argc,argv);}
+int main(int argc,char **argv){QTemporaryDir dir;if(!dir.isValid())return 1;qputenv("XDG_CONFIG_HOME",dir.path().toUtf8());QCoreApplication app(argc,argv);app.setOrganizationName("gaze-gridTests");app.setApplicationName("Portal");PortalTests tests;return QTest::qExec(&tests,argc,argv);}
 #include "PortalTests.moc"

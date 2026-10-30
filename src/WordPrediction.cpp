@@ -61,7 +61,7 @@ struct Model {
   // Parse one line at a time instead of retaining hundreds of thousands of
   // temporary byte arrays alongside the finished model during startup.
   auto readLine=[&]{auto line=input.readLine();if(line.endsWith('\n'))line.chop(1);return line;};
-  if(readLine()!="gazegrid-prediction-v1")qFatal("Invalid English prediction model");
+  if(readLine()!="gaze-grid-prediction-v1")qFatal("Invalid English prediction model");
   while(!input.atEnd()){
    const auto fields=readLine().split('\t');
    if(fields.size()==3&&fields[0]=="u")prior.insert(QString::fromUtf8(fields[1]),fields[2].toDouble());

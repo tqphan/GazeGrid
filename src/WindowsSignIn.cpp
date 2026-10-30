@@ -11,14 +11,14 @@
 #include <shellapi.h>
 #include <objbase.h>
 namespace {
-const QString settingsPath="HKEY_LOCAL_MACHINE\\SOFTWARE\\GazeGrid\\SignIn";
+const QString settingsPath="HKEY_LOCAL_MACHINE\\SOFTWARE\\gaze-grid\\SignIn";
 }
 QJsonObject WindowsSignIn::validatedProfile(const QJsonObject &source){
  auto result=ProfileStore::defaults();
  // Only keyboard presentation, gaze and magnifier preferences cross the desktop boundary.
  for(const auto &name:{"magnifierRefreshHz","magnifierEnabled","magnifierZoom","progressiveZoom","zoomDurationMs","targetDwellEnabled","targetStartDwellMs","targetConfirmDwellMs","targetDwellRadius"})
   if(source.contains(name))result[name]=source[name];
- for(const auto &name:{"startLayout","keyboardScale","keyboardTheme","dwellMs","dwellIndicatorStyle","gazeEnabled","clampGazeForKeyboard","clampGazeForPointSelection","invalidGazeToleranceMs","gazeFilterType","gazeFilterGain","gazeSaccadeDistance","gazeSmoothingLevel","smoothWhenChangingGazeTarget","shortLabelScale","longLabelScale","scratchpadTextScale"})
+ for(const auto &name:{"startLayout","keyboardScale","keyboardTheme","dwellMs","dwellIndicatorStyle","latchStyle","lockStyle","gazeEnabled","clampGazeForKeyboard","clampGazeForPointSelection","invalidGazeToleranceMs","gazeFilterType","gazeFilterGain","gazeSaccadeDistance","gazeSmoothingLevel","smoothWhenChangingGazeTarget","shortLabelScale","longLabelScale","scratchpadTextScale"})
   if(source.contains(name))result[name]=source[name];
  result["predictionMode"]="off";result["learning"]=false;
  if(!ProfileStore::valid(result))return {};
@@ -33,7 +33,7 @@ bool WindowsSignIn::secureDesktop(){
      &&_wcsicmp(name,L"Winlogon")==0;
 }
 bool WindowsSignIn::registered(){
- QSettings registration("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Accessibility\\ATs\\GazeGrid_GazeGrid_v1",QSettings::Registry64Format);
+ QSettings registration("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Accessibility\\ATs\\gaze-grid_gaze-grid_v1",QSettings::Registry64Format);
  const auto installed=QFileInfo(registration.value("StartExe").toString()).canonicalFilePath();
  return !installed.isEmpty()&&installed.compare(QFileInfo(QCoreApplication::applicationFilePath()).canonicalFilePath(),Qt::CaseInsensitive)==0;
 }
@@ -84,7 +84,7 @@ int WindowsSignIn::setup(const QStringList &arguments){
  settings.sync();if(settings.status()!=QSettings::NoError)return 2;
  if(mode=="sync")return 0;
  if(SignInRegistry::set(HKEY_LOCAL_MACHINE,SignInRegistry::key,mode=="enable")!=ERROR_SUCCESS)return 2;
- QSettings installer("HKEY_LOCAL_MACHINE\\SOFTWARE\\GazeGrid\\Installer",QSettings::NativeFormat);
+ QSettings installer("HKEY_LOCAL_MACHINE\\SOFTWARE\\gaze-grid\\Installer",QSettings::NativeFormat);
  installer.setValue("SignIn",mode=="enable"?"1":"0");installer.sync();
  return installer.status()==QSettings::NoError?0:2;
 }

@@ -46,7 +46,7 @@ WindowsDesktop::Instance::Instance(std::wstring prefix){
  identity+=QString::fromStdWString(desktop).toUtf8();
  // Hash the complete identity to support long or non-ASCII desktop names and
  // prefixes without introducing reserved separators into the object namespace.
- const auto name=(QStringLiteral("Local\\GazeGrid.Keyboard.")
+ const auto name=(QStringLiteral("Local\\gaze-grid.Keyboard.")
      +QString::fromLatin1(QCryptographicHash::hash(identity,QCryptographicHash::Sha256).toHex())).toStdWString();
  mutex=CreateMutexExW(nullptr,name.c_str(),0,SYNCHRONIZE|MUTEX_MODIFY_STATE);
  if(!mutex){lastError=GetLastError();return;}

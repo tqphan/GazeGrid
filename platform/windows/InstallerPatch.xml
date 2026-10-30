@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CPackWiXPatch>
   <CPackWiXFragment Id="#PRODUCTFEATURE">
-    <ComponentGroupRef Id="GazeGridExecutables" />
+    <ComponentGroupRef Id="gaze_gridExecutables" />
   </CPackWiXFragment>
 </CPackWiXPatch>

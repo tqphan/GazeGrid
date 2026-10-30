@@ -7,9 +7,9 @@ FetchContent_Declare(vigemclient
   SOURCE_SUBDIR src
 )
 FetchContent_MakeAvailable(vigemclient)
-add_library(gazegrid_vigem STATIC
+add_library(gaze-grid_vigem STATIC
   "${vigemclient_SOURCE_DIR}/src/ViGEmClient.cpp")
-set_target_properties(gazegrid_vigem PROPERTIES AUTOMOC OFF)
-target_include_directories(gazegrid_vigem PUBLIC "${vigemclient_SOURCE_DIR}/include")
-target_link_libraries(gazegrid_vigem PRIVATE setupapi)
+set_target_properties(gaze-grid_vigem PROPERTIES AUTOMOC OFF)
+target_include_directories(gaze-grid_vigem PUBLIC "${vigemclient_SOURCE_DIR}/include")
+target_link_libraries(gaze-grid_vigem PRIVATE setupapi)
 install(FILES "${vigemclient_SOURCE_DIR}/LICENSE" DESTINATION licenses RENAME ViGEmClient-LICENSE.txt)

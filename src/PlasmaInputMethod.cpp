@@ -111,7 +111,7 @@ bool PlasmaInputMethod::attachPanel(QWindow *window,bool top){
  if(!wayland||!d->panel.panel.isActive())return false;
  if(top){
   d->topLayer=LayerShellQt::Window::get(window);
-  d->topLayer->setScope("gazegrid-keyboard");
+  d->topLayer->setScope("gaze-grid-keyboard");
   d->topLayer->setLayer(LayerShellQt::Window::LayerOverlay);
   d->topLayer->setAnchors(LayerShellQt::Window::AnchorTop);
   d->topLayer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);

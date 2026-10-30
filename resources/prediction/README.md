@@ -43,8 +43,8 @@ or network access. To rebuild, download the two source files above, then run:
 
 ```sh
 python3 tools/build_prediction_model.py \
-  --sentences /tmp/gazegrid-eng.tsv.bz2 \
-  --frequencies /tmp/gazegrid-frequencies.txt \
+  --sentences /tmp/gaze-grid-eng.tsv.bz2 \
+  --frequencies /tmp/gaze-grid-frequencies.txt \
   --evaluation build/prediction-heldout.jsonl
 ./build.sh
 ./build/prediction-eval build/prediction-heldout.jsonl
@@ -88,13 +88,13 @@ or application. Tatoeba is a language-learning corpus and contains translation
 patterns and similar sentence variants; the frequency prior adds subtitle-based
 spoken English. No handwritten evaluation examples are added to training.
 
-Context comes from text entered through GazeGrid's scratchpad. This change does
+Context comes from text entered through gaze-grid's scratchpad. This change does
 not read arbitrary text around the caret in other applications; moving the caret
 or editing externally can therefore leave the predictor without the true context.
 Private native input fields suppress prediction and learning.
 
 The format is a Qt-compatible qCompress stream (four-byte big-endian raw length,
-then zlib). Its TSV payload starts with `gazegrid-prediction-v1`, followed by
+then zlib). Its TSV payload starts with `gaze-grid-prediction-v1`, followed by
 `u / word / probability`, `b / preceding-word / word / count`,
 `t / preceding-word / preceding-word / word / count`, or
 `q / preceding-word / preceding-word / preceding-word / word / count` records. `<s>` marks a

@@ -2,9 +2,9 @@
 param([string]$Destination = 'build/tobii-sdk')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-if (!$env:GAZEGRID_TOBII_HEADERS_BASE64) { throw 'Configure the windows-release GAZEGRID_TOBII_HEADERS_BASE64 secret with the pinned headers-only archive.' }
+if (!$env:GAZE_GRID_TOBII_HEADERS_BASE64) { throw 'Configure the windows-release GAZE_GRID_TOBII_HEADERS_BASE64 secret with the pinned headers-only archive.' }
 $manifest = Get-Content "$PSScriptRoot/tobii-sdk.json" -Raw | ConvertFrom-Json
-$bytes = [Convert]::FromBase64String($env:GAZEGRID_TOBII_HEADERS_BASE64)
+$bytes = [Convert]::FromBase64String($env:GAZE_GRID_TOBII_HEADERS_BASE64)
 $sha = [Security.Cryptography.SHA256]::Create()
 try { $hash = ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
 finally { $sha.Dispose() }

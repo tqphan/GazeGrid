@@ -1,8 +1,8 @@
 [Desktop Entry]
-Name=GazeGrid
+Name=gaze-grid
 Comment=Gaze-controlled keyboard and native text input
-Exec=@GAZEGRID_EXECUTABLE@ --input-method
+Exec=@GAZE_GRID_EXECUTABLE@ --input-method
 Type=Application
-Icon=@GAZEGRID_ICON@
+Icon=@GAZE_GRID_ICON@
 NoDisplay=true
 X-KDE-Wayland-VirtualKeyboard=true

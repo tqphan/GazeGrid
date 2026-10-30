@@ -17,21 +17,21 @@ for layout in (root / "references" / "optikey-keyboard-en-us").glob("*.xml"):
         if not icons.get((symbol.text or "").strip()):
             raise SystemExit(f"Missing icon in {layout.name}: {symbol.text}")
 results = []
-with tempfile.TemporaryDirectory(prefix="gazegrid-render-") as temporary:
+with tempfile.TemporaryDirectory(prefix="gaze-grid-render-") as temporary:
     environment = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software",
                        XDG_CONFIG_HOME=temporary + "/config", XDG_CACHE_HOME=temporary + "/cache")
     for layout in sorted((root / "references" / "optikey-keyboard-en-us").glob("*.xml")):
         screenshot = output / (layout.stem + ".png")
         screenshot.unlink(missing_ok=True)
-        environment["GAZEGRID_SCREENSHOT"] = str(screenshot)
-        run = subprocess.run([str(root / "build" / "gazegrid"), "--smoke", "--layout", layout.stem],
+        environment["GAZE_GRID_SCREENSHOT"] = str(screenshot)
+        run = subprocess.run([str(root / "build" / "gaze-grid"), "--smoke", "--layout", layout.stem],
                              env=environment, text=True, capture_output=True, timeout=15)
         dimensions = struct.unpack(">II", screenshot.read_bytes()[16:24]) if screenshot.exists() else None
         results.append(dict(layout=layout.stem, exitCode=run.returncode, dimensions=dimensions,
                             diagnostics=run.stderr + run.stdout))
         print(layout.stem, run.returncode, dimensions, flush=True)
     (output / "results.json").write_text(json.dumps(results, indent=2) + "\n")
-    audit = subprocess.run([str(root / "build" / "gazegrid"), "--validate-keyboards"],
+    audit = subprocess.run([str(root / "build" / "gaze-grid"), "--validate-keyboards"],
                            env=environment, text=True, capture_output=True, check=True)
     (output / "coverage.json").write_text(audit.stdout)
 if len(results) != 29 or any(r["exitCode"] or not r["dimensions"] or r["diagnostics"] for r in results):

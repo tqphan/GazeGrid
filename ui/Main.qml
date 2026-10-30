@@ -8,7 +8,7 @@ Window {
  id: root
  objectName: "keyboardWindow"
  width: 1100; height: 370; visible: false
- title: "GazeGrid"
+ title: "gaze-grid"
  // Keep the native surface translucent for its entire lifetime.
  color:"transparent"
  flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
@@ -17,8 +17,8 @@ Window {
  property point canvasPoint:Qt.point(0,0)
  // Keep coordinates current before entering edit mode as well.
  HoverHandler {id:canvasHover}
- property var dwellStyleIds: ["bar","top-bar","fill","fill-down","fill-left","fill-right","outline","ring","pie","collapse"]
- property var dwellStyleNames: ["Bottom bar","Top bar","Fill bottom to top","Fill top to bottom","Fill left to right","Fill right to left","Outline","Ring","Pie","Collapse"]
+ property var dwellStyleIds: ["bar","top-bar","fill","fill-down","fill-left","fill-right","outline","ring","pie","collapse","expand"]
+ property var dwellStyleNames: ["Bottom bar","Top bar","Fill bottom to top","Fill top to bottom","Fill left to right","Fill right to left","Outline","Ring","Pie","Collapse","Expand"]
  property real progress: 0
  property var overlapProgress: ({})
  readonly property bool overlapEnabled:controller.layout.layoutMode==="canvas"&&controller.layout.activateoverlappingkeys===true&&!controller.sizeMoveMode
@@ -245,6 +245,7 @@ Window {
     const commands=modelData.commands || []
     return commands.length===1&&commands[0].tag==="Action"&&commands[0].text.trim()==="LookToScrollActive"
    }
+   property string heldStyle:modifierState==="latched"?controller.latchStyle:(modifierState==="locked"||keyboardToggled)?controller.lockStyle:""
    property bool stateFilled:((editAction==="MoveModeToggle"&&controller.canvasEditMode==="move")||(editAction==="SizeModeToggle"&&controller.canvasEditMode==="size"))||keyboardToggled||gamepadPressed||modifierState==="locked"||(magnifierKey&&controller.magnifierEnabled)||(sleepKey&&controller.paused)||(lookScrollKey&&controller.lookScrolling)||(magneticCursorKey&&controller.magneticCursor)
    property real predictionWidth:controller.layout.layoutMode==="canvas"?width/Math.max(1,predictionCount):2*root.width/controller.layout.cols
    property int predictionCount:modelData.suggestionCount!==undefined?modelData.suggestionCount:Math.floor(modelData.width/2)
@@ -280,11 +281,12 @@ Window {
    Rectangle {anchors.fill:parent;color:root.dwellColor;opacity:key.active?0.18:0}
    Rectangle {
     anchors.fill:parent;anchors.margins:2
-    visible:(key.sizeMoveKey&&controller.sizeMoveMode)||key.keyboardToggled||key.gamepadPressed||key.modifierState!==""||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)||(key.magneticCursorKey&&controller.magneticCursor)
+    visible:!key.heldStyle&&((key.sizeMoveKey&&controller.sizeMoveMode)||key.gamepadPressed||(key.magnifierKey&&controller.magnifierEnabled)||(key.sleepKey&&controller.paused)||(key.lookScrollKey&&controller.lookScrolling)||(key.magneticCursorKey&&controller.magneticCursor))
     color:key.stateFilled?root.dwellColor:"transparent"
     opacity:key.stateFilled?0.25:1
     border.width:controller.sizeMoveSelection===key.index?5:2;border.color:root.dwellColor
    }
+   HeldIndicator {anchors.fill:parent;anchors.margins:2;style:key.heldStyle;color:root.dwellColor}
    Text {
     anchors.fill:parent;anchors.margins:12;visible:key.modelData.kind==="Scratchpad";clip:true
     opacity:key.foregroundOpacity
@@ -514,7 +516,7 @@ Window {
   }
  }
  Window {
-  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1100,root.screenWidth);height:Math.min(800,root.screenHeight-60);title:"GazeGrid Settings";color:Kirigami.Theme.backgroundColor
+  id:settings;objectName:"settingsWindow";visible:false;width:Math.min(1100,root.screenWidth);height:Math.min(800,root.screenHeight-60);title:"gaze-grid Settings";color:Kirigami.Theme.backgroundColor
   minimumWidth:Math.min(760,root.screenWidth);minimumHeight:Math.min(500,root.screenHeight-60)
   ColorDialog {
    id:gazeColorDialog
@@ -643,7 +645,7 @@ Window {
        Text {visible:text.length>0;text:controller.heldKeys.length?"Held: "+controller.heldKeys.join(", "):"";color:Kirigami.Theme.neutralTextColor}
        Text {visible:text.length>0;text:controller.heldPointerButtons.length?"Mouse held: "+controller.heldPointerButtons.join(", "):"";color:Kirigami.Theme.neutralTextColor}
        Tool {id:recover;text:"Home / recover";command:"Recover"}
-       SettingsButton {text:"Quit GazeGrid";icon.name:"application-exit";onClicked:Qt.quit()}
+       SettingsButton {text:"Quit gaze-grid";icon.name:"application-exit";onClicked:Qt.quit()}
       }
      }
      SettingsCard {
@@ -688,6 +690,30 @@ Window {
         currentIndex:Math.max(0,root.themeIds.indexOf(controller.keyboardTheme))
         onActivated:controller.keyboardTheme=root.themeIds[currentIndex]
         Accessible.name:"Keyboard theme"
+       }
+       Desktop.Label {text:"Latch style"}
+       SettingsComboBox {
+        objectName:"latchStyleSelector";Layout.fillWidth:true;model:["Outline","Fill","Underline","Pulse","Ripple","Sweep","Animated outline"]
+        currentIndex:Math.max(0,["outline","fill","underline","pulse","ripple","sweep","animated-outline"].indexOf(controller.latchStyle))
+        onActivated:controller.latchStyle=["outline","fill","underline","pulse","ripple","sweep","animated-outline"][currentIndex]
+        Accessible.name:"Latch style"
+       }
+       Rectangle {
+        Layout.fillWidth:true;Layout.preferredHeight:60;color:root.keyboardBackground;border.color:root.keyboardBorder;radius:8
+        Desktop.Label {anchors.centerIn:parent;text:"Latch preview"}
+        HeldIndicator {anchors.fill:parent;anchors.margins:3;style:controller.latchStyle;color:root.dwellColor}
+       }
+       Desktop.Label {text:"Lock style"}
+       SettingsComboBox {
+        objectName:"lockStyleSelector";Layout.fillWidth:true;model:["Outline","Fill","Underline","Pulse","Ripple","Sweep","Animated outline"]
+        currentIndex:Math.max(0,["outline","fill","underline","pulse","ripple","sweep","animated-outline"].indexOf(controller.lockStyle))
+        onActivated:controller.lockStyle=["outline","fill","underline","pulse","ripple","sweep","animated-outline"][currentIndex]
+        Accessible.name:"Lock style"
+       }
+       Rectangle {
+        Layout.fillWidth:true;Layout.preferredHeight:60;color:root.keyboardBackground;border.color:root.keyboardBorder;radius:8
+        Desktop.Label {anchors.centerIn:parent;text:"Lock preview"}
+        HeldIndicator {anchors.fill:parent;anchors.margins:3;style:controller.lockStyle;color:root.dwellColor}
        }
        Desktop.Label {text:"Dwell progress style"}
        SettingsComboBox {
@@ -929,7 +955,7 @@ Window {
         Tool {id:stopSpeechButton;text:"Stop speech";command:"StopSpeech"}
        }
        SettingSlider {label:"Scratchpad text size";displayValue:controller.scratchpadTextScale+"%";from:50;to:300;stepSize:5;value:controller.scratchpadTextScale;onMoved:controller.scratchpadTextScale=value}
-       Desktop.Label {text:"Scratchpad (text typed by GazeGrid only)"}
+       Desktop.Label {text:"Scratchpad (text typed by gaze-grid only)"}
        Desktop.TextArea {text:controller.scratchpad;placeholderText:"Scratchpad preview";readOnly:true;font.pixelSize:24*controller.scratchpadTextScale/100;Layout.fillWidth:true;Layout.preferredHeight:Math.max(70,font.pixelSize*3);wrapMode:Text.Wrap}
       }
      }

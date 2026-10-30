@@ -8,12 +8,12 @@
 #include <thread>
 
 namespace {
-std::wstring prefix(){return (QStringLiteral("GazeGrid.Tests.")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();}
+std::wstring prefix(){return (QStringLiteral("gaze-grid.Tests.")+QUuid::createUuid().toString(QUuid::WithoutBraces)).toStdWString();}
 struct Desktop {
  HDESK handle=nullptr;
  std::wstring name;
  Desktop(){
-  name=(QStringLiteral("GazeGridTest")+QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-')).toStdWString();
+  name=(QStringLiteral("gaze-gridTest")+QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-')).toStdWString();
   handle=CreateDesktopW(name.c_str(),nullptr,nullptr,0,DESKTOP_CREATEWINDOW|DESKTOP_READOBJECTS|DESKTOP_WRITEOBJECTS,nullptr);
  }
  ~Desktop(){if(handle)CloseDesktop(handle);}
@@ -52,13 +52,13 @@ class WindowsDesktopSessionTests:public QObject {
 private slots:
  void keyboardInvocationsExcludeHelpersAndDiagnostics(){
   using WindowsDesktop::keyboardInvocation;
-  QVERIFY(keyboardInvocation({"gazegrid.exe"}));
+  QVERIFY(keyboardInvocation({"gaze-grid.exe"}));
   for(const QString argument:{"--accessibility","--settings","--gaze","--layout"})
-   QVERIFY(keyboardInvocation({"gazegrid.exe",argument,"keyboard-check"}));
-  QVERIFY(keyboardInvocation({"gazegrid.exe","--layout","my-target"}));
+   QVERIFY(keyboardInvocation({"gaze-grid.exe",argument,"keyboard-check"}));
+  QVERIFY(keyboardInvocation({"gaze-grid.exe","--layout","my-target"}));
   for(const QString argument:{"--configure-sign-in","--editor","--diagnose","--validate-keyboards","--smoke",
       "--sign-in-ui-check","--input-check","--pointer-check","--input-target","--pointer-target"})
-   QVERIFY2(!keyboardInvocation({"gazegrid.exe",argument}),qPrintable(argument));
+   QVERIFY2(!keyboardInvocation({"gaze-grid.exe",argument}),qPrintable(argument));
  }
  void brokerDuplicateExitsWhileOwnerRetainsItsLock(){
   const auto name=prefix();WindowsDesktop::Instance owner(name);QVERIFY(owner.owner());

@@ -1,6 +1,6 @@
 #pragma once
 #include <QObject>
-#ifndef GAZEGRID_WINDOWS
+#ifndef GAZE_GRID_WINDOWS
 #include <QDBusContext>
 #endif
 #include <QImage>
@@ -9,7 +9,7 @@
 #include <QTimer>
 #include <QVariantMap>
 class ScreenshotPortal:public QObject
-#ifndef GAZEGRID_WINDOWS
+#ifndef GAZE_GRID_WINDOWS
 ,protected QDBusContext
 #endif
 {
