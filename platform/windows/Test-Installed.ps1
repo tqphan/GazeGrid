@@ -134,7 +134,7 @@ try {
     try {
         $shortcut = $shell.CreateShortcut($shortcutPath)
         if ($shortcut.TargetPath -ne $installed) { throw 'Start menu shortcut must target the installed executable directly.' }
-        if ($shortcut.WorkingDirectory -ne (Split-Path $installed)) { throw 'Start menu shortcut has an incorrect working directory.' }
+        if ([IO.Path]::GetFullPath($shortcut.WorkingDirectory).TrimEnd('\', '/') -ne (Split-Path $installed)) { throw "Start menu shortcut has an incorrect working directory: $($shortcut.WorkingDirectory)" }
     } finally {
         if ($shortcut) { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcut) }
         [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell)
