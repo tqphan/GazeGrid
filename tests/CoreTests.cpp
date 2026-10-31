@@ -125,8 +125,26 @@ private slots:
   r.cancel();QVERIFY(r.heldKeys().isEmpty());
  }
 
+ void conversationKeyboardPlacement(){
+  for(const auto &side:{"bottom","top"}){
+   const auto layout=KeyboardLayout::fromXml(KeyboardPack::load(QStringLiteral(PACK_PATH)+"/keyboard-conversation-"+side+".xml"));
+   QVERIFY2(!layout.contains("error"),qPrintable(layout["error"].toString()));
+   QCOMPARE(layout["position"].toString(),QString(side==QString("top")?"Top":"Bottom"));
+   double typingRow=-1,scratchRow=-1,suggestionRow=-1,phraseRow=-1;
+   for(const auto &entry:layout["keys"].toList()){
+    const auto key=entry.toMap();const auto row=key["row"].toDouble();
+    if(key["label"].toString()=="q")typingRow=row;
+    if(key["kind"]=="Scratchpad")scratchRow=row;
+    if(key["kind"]=="SuggestionRow")suggestionRow=row;
+    if(key["label"].toString()=="suction")phraseRow=row;
+   }
+   QVERIFY(typingRow>=0&&scratchRow>=0&&suggestionRow>=0&&phraseRow>=0);
+   if(QString(side)=="top")QVERIFY(typingRow<suggestionRow&&suggestionRow<scratchRow&&scratchRow<phraseRow);
+   else QVERIFY(phraseRow<scratchRow&&scratchRow<suggestionRow&&suggestionRow<typingRow);
+  }
+ }
  void conversationSpeakLabels(){
-  const auto layout=KeyboardLayout::fromXml(KeyboardPack::load(QStringLiteral(PACK_PATH)+"/keyboard-conversation-fullscreen.xml"));
+  const auto layout=KeyboardLayout::fromXml(KeyboardPack::load(QStringLiteral(PACK_PATH)+"/keyboard-conversation-bottom.xml"));
   QVERIFY(!layout.contains("error"));
   const QStringList expected{"suction","index","thumb","rotate","slide","shoulders","headrest","button","butt","earbud","deflate","inflate"};
   QStringList spoken;

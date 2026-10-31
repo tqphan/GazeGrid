@@ -107,7 +107,7 @@
     </DynamicKey>
     <DynamicKey>
       <Symbol>ConversationIcon</Symbol>
-      <ChangeKeyboard BackReturnsHere="true">keyboard-conversation-fullscreen</ChangeKeyboard>
+      <ChangeKeyboard BackReturnsHere="true">keyboard-conversation-bottom</ChangeKeyboard>
       <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
     <DynamicKey>

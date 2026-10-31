@@ -1203,7 +1203,7 @@ void Controller::setTypedWordSuggestionMode(const QString &mode){
 }
 
 void Controller::applySpeechProfile(){
- if(layoutName!="keyboard-conversation-fullscreen"||speechProfiles.isEmpty())return;
+ if((layoutName!="keyboard-conversation-bottom"&&layoutName!="keyboard-conversation-top")||speechProfiles.isEmpty())return;
  auto keys=layout["keys"].toList();
  const auto items=speechProfiles[speechProfileIndex].toMap()["items"].toList();int slot=0;
  for(auto &value:keys){

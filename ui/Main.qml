@@ -1000,7 +1000,7 @@ Window {
         text:"Add phrase";highlighted:true;enabled:speechProfileEditor.selectedProfile.items.length<12&&newSpeechLabel.text.trim().length>0&&newSpeechPhrase.text.trim().length>0
         onClicked:if(controller.addSpeechItem(newSpeechLabel.text,newSpeechPhrase.text)){newSpeechLabel.clear();newSpeechPhrase.clear()}
        }
-       SettingsButton {text:"Open keyboard";onClicked:{controller.openLayout("keyboard-conversation-fullscreen",true);settings.close()}}
+       SettingsButton {text:"Open keyboard";onClicked:{controller.openLayout("keyboard-conversation-bottom",true);settings.close()}}
       }
      }
      SettingsCard {

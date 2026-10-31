@@ -558,7 +558,7 @@ int main(int argc,char **argv){
   return app.exec();
  }
  if(app.arguments().contains("--overlap-activation-ui-check")){
-  controller.openLayout("keyboard-conversation-fullscreen",false);
+  controller.openLayout("keyboard-conversation-bottom",false);
   controller.setProperty("paused",false);controller.setProperty("dwellMs",25);
   window->setProperty("gazeCheck",true);window->setProperty("gazeEnabled",false);
   QVariantList keys;

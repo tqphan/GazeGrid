@@ -46,7 +46,7 @@ class ControllerTests:public QObject {
   keys<<QVariantMap{{"kind","Scratchpad"}};layout["keys"]=keys;c.setProperty("layout",layout);
  }
  static void overlapLayout(Controller &c,const QVariantList &keys){
-  c.openLayout("keyboard-conversation-fullscreen",false);c.setProperty("paused",false);
+  c.openLayout("keyboard-conversation-bottom",false);c.setProperty("paused",false);
   auto content=keys;content<<QVariantMap{{"kind","Scratchpad"}};
   c.setProperty("layout",QVariantMap{{"layoutMode","canvas"},{"activateoverlappingkeys",true},{"keys",content}});
  }
@@ -111,7 +111,7 @@ private slots:
   ProfileStore store(appConfigDirectory()+"/profile.json");QString error;
   QVERIFY(store.save(ProfileStore::defaults(),error,true));
   {
-   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+   Controller c;c.openLayout("keyboard-conversation-bottom",false);
    QCOMPARE(c.getSpeechProfiles().size(),1);
    QVERIFY(!c.createSpeechProfile("  "));
    QVERIFY(c.createSpeechProfile("Care"));
@@ -130,6 +130,10 @@ private slots:
    QVERIFY(c.updateSpeechItem(0,"Water","Please bring water."));
    c.setActiveSpeechProfile(0);QCOMPARE(speechKeys()[0].toMap()["label"].toString(),QString("suction"));
    c.setActiveSpeechProfile(1);QCOMPARE(speechKeys()[0].toMap()["label"].toString(),QString("Water"));
+   c.openLayout("keyboard-conversation-top",false);
+   QCOMPARE(speechKeys().size(),12);
+   QCOMPARE(speechKeys()[0].toMap()["label"].toString(),QString("Water"));
+   QCOMPARE(speechKeys()[0].toMap()["commands"].toList()[0].toMap()["label"].toString(),QString("Please bring water."));
    c.setActiveSpeechProfile(999);QCOMPARE(c.activeSpeechProfile(),1);
    c.removeSpeechItem(1);QCOMPARE(c.getSpeechProfiles()[1].toMap()["items"].toList().size(),11);
    QVERIFY(c.renameSpeechProfile("Daily care"));QVERIFY(c.savePreferences());
@@ -143,7 +147,7 @@ private slots:
  void speechProfileActionsCycle(){
   ProfileStore store(appConfigDirectory()+"/profile.json");QString error;
   QVERIFY(store.save(ProfileStore::defaults(),error,true));
-  Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+  Controller c;c.openLayout("keyboard-conversation-bottom",false);
   auto activate=[&](QString action){
    QString key;const auto keys=c.property("layout").toMap()["keys"].toList();
    for(int i=0;i<keys.size();++i)
@@ -194,12 +198,12 @@ private slots:
  void signInUsesTheSelectedKeyboardWithoutRetainingText(){
   QTemporaryDir directory;const auto previous=qgetenv("GAZE_GRID_CONFIG_DIR");
   qputenv("GAZE_GRID_CONFIG_DIR",directory.path().toUtf8());
-  auto values=ProfileStore::defaults();values["startLayout"]="keyboard-conversation-fullscreen";
+  auto values=ProfileStore::defaults();values["startLayout"]="keyboard-conversation-bottom";
   values["predictionMode"]="context";values["learning"]=true;
   {
    Controller controller(true,values);
    QVERIFY(controller.isSignInMode());
-   QCOMPARE(controller.property("layoutName").toString(),QString("keyboard-conversation-fullscreen"));
+   QCOMPARE(controller.property("layoutName").toString(),QString("keyboard-conversation-bottom"));
    QCOMPARE(controller.predictionMode(),QString("off"));
    controller.setPredictionMode("context");controller.setLearning(true);
    controller.inputContextChanged(true,false);
@@ -437,13 +441,13 @@ private slots:
   const auto keys=c.property("layout").toMap()["keys"].toList();
   QCOMPARE(keys.first().toMap()["kind"].toString(),QString("Joystick"));
   c.joystick(-1,0,0,false);c.togglePause();c.joystick(0,1,1,true);
-  c.togglePause();c.openLayout("keyboard-conversation-fullscreen",false);
+  c.togglePause();c.openLayout("keyboard-conversation-bottom",false);
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","GamepadAPress"}}}));
   QTRY_VERIFY(!c.executingCommands());QVERIFY(!c.gamepadHeld("GamepadAPress"));
  }
  void typedWordSuggestionModesApplyAndPersist(){
   {
-   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+   Controller c;c.openLayout("keyboard-conversation-bottom",false);
    QCOMPARE(c.typedWordSuggestionMode(),QString("fallback"));
    QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank y"}}}));QTRY_VERIFY(!c.executingCommands());
    QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
@@ -457,7 +461,7 @@ private slots:
  }
  void literalSuggestionAcceptsUnknownWord(){
   for(bool addSpace:{false,true}){
-   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);c.setTypedWordSuggestionMode("always");c.setAddSpaceAfterCompletion(addSpace);
+   Controller c;c.openLayout("keyboard-conversation-bottom",false);c.setTypedWordSuggestionMode("always");c.setAddSpaceAfterCompletion(addSpace);
    QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","say Zorblax"}}}));QTRY_VERIFY(!c.executingCommands());
    QCOMPARE(c.property("suggestions").toStringList().first(),QString("Zorblax"));
    c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
@@ -465,8 +469,8 @@ private slots:
   }
  }
  void experimentalConversationEditing(){
-  Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
-  QCOMPARE(c.property("layoutName").toString(),QString("keyboard-conversation-fullscreen"));
+  Controller c;c.openLayout("keyboard-conversation-bottom",false);
+  QCOMPARE(c.property("layoutName").toString(),QString("keyboard-conversation-bottom"));
   auto keys=c.property("layout").toMap()["keys"].toList();
   auto findKey=[&](QString tag,QString text){for(int i=0;i<keys.size();++i)for(const auto &v:keys[i].toMap()["commands"].toList()){
    auto cmd=v.toMap();if(cmd["tag"]==tag&&cmd["text"].toString()==text)return QString("key:%1").arg(i);
@@ -498,15 +502,15 @@ private slots:
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","Backspace"}}}));QTRY_VERIFY(!c.executingCommands());
   QVERIFY(!keys.isEmpty());
   QCOMPARE(c.property("scratchpad").toString(),QString("saved conversation"));
-  c.openLayout("keyboard-conversation-fullscreen",false);
+  c.openLayout("keyboard-conversation-bottom",false);
   QCOMPARE(c.property("scratchpad").toString(),QString("saved conversation"));
   type("!");QCOMPARE(c.property("scratchpad").toString(),QString("saved conversation!"));
   c.openLayout("keyboard-alphabet-14x4-bottom",false);type("other");
-  c.openLayout("keyboard-conversation-fullscreen",false);
+  c.openLayout("keyboard-conversation-bottom",false);
   QCOMPARE(c.property("scratchpad").toString(),QString("saved conversation!"));
  }
  void predictionsInsertCompletionsAndNextWordsWithoutLearning(){
-  Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+  Controller c;c.openLayout("keyboard-conversation-bottom",false);
   c.setProperty("learning",false);
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank "}}}));QTRY_VERIFY(!c.executingCommands());
   QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
@@ -518,14 +522,14 @@ private slots:
   c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
   QCOMPARE(c.property("scratchpad").toString(),QString("thank you "));
   c.inputContextChanged(true,true);
-  c.openLayout("keyboard-conversation-fullscreen",false);
+  c.openLayout("keyboard-conversation-bottom",false);
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","NextSuggestions"}}}));QTRY_VERIFY(!c.executingCommands());
   QVERIFY(c.property("suggestions").toStringList().isEmpty());
  }
  void completionSpaceCanBeDisabled(){
   for(bool addSpace:{false,true}){
    for(const QString prefix:{QString("thank "),QString("thank y")}){
-    Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+    Controller c;c.openLayout("keyboard-conversation-bottom",false);
     c.setAddSpaceAfterCompletion(addSpace);
     QString output;
     c.configureInputMethod([&](QString text){output+=text;return true;},[](QString,bool){return true;});
@@ -542,7 +546,7 @@ private slots:
  }
  void punctuationReplacesOnlyTheSpaceInsertedByCompletion(){
   for(bool desktop:{false,true})for(bool enabled:{false,true}){
-   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+   Controller c;c.openLayout("keyboard-conversation-bottom",false);
    QString output;int backspaces=0;
    if(desktop){
     c.configureInputMethod([&](QString text){output+=text;return true;},[&](QString key,bool down){if(key=="BACK"&&down){output.chop(1);++backspaces;}return true;});
@@ -574,7 +578,7 @@ private slots:
  }
  void completionSpaceIsPreservedAfterLettersSpacesAndCursorMovement(){
   for(const QString next:{QString("a"),QString(" "),QString("Left")}){
-   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);c.setAddSpaceAfterCompletion(true);c.setRemoveCompletionSpaceBeforePunctuation(true);
+   Controller c;c.openLayout("keyboard-conversation-bottom",false);c.setAddSpaceAfterCompletion(true);c.setRemoveCompletionSpaceBeforePunctuation(true);
    QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank y"}}}));QTRY_VERIFY(!c.executingCommands());
    c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
    QVERIFY(c.executeCommands({QVariantMap{{"tag",next=="Left"?"Action":"Text"},{"text",next}}}));QTRY_VERIFY(!c.executingCommands());
@@ -583,7 +587,7 @@ private slots:
   }
  }
  void shiftedPunctuationRemovesCompletionSpace(){
-  Controller c;c.openLayout("keyboard-conversation-fullscreen",false);c.setAddSpaceAfterCompletion(true);c.setRemoveCompletionSpaceBeforePunctuation(true);
+  Controller c;c.openLayout("keyboard-conversation-bottom",false);c.setAddSpaceAfterCompletion(true);c.setRemoveCompletionSpaceBeforePunctuation(true);
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","thank y"}}}));QTRY_VERIFY(!c.executingCommands());
   c.clickCommand("suggest:0");QTRY_VERIFY(!c.executingCommands());
   QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","LeftShift"}}}));QTRY_VERIFY(!c.executingCommands());
@@ -598,7 +602,7 @@ private slots:
   values["removeCompletionSpaceBeforePunctuation"]="true";QVERIFY(!ProfileStore::valid(values));
  }
  void sentenceStartersAppearAndInsertWhenEnabled(){
-  Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+  Controller c;c.openLayout("keyboard-conversation-bottom",false);
   QVERIFY(!c.property("suggestions").toStringList().isEmpty());
   c.setSuggestSentenceStarters(false);
   QVERIFY(c.property("suggestions").toStringList().isEmpty());
@@ -623,7 +627,7 @@ private slots:
   ProfileStore store(QDir(appConfigDirectory()).filePath("profile.json"));QString error;
   auto legacy=ProfileStore::defaults();legacy.remove("predictionMode");legacy.remove("predictNextWord");legacy.remove("addSpaceAfterCompletion");legacy.remove("suggestSentenceStarters");QVERIFY(store.save(legacy,error));
   {
-   Controller c;c.openLayout("keyboard-conversation-fullscreen",false);
+   Controller c;c.openLayout("keyboard-conversation-bottom",false);
    QCOMPARE(c.predictionMode(),QString("context"));QVERIFY(c.predictNextWord());QVERIFY(c.addSpaceAfterCompletion());QVERIFY(c.suggestSentenceStarters());
    auto type=[&](QString text){QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text",text}}}));QTRY_VERIFY(!c.executingCommands());};
    type("thank ");QCOMPARE(c.property("suggestions").toStringList().first(),QString("you"));
@@ -639,7 +643,7 @@ private slots:
   }
   {
    Controller c;QCOMPARE(c.predictionMode(),QString("frequency"));QVERIFY(!c.predictNextWord());QVERIFY(!c.addSpaceAfterCompletion());QVERIFY(!c.suggestSentenceStarters());QVERIFY(c.learningEnabled());
-   c.openLayout("keyboard-conversation-fullscreen",false);
+   c.openLayout("keyboard-conversation-bottom",false);
    QVERIFY(c.executeCommands({QVariantMap{{"tag","Text"},{"text","zorbella "}}}));QTRY_VERIFY(!c.executingCommands());
    QVERIFY(c.executeCommands({QVariantMap{{"tag","Action"},{"text","ClearScratchpad"}},QVariantMap{{"tag","Text"},{"text","zorb"}}}));QTRY_VERIFY(!c.executingCommands());
    QVERIFY(c.property("suggestions").toStringList().contains("zorbella"));
@@ -912,7 +916,7 @@ private slots:
    c.configureInputMethod([](QString){return true;},[](QString,bool){return true;});
    c.inputContextChanged(true,false);
    // Conversation mode exercises modifier state without desktop authorization.
-   c.openLayout("keyboard-conversation-fullscreen",false);
+   c.openLayout("keyboard-conversation-bottom",false);
    QVERIFY(QMetaObject::invokeMethod(&c,"setTrackerConnected",Qt::DirectConnection,Q_ARG(bool,true)));
    auto sample=[&](bool valid){QVERIFY(QMetaObject::invokeMethod(&c,"receiveGaze",Qt::DirectConnection,Q_ARG(double,.5),Q_ARG(double,.5),Q_ARG(bool,valid),Q_ARG(qint64,0)));};
    sample(true);
@@ -1248,7 +1252,7 @@ private slots:
  }
  void sleepKeyTogglesByClick(){
   Controller controller;
-  for(const auto &name:{"keyboard-conversation-fullscreen"}){
+  for(const auto &name:{"keyboard-conversation-bottom"}){
    controller.recover();controller.openLayout(name,false);
    const auto keys=controller.property("layout").toMap()["keys"].toList();
    QString sleep;
@@ -1263,7 +1267,7 @@ private slots:
   }
  }
  void sleepKeyDwellResumesOnlyAfterLookingAway(){
-  Controller controller;controller.recover();controller.openLayout("keyboard-conversation-fullscreen",false);controller.setProperty("dwellMs",250);
+  Controller controller;controller.recover();controller.openLayout("keyboard-conversation-bottom",false);controller.setProperty("dwellMs",250);
   const auto keys=controller.property("layout").toMap()["keys"].toList();
   QString sleep;
   for(int i=0;i<keys.size();++i){
@@ -1294,7 +1298,7 @@ private slots:
   QVERIFY(controller.executeCommands({}));
  }
  void inactiveDesktopCancelsCommandsAndRejectsInput(){
-  Controller controller;controller.openLayout("keyboard-conversation-fullscreen",false);
+  Controller controller;controller.openLayout("keyboard-conversation-bottom",false);
   const auto name=controller.property("layoutName").toString();
   QVERIFY(controller.executeCommands({QVariantMap{{"tag","KeyDown"},{"text","LeftShift"}},
       QVariantMap{{"tag","Wait"},{"text","500"}},QVariantMap{{"tag","Text"},{"text","pending"}}}));
