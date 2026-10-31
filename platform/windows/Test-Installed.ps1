@@ -125,7 +125,21 @@ try {
     if ($ExpectTobii -and !$diagnostics.tobii.compiled) { throw 'Installed application was built without Tobii support.' }
     if (@(Get-ChildItem "$env:ProgramFiles/gaze-grid" -Recurse -File -Filter '*tobii*.dll').Count) { throw 'Installed package includes a forbidden Tobii runtime DLL.' }
     if (!$diagnostics.portal.tokenQuerySucceeded -or [bool]$diagnostics.portal.uiAccess -ne $expectedUIAccess) { throw "Unexpected UIAccess token in $mode installation." }
-    $process = Start-Process $installed -Verb Open -ArgumentList '--smoke' -WorkingDirectory $env:TEMP -PassThru
+    # Launch the real Start menu entry. Advertised MSI shortcuts can invoke
+    # installer repair instead of opening the application.
+    $shortcutPath = Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'gaze-grid/gaze-grid.lnk'
+    if (!(Test-Path -LiteralPath $shortcutPath)) { throw 'Start menu shortcut is missing.' }
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $null
+    try {
+        $shortcut = $shell.CreateShortcut($shortcutPath)
+        if ($shortcut.TargetPath -ne $installed) { throw 'Start menu shortcut must target the installed executable directly.' }
+        if ($shortcut.WorkingDirectory -ne (Split-Path $installed)) { throw 'Start menu shortcut has an incorrect working directory.' }
+    } finally {
+        if ($shortcut) { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcut) }
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell)
+    }
+    $process = Start-Process $shortcutPath -Verb Open -ArgumentList '--smoke' -WorkingDirectory $env:TEMP -PassThru
     $null = $process.Handle
     if (!$process.WaitForExit(30000)) { $process.Kill(); throw 'Installed application timed out.' }
     if ($process.ExitCode -ne 0) { throw "Installed application failed: $($process.ExitCode)" }
