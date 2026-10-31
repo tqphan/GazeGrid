@@ -58,16 +58,11 @@
              Winlogon selects the restricted UI and never sends Win+U. -->
         <RemoveRegistryValue Id="RemoveLegacySecureDesktopAccommodation" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\gaze-grid_gaze-grid_v1" Name="SecureDesktopAccommodation" />
         <RemoveRegistryValue Id="RemoveLegacySignInStartParams" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\ATs\gaze-grid_gaze-grid_v1" Name="StartParams" />
-        <!-- Direct shortcuts bypass MSI advertisement and its launch-time repair. -->
-        <File Id="gaze_gridSignedExe" Source="@CMAKE_BINARY_DIR@/Release/gaze-grid.exe" KeyPath="yes">
-          <Shortcut Id="gaze_gridSignedStart" Directory="gaze_gridMenu" Name="gaze-grid" Icon="gaze_grid.exe" IconIndex="0" Advertise="no" Target="[INSTALL_ROOT]gaze-grid.exe" WorkingDirectory="INSTALL_ROOT" />
-        </File>
+        <File Id="gaze_gridSignedExe" Source="@CMAKE_BINARY_DIR@/Release/gaze-grid.exe" KeyPath="yes" />
       </Component>
       <Component Id="gaze_gridUnsigned" Guid="3E438E06-166B-42FF-ACA1-D2344A875C76" Win64="yes">
         <Condition>GAZE_GRID_TRUST_CERTIFICATE &lt;&gt; "1"</Condition>
-        <File Id="gaze_gridUnsignedExe" Source="@CMAKE_BINARY_DIR@/unsigned/gaze-grid.exe" KeyPath="yes">
-          <Shortcut Id="gaze_gridUnsignedStart" Directory="gaze_gridMenu" Name="gaze-grid" Icon="gaze_grid.exe" IconIndex="0" Advertise="no" Target="[INSTALL_ROOT]gaze-grid.exe" WorkingDirectory="INSTALL_ROOT" />
-        </File>
+        <File Id="gaze_gridUnsignedExe" Source="@CMAKE_BINARY_DIR@/unsigned/gaze-grid.exe" KeyPath="yes" />
       </Component>
       <!-- Separate key path preserves app changes during repair. -->
       <Component Id="gaze_gridStartup" Guid="0C103E18-0AF3-4DCF-B160-E7483BB875CA" Win64="yes" NeverOverwrite="yes">
@@ -81,7 +76,6 @@
         </RegistryKey>
       </Component>
       <Component Id="gaze_gridMode" Guid="30BCF52D-69E3-4E56-813B-7FCA2DD5F966" Win64="yes">
-        <RemoveFolder Id="Removegaze_gridMenu" Directory="gaze_gridMenu" On="uninstall" />
         <RegistryValue Root="HKLM" Key="Software\gaze-grid\Installer" Name="TrustCertificate" Value="[GAZE_GRID_TRUST_CERTIFICATE]" Type="string" KeyPath="yes" />
         <RegistryValue Root="HKLM" Key="Software\gaze-grid\Installer" Name="SignIn" Value="[GAZE_GRID_SIGN_IN]" Type="string" />
       </Component>
@@ -93,6 +87,15 @@
         <iis:Certificate Id="gaze_gridTrust" Name="GazeGrid" BinaryKey="gaze_gridPublicCer" StoreLocation="localMachine" StoreName="root" Request="no" Overwrite="no" />
       </Component>
     </DirectoryRef>
+    <DirectoryRef Id="gaze_gridMenu">
+      <!-- One direct shortcut serves either executable without MSI advertisement.
+           Non-advertised shortcuts require their own HKCU registry key path. -->
+      <Component Id="gaze_gridStartMenu" Guid="81AE68C6-C223-4B3A-8C6A-ACCE614CBA76" Win64="yes">
+        <Shortcut Id="gaze_gridStart" Name="gaze-grid" Icon="gaze_grid.exe" IconIndex="0" Advertise="no" Target="[INSTALL_ROOT]gaze-grid.exe" WorkingDirectory="INSTALL_ROOT" />
+        <RemoveFolder Id="Removegaze_gridMenu" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\gaze-grid\Installer" Name="StartMenu" Value="1" Type="integer" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
     <DirectoryRef Id="TARGETDIR">
       <Directory Id="SystemFolder" />
       <Directory Id="ProgramMenuFolder">
@@ -102,6 +105,7 @@
     <ComponentGroup Id="gaze_gridExecutables">
       <ComponentRef Id="gaze_gridSigned" />
       <ComponentRef Id="gaze_gridUnsigned" />
+      <ComponentRef Id="gaze_gridStartMenu" />
       <ComponentRef Id="gaze_gridMode" />
       <ComponentRef Id="gaze_gridStartup" />
       <ComponentRef Id="gaze_gridSignInSettings" />
