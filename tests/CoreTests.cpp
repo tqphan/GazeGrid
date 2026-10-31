@@ -139,7 +139,7 @@ private slots:
     if(key["label"].toString()=="suction")phraseRow=row;
    }
    QVERIFY(typingRow>=0&&scratchRow>=0&&suggestionRow>=0&&phraseRow>=0);
-   if(QString(side)=="top")QVERIFY(typingRow<suggestionRow&&suggestionRow<scratchRow&&scratchRow<phraseRow);
+   if(QString(side)=="top")QVERIFY(suggestionRow==0&&suggestionRow<typingRow&&typingRow<scratchRow&&scratchRow<phraseRow);
    else QVERIFY(phraseRow<scratchRow&&scratchRow<suggestionRow&&suggestionRow<typingRow);
   }
  }

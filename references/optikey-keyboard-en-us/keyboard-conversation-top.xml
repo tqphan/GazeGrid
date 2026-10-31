@@ -28,6 +28,21 @@
   <KeyGroup Name="Mouse" />
   <KeyGroup Name="Gamepad" />
   <Content>
+    <!-- Row -->
+    <DynamicKey>
+      <Symbol>SuggestionLeftIcon</Symbol>
+      <Action>PreviousSuggestions</Action>
+      <KeyGroup>Navigation</KeyGroup>
+    </DynamicKey>
+    <SuggestionRow Width="12">
+      <KeyGroup>Suggestion</KeyGroup>
+      <KeyGroup>Predictions</KeyGroup>
+    </SuggestionRow>
+    <DynamicKey>
+      <Symbol>SuggestionRightIcon</Symbol>
+      <Action>NextSuggestions</Action>
+      <KeyGroup>Navigation</KeyGroup>
+    </DynamicKey>
     <!-- Row 1 -->
     <DynamicKey>
       <Symbol>CapsLockKeyIcon</Symbol>
@@ -388,21 +403,6 @@
       <KeyGroup>Punctuation</KeyGroup>
       <KeyGroup>Punctuations</KeyGroup>
     </DynamicKey>
-    <!-- Row -->
-    <DynamicKey>
-      <Symbol>SuggestionLeftIcon</Symbol>
-      <Action>PreviousSuggestions</Action>
-      <KeyGroup>Navigation</KeyGroup>
-    </DynamicKey>
-    <SuggestionRow Width="12">
-      <KeyGroup>Suggestion</KeyGroup>
-      <KeyGroup>Predictions</KeyGroup>
-    </SuggestionRow>
-    <DynamicKey>
-      <Symbol>SuggestionRightIcon</Symbol>
-      <Action>NextSuggestions</Action>
-      <KeyGroup>Navigation</KeyGroup>
-    </DynamicKey>
     <!-- Row 0 -->
     <DynamicKey>
       <Symbol>EraserIcon</Symbol>
@@ -419,8 +419,8 @@
       <KeyGroup>Modifiers</KeyGroup>
     </DynamicKey>
     <DynamicKey>
-      <Symbol>MoonZzzIcon</Symbol>
-      <Action>Sleep</Action>
+      <Symbol>PreviousSpeechProfileIcon</Symbol>
+      <Action>PreviousSpeechProfile</Action>
       <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
@@ -454,15 +454,15 @@
       <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
-      <Symbol>NoIcon</Symbol>
-      <Action>BackFromKeyboard</Action>
+      <Symbol>NextSpeechProfileIcon</Symbol>
+      <Action>NextSpeechProfile</Action>
       <KeyGroup>Exit</KeyGroup>
-      <KeyGroup>Navigation</KeyGroup>
+      <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <!-- Row 0 -->
     <DynamicKey>
-      <Symbol>PreviousSpeechProfileIcon</Symbol>
-      <Action>PreviousSpeechProfile</Action>
+      <Symbol>MoonZzzIcon</Symbol>
+      <Action>Sleep</Action>
       <KeyGroup>Others</KeyGroup>
     </DynamicKey>
     <DynamicKey Width="2">
@@ -496,10 +496,10 @@
       <KeyGroup>Conversations</KeyGroup>
     </DynamicKey>
     <DynamicKey>
-      <Symbol>NextSpeechProfileIcon</Symbol>
-      <Action>NextSpeechProfile</Action>
+      <Symbol>NoIcon</Symbol>
+      <Action>BackFromKeyboard</Action>
       <KeyGroup>Exit</KeyGroup>
-      <KeyGroup>Others</KeyGroup>
+      <KeyGroup>Navigation</KeyGroup>
     </DynamicKey>
   </Content>
 </Keyboard>
