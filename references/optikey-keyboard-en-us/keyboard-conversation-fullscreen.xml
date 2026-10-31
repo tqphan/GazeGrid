@@ -15,17 +15,6 @@
   </Grid>
   <HideFromKeyboardMenu>true</HideFromKeyboardMenu>
   <PersistNewState>false</PersistNewState>
-  <!-- <KeyGroup Name="All" BackgroundColor="#333333" KeyDisabledBackground="gray"
-  KeyDownBackground="blue" /> -->
-  <!-- <KeyGroup Name="Modifier" BackgroundColor="#570211"/>
-  <KeyGroup Name="Navigation" BackgroundColor="#004540"/>
-  <KeyGroup Name="Alphabet" BackgroundColor="#434343" ForegroundColor="#ffffff"/>
-  <KeyGroup Name="Numeric" BackgroundColor="#2a2640" ForegroundColor="#ffffff"/>
-  <KeyGroup Name="Edit" BackgroundColor="#2a2640"/>
-  <KeyGroup Name="Punctuation" BackgroundColor="#7e3110"/>
-  <KeyGroup Name="Pagination" BackgroundColor="#10394c"/>
-  <KeyGroup Name="Exit" BackgroundColor="#0c240c"/>
-  <KeyGroup Name="Mirror" BackgroundColor="#0c240c"/> -->
   <KeyGroup Name="Alphabet" />
   <KeyGroup Name="Numbers" />
   <KeyGroup Name="Punctuations" />
