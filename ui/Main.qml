@@ -18,7 +18,7 @@ Window {
  // Keep coordinates current before entering edit mode as well.
  HoverHandler {id:canvasHover}
  property var dwellStyleIds: ["bar","top-bar","fill","fill-down","fill-left","fill-right","outline","ring","pie","collapse","expand"]
- property var dwellStyleNames: ["Bottom bar","Top bar","Fill bottom to top","Fill top to bottom","Fill left to right","Fill right to left","Outline","Ring","Pie","Collapse","Expand"]
+ property var dwellStyleNames: ["Bottom Bar","Top Bar","Fill Up","Fill Down","Fill Right","Fill Left","Outline Trace","Ring Progress","Pie Progress","Shrink Inward","Grow Outward"]
  property real progress: 0
  property var overlapProgress: ({})
  readonly property bool overlapEnabled:controller.layout.layoutMode==="canvas"&&controller.layout.activateoverlappingkeys===true&&!controller.sizeMoveMode
@@ -887,7 +887,7 @@ Window {
        SettingSlider {label:"Target dwell movement tolerance";displayValue:controller.targetDwellRadius+" px";from:10;to:100;stepSize:5;value:controller.targetDwellRadius;enabled:controller.targetDwellEnabled;onMoved:controller.targetDwellRadius=value}
        Desktop.Label {text:"Progress style"}
        SettingsComboBox {
-        objectName:"targetProgressStyleSelector";Layout.fillWidth:true;model:["Ring","Pie","Shrinking ring"]
+        objectName:"targetProgressStyleSelector";Layout.fillWidth:true;model:["Ring Progress","Pie Progress","Ring Shrink"]
         currentIndex:["ring","pie","shrink"].indexOf(controller.targetProgressStyle)
         onActivated:controller.targetProgressStyle=["ring","pie","shrink"][currentIndex]
         Accessible.name:"Progress style"
