@@ -22,7 +22,7 @@ bool ActionRunner::cycleModifier(const QString &name){
     if(!key(name,true,true))return false;
     latched.insert(name);emit stateChanged();return true;
 }
-ActionRunner::ActionRunner(QObject *parent):QObject(parent){timer.setSingleShot(true);connect(&timer,&QTimer::timeout,this,&ActionRunner::step);}
+ActionRunner::ActionRunner(QObject *parent):QObject(parent){timer.setSingleShot(true);timer.setTimerType(Qt::PreciseTimer);connect(&timer,&QTimer::timeout,this,&ActionRunner::step);}
 bool ActionRunner::isHeld(const QString &k)const{return held.contains(KeyNames::canonical(k));}
 bool ActionRunner::shifted()const{return isHeld("LSHIFT")||isHeld("RSHIFT");}
 bool ActionRunner::shortcutHeld()const{return isHeld("LCONTROL")||isHeld("RCONTROL")||isHeld("LMENU")||isHeld("RMENU")||isHeld("LWIN")||isHeld("RWIN");}
