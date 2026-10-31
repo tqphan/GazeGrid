@@ -661,7 +661,7 @@ private slots:
   }
  }
  void actionCoverageListsMissingPackFeatures(){
-  auto report=KeyboardPack::audit(PACK_PATH);QCOMPARE(report["layouts"].toList().size(),31);
+  auto report=KeyboardPack::audit(PACK_PATH);QCOMPARE(report["layouts"].toList().size(),32);
   QVERIFY(report["unsupportedActions"].toStringList().isEmpty());
   QVERIFY(!report["behavioralParityVerified"].toBool());
  }
@@ -1080,7 +1080,7 @@ private slots:
  }
  void explicitActivationDoesNotFireAgain(){Dwell d;d.consume("Pause",0);for(int t=25;t<1500;t+=25)QVERIFY(!d.update("Pause",t,500));d.update("",1500,500);QVERIFY(!d.update("Pause",1550,500));}
  void changingTargetCancels(){Dwell d;d.update("a",0,150);d.update("a",100,150);QVERIFY(!d.update("b",160,150));QVERIFY(!d.update("b",260,150));QVERIFY(d.update("b",310,150));}
- void packLoadsAndLinksResolve(){auto r=KeyboardPack::audit(PACK_PATH);QCOMPARE(r["fileCount"].toInt(),31);QCOMPARE(r["keyCount"].toInt(),765);QVERIFY2(r["errors"].toStringList().isEmpty(),qPrintable(r["errors"].toStringList().join('\n')));}
+ void packLoadsAndLinksResolve(){auto r=KeyboardPack::audit(PACK_PATH);QCOMPARE(r["fileCount"].toInt(),32);QCOMPARE(r["keyCount"].toInt(),841);QVERIFY2(r["errors"].toStringList().isEmpty(),qPrintable(r["errors"].toStringList().join('\n')));}
  void textPreservesWhitespaceAndOrder(){
   QTemporaryDir dir;QFile f(dir.filePath("test.xml"));QVERIFY(f.open(QIODevice::WriteOnly));f.write("<Keyboard><DynamicKey row=\"2\"><KeyDown>LSHIFT</KeyDown><Text>&#9;</Text><Wait>50</Wait><KeyUp>LSHIFT</KeyUp></DynamicKey></Keyboard>");f.close();
   auto r=KeyboardPack::load(f.fileName());auto key=r["children"].toList()[0].toMap();QCOMPARE(key["attributes"].toMap()["row"].toString(),QString("2"));

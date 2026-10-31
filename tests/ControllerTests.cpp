@@ -1238,7 +1238,7 @@ private slots:
  void keyboardMenuHonorsXmlVisibility(){
   Controller controller;
   QCOMPARE(controller.property("menuLayoutNames").toStringList(),QStringList({"game-controller","main-14x1-top","size-move-demo"}));
-  QCOMPARE(controller.property("layoutNames").toStringList().size(),31);
+  QCOMPARE(controller.property("layoutNames").toStringList().size(),32);
   controller.openLayout("minimized-off-screen-bottom");
   QCOMPARE(controller.property("layoutName").toString(),QString("minimized-off-screen-bottom"));
   controller.recover();QCOMPARE(controller.property("layoutName").toString(),QString("main-14x1-bottom"));
